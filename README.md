@@ -20,7 +20,7 @@ Six programs defined in `AGENTS-SECTION.md` and executed by the heartbeat tasks 
 - **Durable insight capture.** When something meaningful happened, file it. Batched signalling, co-created placement, no stubs.
 - **PARA knowledge graph.** Projects, areas, resources, archives at workspace root per the established convention. Auto-create when placement is obvious; ask when ambiguous.
 - **Workspace tidiness.** Empty dirs, orphans, stale run-logs, archive hygiene. Suggest before touching anything unfamiliar.
-- **Git hygiene.** Commit meaningful drift, one concern per commit, never `git add -A`, no AI attribution. Consult before non-obvious `.gitignore` additions.
+- **Git hygiene.** Commit and push meaningful drift, one concern per commit, never `git add -A`, no AI attribution. Consult before non-obvious `.gitignore` additions.
 - **Health sweep.** Surface anomalies with likely causes and proposed resolutions. Never auto-repair configs.
 
 ## How it runs

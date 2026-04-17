@@ -53,9 +53,9 @@ tasks:
 
     Part B - git hygiene:
     1. `git status`. If clean, skip.
-    2. Group dirty files into logical commits - one concern per commit. Stage by exact path. Commit with workspace-style messages. No AI attribution lines. No `--no-verify`.
-    3. For new ephemeral patterns (caches, logs, build output), add to `.gitignore` and commit that. Non-obvious new files: ask.
-    4. Stop and surface if the tree is mid-rebase, detached, or conflicted.
+    2. Group dirty files into logical commits - one concern per commit. Stage by exact path. Commit with workspace-style messages, then push immediately after each commit. Unpushed commits are invisible to other sessions. No AI attribution lines. No `--no-verify`.
+    3. For new ephemeral patterns (caches, logs, build output), add to `.gitignore`, commit, and push. Non-obvious new files: ask.
+    4. Stop and surface if the tree is mid-rebase, detached, or conflicted, or if a push fails (network, auth, protected branch).
 
     Part C - health sweep:
     1. Check `openclaw cron list` for recently failed runs; report the last 1-2 failure reasons per failing job.

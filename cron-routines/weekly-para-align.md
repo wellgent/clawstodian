@@ -40,7 +40,7 @@ Single-run job. The cron is scheduled weekly; it fires, completes, and waits for
 
 ## Commit
 
-Add only the files you changed - never `git add -A`. Commit message: `para: weekly align YYYY-Www - <summary>`. No AI attribution lines.
+Add only the files you changed - never `git add -A`. Commit message: `para: weekly align YYYY-Www - <summary>`. Push immediately after the commit. No AI attribution lines.
 
 ## Failure handling
 

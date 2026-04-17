@@ -30,7 +30,7 @@ The design is still minimal, but minimal in the right places. The programs thems
 
 4. **Workspace tidiness.** Empty dirs, orphans, stale run-logs, `.gitignore` drift, archive hygiene. Does obvious things directly; suggests for anything unfamiliar. Replaces `ops-clean` sweep.
 
-5. **Git hygiene.** Commits meaningful drift, one concern per commit, never `git add -A`, no AI attribution, no `--no-verify`. Adds obvious ephemeral patterns to `.gitignore`; asks the user for non-obvious cases. Replaces `ops-clean` git.
+5. **Git hygiene.** Commits and pushes meaningful drift, one concern per commit, never `git add -A`, no AI attribution, no `--no-verify`. Adds obvious ephemeral patterns to `.gitignore`; asks the user for non-obvious cases. Replaces `ops-clean` git.
 
 6. **Health sweep.** Surfaces workspace anomalies with likely causes: failed cron runs, stale configs, broken symlinks, template drift. Proposes resolution; does not auto-repair configs silently.
 
