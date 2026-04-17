@@ -1,9 +1,7 @@
 <!-- template: clawstodian/heartbeat-section 2026-04-16 -->
 # Heartbeat checklist
 
-This file is read fresh every heartbeat tick. OpenClaw parses the `tasks:` block and only runs tasks whose interval has elapsed. Everything below guides what the agent does when a task is due.
-
-The authority and boundaries for each action live in `AGENTS.md` under the clawstodian programs. This file is the operational loop.
+Read fresh every heartbeat tick. OpenClaw parses the `tasks:` block and runs only tasks whose interval has elapsed. Authority and boundaries for each action live in `AGENTS.md` under the clawstodian programs.
 
 tasks:
 

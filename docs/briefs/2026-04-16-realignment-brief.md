@@ -56,11 +56,11 @@ The agent is a scribe, not an architect. The workspace structure belongs to the 
 
 ## Distribution model
 
-Borrowed from `gbrain`: one-line install for a running agent.
+Borrowed in spirit from `gbrain`: agent-driven install. The operator tells their running agent:
 
-> `Retrieve and follow the instructions at: https://raw.githubusercontent.com/<org>/clawstodian/main/INSTALL_FOR_AGENTS.md`
+> Install clawstodian into my workspace. Follow `INSTALL_FOR_AGENTS.md` in the clawstodian repo.
 
-The agent reads `INSTALL_FOR_AGENTS.md`, surveys the target workspace, proposes a merge plan for `AGENTS.md` / `HEARTBEAT.md` / reference templates, asks any gating questions, applies on approval, applies the heartbeat config snippet, and runs a verification pass. Never overwrites operator content silently.
+The agent locates (or clones) the package, reads `INSTALL_FOR_AGENTS.md`, surveys the target workspace, proposes a merge plan for `AGENTS.md` / `HEARTBEAT.md` / reference templates, asks any gating questions, applies on approval, applies the heartbeat config snippet, and runs a verification pass. Never overwrites operator content silently.
 
 ## Deliverables for this iteration
 

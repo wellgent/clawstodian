@@ -51,7 +51,7 @@ If any step fails, the reply surfaces what failed and why. Do NOT attempt partia
 Single line summary to the session:
 
 ```
-weekly-para-align YYYY-Www: verified N · trivial fixes M · proposals K (awaiting operator)
+weekly-para-align YYYY-Www: verified N | trivial fixes M | proposals K (awaiting operator)
 ```
 
 ## What NOT to do

@@ -4,13 +4,13 @@ A sharable OpenClaw agent package that turns a workspace into a heartbeat-driven
 
 Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenClaw primitives, far fewer moving parts.
 
-## One-line install for an agent
+## Install via an agent
 
-Paste into a running OpenClaw or Claude Code session:
+Tell your running OpenClaw or Claude Code agent:
 
-> Retrieve and follow the instructions at: `https://raw.githubusercontent.com/<org>/clawstodian/main/INSTALL_FOR_AGENTS.md`
+> Install clawstodian into my workspace. Follow `INSTALL_FOR_AGENTS.md` in the clawstodian repo.
 
-The agent clones the package, surveys your workspace, proposes a merge plan, asks whatever it needs to ask, and applies on your approval. Nothing is overwritten silently.
+The agent locates (or clones) the package, surveys your workspace, proposes a merge plan, asks whatever it needs to ask, and applies on your approval. Nothing is overwritten silently.
 
 ## What it does
 
@@ -38,15 +38,9 @@ The maintainer is a scribe, not an architect. Four rules it runs by:
 3. Signal in batches: one "filed / committed / surfaced" summary per tick, not per action.
 4. Surface problems with likely causes and one or two resolution paths. Do not just alert; collaborate.
 
-## Manual install (for non-agent users)
+## Manual install (without an agent)
 
-```bash
-git clone https://github.com/<org>/clawstodian.git ~/clawstodian
-cd ~/clawstodian
-less INSTALL_FOR_AGENTS.md
-```
-
-Follow the steps yourself, or paste the one-line install into a running agent and let it do the work.
+Clone the clawstodian repo to a stable location (`~/clawstodian` is the default the install flow assumes), open `INSTALL_FOR_AGENTS.md`, and follow the steps yourself. Everything the install does is explicit and reversible.
 
 ## Repo shape
 
@@ -89,7 +83,7 @@ clawstodian/
         every: "2h",
         isolatedSession: true,
         includeReasoning: false,
-        target: "<your-maintainer-channel-id>",  // or "last" to use the agent's most-recent channel
+        target: "<your-maintainer-channel-id>",  // recommended: explicit channel ID; fallback: "last"
         activeHours: {
           start: "08:00",
           end: "22:00",
@@ -112,7 +106,7 @@ clawstodian/
 
 `isolatedSession: true` is deliberate: cross-tick memory lives in the workspace, not in session history. Every tick reads what it needs from files, acts, writes its observations back, and forgets. The full workspace bootstrap loads each tick and caches across ticks, so the agent always has its authorities (`AGENTS.md`) and workspace map (`MEMORY.md`) without paying to reload them from scratch.
 
-Set `target` to a dedicated channel (Telegram chat, Slack channel, Discord channel ID) if you want a single place for all maintainer updates. `"last"` works if you prefer the heartbeat to land wherever the agent last spoke.
+**Recommended:** set `target` to a dedicated channel ID (Telegram chat ID, Slack channel ID, Discord channel ID) so maintainer updates land in one predictable place. **Fallback:** `"last"` tells the heartbeat to deliver wherever the agent most recently spoke - easier to configure but mixes maintainer output into your regular agent channel.
 
 ## Status
 
