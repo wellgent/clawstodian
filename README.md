@@ -88,6 +88,7 @@ clawstodian/
 
   docs/
     architecture.md                  first-principles design
+    writing-a-program.md             guide for adding new programs (heartbeat, burst, cron)
     briefs/
       2026-04-16-realignment-brief.md        v0.2 scope brief
 
