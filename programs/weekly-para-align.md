@@ -63,14 +63,14 @@ weekly-para-align YYYY-Www: verified N | trivial fixes M | proposals K (awaiting
 
 ## Install
 
-Prerequisite: the workspace has a `clawstodian/` directory with symlinks to the package's `cron-routines/*.md` files. `INSTALL_FOR_AGENTS.md` creates this during setup; if you are adding this routine later, create the symlink first:
+Prerequisite: the workspace has a `clawstodian/programs` symlink to the package's `programs/` directory. `INSTALL_FOR_AGENTS.md` creates this during setup; if you are adding this routine later, create it first:
 
 ```bash
 mkdir -p clawstodian
-ln -sf ~/clawstodian/cron-routines/weekly-para-align.md clawstodian/weekly-para-align.md
+ln -sf ~/clawstodian/programs clawstodian/programs
 ```
 
-Register the cron:
+Register the cron. Summaries announce to the workspace's maintainer logs channel (replace `<your-logs-channel-id>`):
 
 ```bash
 openclaw cron add \
@@ -78,11 +78,11 @@ openclaw cron add \
   --cron "0 6 * * 0" \
   --session isolated \
   --light-context \
-  --no-deliver \
-  --message "Read clawstodian/weekly-para-align.md and execute."
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/programs/weekly-para-align.md and execute."
 ```
 
-Runs Sunday 06:00 in the host's local timezone. Starts enabled (unlike `close-of-day`, this is a plain scheduled job - no demand-driven toggling).
+Runs Sunday 06:00 in the host's local timezone. Starts enabled (unlike `close-of-day`, this is a plain scheduled job - no demand-driven toggling). Substitute `--no-deliver` if the operator prefers no delivery.
 
 ## Verify
 

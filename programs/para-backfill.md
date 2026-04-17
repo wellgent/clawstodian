@@ -85,14 +85,14 @@ para-backfill YYYY-MM-DD: <processed|skipped|failed> | entities <n updated, m cr
 
 ## Install
 
-Prerequisite: the workspace has a `clawstodian/` directory with symlinks to the package's `cron-routines/*.md` files. If you are adding this routine later, create the symlink first:
+Prerequisite: the workspace has a `clawstodian/programs` symlink to the package's `programs/` directory. If you are adding this routine later, create it first:
 
 ```bash
 mkdir -p clawstodian
-ln -sf ~/clawstodian/cron-routines/para-backfill.md clawstodian/para-backfill.md
+ln -sf ~/clawstodian/programs clawstodian/programs
 ```
 
-Register the cron with operator confirmation. Starts disabled; heartbeat enables it on demand.
+Register the cron with operator confirmation. Starts disabled; heartbeat enables it on demand. Summaries announce to the workspace's maintainer logs channel (replace `<your-logs-channel-id>`):
 
 ```bash
 openclaw cron add \
@@ -101,9 +101,11 @@ openclaw cron add \
   --disabled \
   --session isolated \
   --light-context \
-  --no-deliver \
-  --message "Read clawstodian/para-backfill.md and execute."
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/programs/para-backfill.md and execute."
 ```
+
+Substitute `--no-deliver` if the operator prefers no delivery. The runner only announces on non-empty, non-`NO_REPLY` replies.
 
 ## Verify
 

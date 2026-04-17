@@ -106,14 +106,14 @@ close-of-day YYYY-MM-DD: <sealed|skipped|failed> | sections N->N | para_status: 
 
 ## Install
 
-Prerequisite: the workspace has a `clawstodian/` directory with symlinks to the package's `cron-routines/*.md` files. `INSTALL_FOR_AGENTS.md` creates this during setup; if you are adding this routine later, create the symlink first:
+Prerequisite: the workspace has a `clawstodian/programs` symlink to the package's `programs/` directory. `INSTALL_FOR_AGENTS.md` creates this during setup; if you are adding this routine later, create it first:
 
 ```bash
 mkdir -p clawstodian
-ln -sf ~/clawstodian/cron-routines/close-of-day.md clawstodian/close-of-day.md
+ln -sf ~/clawstodian/programs clawstodian/programs
 ```
 
-Register the cron with operator confirmation. Starts disabled; the heartbeat enables on demand.
+Register the cron with operator confirmation. Starts disabled; the heartbeat enables on demand. Summaries announce to the workspace's maintainer logs channel (replace `<your-logs-channel-id>` with your Discord/Slack/Telegram channel id):
 
 ```bash
 openclaw cron add \
@@ -122,9 +122,11 @@ openclaw cron add \
   --disabled \
   --session isolated \
   --light-context \
-  --no-deliver \
-  --message "Read clawstodian/close-of-day.md and execute."
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/programs/close-of-day.md and execute."
 ```
+
+If the operator prefers no delivery, substitute `--no-deliver`. The runner only announces when the agent's reply is non-empty and non-`NO_REPLY`, so quiet runs stay quiet.
 
 ## Verify
 
