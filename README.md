@@ -26,7 +26,7 @@ Six programs defined in `AGENTS-SECTION.md` and executed by the heartbeat tasks 
 ## How it runs
 
 - **Heartbeat** is the orchestrator. On a default 2-hour cadence, due tasks in `HEARTBEAT.md` run the programs. Each tick runs in an isolated session with the full workspace bootstrap (`AGENTS.md`, `MEMORY.md`, etc.) loaded and cached across ticks.
-- **Cron** is optional. Two recipes ship: `close-of-day` (`every 30m` while enabled; heartbeat enables on demand when past-day notes accumulate; self-disables when queue empty) and `weekly-para-align` (simple `Sunday 06:00` verification pass).
+- **Cron** is optional. Three recipes ship: `close-of-day` (`every 30m` while enabled; heartbeat enables on demand when past-day notes accumulate; self-disables when queue empty), `para-backfill` (`every 30m` while enabled; heartbeat enables on demand when sealed notes are queued for PARA propagation; self-disables when queue empty), and `weekly-para-align` (simple `Sunday 06:00` verification pass).
 - **No package state files.** Git, daily notes, PARA entities, and session transcripts are the ledger.
 
 ## Co-creation, not automation
@@ -60,6 +60,7 @@ clawstodian/
 
   cron-routines/
     close-of-day.md                  past-day sealing burst (opt-in, demand-driven)
+    para-backfill.md                 sealed-note PARA propagation burst (opt-in, demand-driven)
     weekly-para-align.md             weekly PARA integrity burst (opt-in, scheduled)
 
   docs/

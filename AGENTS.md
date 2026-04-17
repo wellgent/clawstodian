@@ -36,7 +36,7 @@ v0.2-draft. See `docs/briefs/2026-04-16-realignment-brief.md` for the active sco
 - `AGENTS-SECTION.md` - workspace maintainer charter and the six program definitions.
 - `HEARTBEAT-SECTION.md` - heartbeat tasks block that runs the programs.
 - `templates/` - installable workspace reference docs (`para-structure.md`, `daily-note-structure.md`, `MEMORY.md`, `crons.md`).
-- `cron-routines/` - opt-in cron routines (`close-of-day.md`, `weekly-para-align.md`). Each file holds the full run instructions plus an install command at the bottom. Cron `--message` is a one-liner pointing back to the routine.
+- `cron-routines/` - opt-in cron routines (`close-of-day.md`, `para-backfill.md`, `weekly-para-align.md`). Each file holds the full run instructions plus an install command at the bottom. Cron `--message` is a one-liner pointing back to the routine.
 - `docs/architecture.md` - first-principles design.
 - `docs/briefs/` - scope briefs.
 

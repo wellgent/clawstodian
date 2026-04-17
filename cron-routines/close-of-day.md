@@ -1,13 +1,12 @@
 # close-of-day
 
-Seal one unsealed past-day daily note per run. Demand-driven: starts disabled; heartbeat `daily-notes-tend` enables when past-day notes accumulate; self-disables when the queue is empty.
+Seal one unsealed past-day daily note per run. Demand-driven: starts disabled; heartbeat enables when past-day notes accumulate; self-disables when the queue is empty.
 
 ## References
 
 - Daily note format -> `memory/daily-note-structure.md`
-- PARA conventions -> `memory/para-structure.md`
 
-Read `memory/daily-note-structure.md` before sealing. It defines the output format. Do not reinvent it here.
+Read `memory/daily-note-structure.md` before sealing. It defines the output format and the PARA handoff marker. Do not reinvent it here.
 
 ## Exec safety
 
@@ -34,8 +33,10 @@ Before the full seal, inspect the note body (excluding frontmatter):
 If **<=2 sections and <=1KB body**, fast-path:
 - Standardize frontmatter per `memory/daily-note-structure.md`.
 - Write a 1-2 sentence day summary if missing.
-- Flip `status: active` -> `status: sealed`. Update `last_updated`.
-- Commit. Skip the merge / organize / PARA steps.
+- Flip `status: active` -> `status: sealed`.
+- Leave or set `para_status: pending`.
+- Update `last_updated`.
+- Commit. Skip the merge / organize steps.
 
 This prevents expensive compute on "quiet day - no user interactions" notes.
 
@@ -68,15 +69,9 @@ This prevents expensive compute on "quiet day - no user interactions" notes.
 
 **Thread continuity.** When a section clearly continues work from a previous day (same project, topic, or person interaction spanning days), add `(continued from YYYY-MM-DD)` in the section body. Only when the continuation is unambiguous.
 
-**Flip `status: active` -> `status: sealed`. Update `last_updated` to the current ISO timestamp.**
+**Flip `status: active` -> `status: sealed`. Leave or set `para_status: pending`. Update `last_updated` to the current ISO timestamp.**
 
-## PARA entity detection
-
-After sealing, walk the note and detect candidates per `memory/para-structure.md` thresholds:
-- **Obvious placement** (existing entity, or clear new entity matching naming): create or update in place.
-- **Ambiguous placement**: do NOT create. Note the candidate in the reply so the next heartbeat `para-tend` surfaces it to the operator.
-
-Update any touched `INDEX.md`. Update root `MEMORY.md` only when a new project is listed.
+Do not perform PARA extraction here. `para-backfill` owns sealed-note propagation into PARA.
 
 ## After processing
 
@@ -89,7 +84,7 @@ Update any touched `INDEX.md`. Update root `MEMORY.md` only when a new project i
    openclaw cron disable close-of-day
    ```
 
-The cron stays dormant until the heartbeat `daily-notes-tend` re-enables it when new past-day notes accumulate.
+The cron stays dormant until heartbeat re-enables it when new past-day notes accumulate.
 
 **Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron remove`.** Remove deletes the cron permanently.
 
@@ -106,7 +101,7 @@ If any step fails (note unreadable, API overload, disk IO error): do NOT disable
 Single line summary to the session. The cron runs `--no-deliver`, so this lands nowhere external - but the session transcript captures it for the health sweep:
 
 ```
-close-of-day YYYY-MM-DD: <sealed|skipped|failed> | sections N->N | PARA <n created, m ambiguous> | queue: <remaining> | cron: <enabled|disabled>
+close-of-day YYYY-MM-DD: <sealed|skipped|failed> | sections N->N | para_status: pending | queue: <remaining> | cron: <enabled|disabled>
 ```
 
 ## Install

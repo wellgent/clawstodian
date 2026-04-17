@@ -52,6 +52,7 @@ Read these files in order and build a mental model of the install:
 - `~/clawstodian/templates/MEMORY.md` - dashboard skeleton.
 - `~/clawstodian/templates/crons.md` - cron routine catalog.
 - `~/clawstodian/cron-routines/close-of-day.md` - close-of-day burst.
+- `~/clawstodian/cron-routines/para-backfill.md` - sealed-note PARA backfill burst.
 - `~/clawstodian/cron-routines/weekly-para-align.md` - weekly align burst.
 
 ## Step 3 - Survey the target workspace
@@ -62,7 +63,7 @@ Before proposing any change, read what the operator already has. Specifically ch
 2. Workspace `HEARTBEAT.md` - does it exist? If yes, does it already contain a clawstodian section (template marker `clawstodian/heartbeat-section`)?
 3. Workspace `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md` - which already exist?
 4. Workspace PARA folders - `projects/`, `areas/`, `resources/`, `archives/`. Which already exist, which are populated?
-5. Existing cron jobs - `openclaw cron list`. Note any `close-of-day` or `weekly-para-align` jobs already present.
+5. Existing cron jobs - `openclaw cron list`. Note any `close-of-day`, `para-backfill`, or `weekly-para-align` jobs already present.
 6. Current heartbeat config - typically `~/.openclaw/config.toml` or `~/.openclaw/config.json`. If not at a standard path, ask the operator where it lives. Note current `every`, `isolatedSession`, `target`, `activeHours`, and channel heartbeat visibility flags (`showOk`, `showAlerts`, `useIndicator`).
 7. Existing ops-* packages - check for `ops/daily/`, `ops/para/`, `ops/clean/` directories in the workspace, and for legacy cron jobs via `openclaw cron list` (names starting with `daily-`, `para-`, `clean-`). Their presence is not a blocker; note it so Step 4 can surface the overlap.
 
@@ -75,7 +76,7 @@ Produce a short, explicit plan for the operator. Items in the order the install 
 - **Reference templates** - for each of `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`: install from clawstodian template, skip (already exists with non-clawstodian content), or update (exists with an older clawstodian template marker)?
 - **PARA folders** - create missing top-level `projects/`, `areas/`, `resources/`, `archives/` if not present? (ask; some workspaces may prefer different names)
 - **Workspace `clawstodian/` directory** - create it with symlinks to the package's cron-routine files so the crons can reference them via short workspace-relative paths. Prerequisite for any cron routine install; a one-time setup.
-- **Cron routines** - the two cron jobs are opt-in. Offer both, ask which to install. `close-of-day` starts disabled and is enabled by the heartbeat on demand; `weekly-para-align` is a plain scheduled job.
+- **Cron routines** - the cron jobs are opt-in. Offer the routines the operator wants. `close-of-day` starts disabled and is enabled by the heartbeat on demand, `para-backfill` starts disabled and is enabled by the heartbeat when sealed-note backlog exists, and `weekly-para-align` is a plain scheduled job.
 - **Heartbeat config** - show the recommended snippet from `~/clawstodian/README.md` ("Recommended heartbeat config") and propose merging it into the operator's config. If the workspace already has heartbeat enabled with different settings, compare current vs. proposed field-by-field and let the operator choose which values to adopt (some operators have workspace-specific cadence or active-hours they want to keep). Apply this last, after the workspace has everything the heartbeat will need.
 
 **If Step 3 detected ops-* packages** (directories or legacy crons), prepend this advisory to the plan:
@@ -91,7 +92,7 @@ When the operator approves a specific item, apply it:
 - **Appending to AGENTS.md or HEARTBEAT.md**: append the section verbatim from the clawstodian file. Preserve everything already in the file above and below. Include the template marker comment.
 - **Installing reference templates**: copy from `~/clawstodian/templates/<file>` to the workspace path. Preserve the template marker.
 - **Creating PARA folders**: create the folders and add an empty `INDEX.md` in each with just `# <folder name> INDEX` as the header.
-- **Creating `clawstodian/` workspace directory**: run `mkdir -p clawstodian && ln -sf ~/clawstodian/cron-routines/close-of-day.md clawstodian/close-of-day.md && ln -sf ~/clawstodian/cron-routines/weekly-para-align.md clawstodian/weekly-para-align.md` from the workspace root. The symlinks let cron `--message` use short workspace-relative paths like `"Read clawstodian/close-of-day.md and execute."`.
+- **Creating `clawstodian/` workspace directory**: run `mkdir -p clawstodian && ln -sf ~/clawstodian/cron-routines/close-of-day.md clawstodian/close-of-day.md && ln -sf ~/clawstodian/cron-routines/para-backfill.md clawstodian/para-backfill.md && ln -sf ~/clawstodian/cron-routines/weekly-para-align.md clawstodian/weekly-para-align.md` from the workspace root. The symlinks let cron `--message` use short workspace-relative paths like `"Read clawstodian/close-of-day.md and execute."`.
 - **Adding cron routines**: follow the `## Install` section in each routine file (e.g. `~/clawstodian/cron-routines/close-of-day.md`). The install command is ready to run as-is; just execute it with operator confirmation. Each routine specifies whether it starts disabled or enabled.
 - **Applying heartbeat config**: show the exact diff the operator would apply to their OpenClaw config. For `target`: ask the operator for a dedicated channel ID (Telegram chat ID, Slack channel ID, Discord channel ID) - this is the recommended setup. If they do not have one handy, default to `target: "last"` with a note that they can switch to an explicit channel later. Let them apply the diff themselves, or, with explicit confirmation, apply it for them via the openclaw CLI.
 
@@ -143,6 +144,7 @@ If the operator decides to remove clawstodian, do the reverse of the install wit
 
    ```bash
    openclaw cron disable close-of-day && openclaw cron remove close-of-day
+   openclaw cron disable para-backfill && openclaw cron remove para-backfill
    openclaw cron disable weekly-para-align && openclaw cron remove weekly-para-align
    ```
 

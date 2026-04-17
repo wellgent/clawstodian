@@ -12,6 +12,15 @@ Seals one past-day daily note per run with disk-fidelity. Self-disables when the
 
 Install: `~/clawstodian/cron-routines/close-of-day.md`.
 
+## para-backfill
+
+Propagates one sealed daily note into PARA per run. Self-disables when the queue is empty.
+
+- Schedule: `every 30m` (while enabled)
+- Starts disabled. Heartbeat enables it when sealed notes with `para_status: pending` exist.
+
+Install: `~/clawstodian/cron-routines/para-backfill.md`.
+
 ## weekly-para-align
 
 Verifies PARA structural integrity once per ISO week.
@@ -26,6 +35,7 @@ Install: `~/clawstodian/cron-routines/weekly-para-align.md`.
 ```
 DEMAND-DRIVEN (starts disabled)
 every 30m     close-of-day
+every 30m     para-backfill
 
 WEEKLY
 Sunday 06:00  weekly-para-align
