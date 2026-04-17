@@ -10,7 +10,7 @@ Seals one past-day daily note per run with disk-fidelity. Self-disables when the
 - Schedule: `every 30m` (while enabled)
 - Starts disabled. Heartbeat `daily-notes-tend` enables it when past-day notes with `status: active` exist.
 
-Install: `~/clawstodian/cron-recipes/close-of-day.md`.
+Install: `~/clawstodian/cron-routines/close-of-day.md`.
 
 ## weekly-para-align
 
@@ -19,7 +19,7 @@ Verifies PARA structural integrity once per ISO week.
 - Schedule: `0 6 * * 0` (Sunday 06:00, workspace timezone)
 - Always enabled.
 
-Install: `~/clawstodian/cron-recipes/weekly-para-align.md`.
+Install: `~/clawstodian/cron-routines/weekly-para-align.md`.
 
 ## Schedule overview
 

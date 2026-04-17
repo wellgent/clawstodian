@@ -66,7 +66,7 @@ There is no "standing orders" primitive in the OpenClaw codebase; the term in Op
 
 Each program has a single-page definition in `AGENTS-SECTION.md` and a heartbeat task in `HEARTBEAT-SECTION.md` that executes it.
 
-| Program | Heartbeat task | Cron recipe | Replaces |
+| Program | Heartbeat task | Cron routine | Replaces |
 | - | - | - | - |
 | Daily notes | `daily-notes-tend` (2h) | `close-of-day` (opt-in) | ops-daily scan/capture/polish |
 | Durable insight capture | `daily-notes-tend` (2h) | none | ops-daily polish editorial layer |
@@ -83,7 +83,7 @@ A working clawstodian install is debuggable from a small set of surfaces:
 
 1. `AGENTS.md` - program definitions and authority.
 2. `HEARTBEAT.md` - execution loop.
-3. `memory/crons.md` - cron recipe state.
+3. `memory/crons.md` - cron routine state.
 4. Recent session transcripts.
 5. `openclaw cron list` - cron job status.
 

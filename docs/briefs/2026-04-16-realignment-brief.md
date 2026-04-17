@@ -14,7 +14,7 @@ clawstodian is a sharable OpenClaw agent package that installs:
 
 - a workspace maintainer charter in `AGENTS.md` that declares six programs with authority, trigger, approval gate, escalation, execution steps, and boundaries
 - a `HEARTBEAT.md` tasks block that executes and orchestrates those programs
-- opt-in cron recipes for work that benefits from wall-clock timing, managed dynamically by the heartbeat
+- opt-in cron routines for work that benefits from wall-clock timing, managed dynamically by the heartbeat
 - reusable reference templates for the workspace (`memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`)
 - an agent-driven install flow so a running agent session can set the whole thing up from a single paste-line
 
@@ -68,7 +68,7 @@ The agent reads `INSTALL_FOR_AGENTS.md`, surveys the target workspace, proposes 
 - `HEARTBEAT-SECTION.md` with tasks block that runs and orchestrates programs.
 - `INSTALL_FOR_AGENTS.md` with the agent-driven install flow.
 - `templates/` with `para-structure.md`, `daily-note-structure.md`, `MEMORY.md`, `crons.md`.
-- `cron-recipes/` with `close-of-day.md` and `weekly-para-align.md`.
+- `cron-routines/` with `close-of-day.md` and `weekly-para-align.md`.
 - Updated `README.md`, `docs/architecture.md`, `CHANGELOG.md`, `VERSION`.
 - Removed: `setup.sh`, `SETUP.md`, `templates/HEARTBEAT.md` (superseded).
 
@@ -77,7 +77,7 @@ The agent reads `INSTALL_FOR_AGENTS.md`, surveys the target workspace, proposes 
 - A workspace owner can paste one line into their agent and end up with a working install, without running shell commands themselves.
 - The six programs are each explainable from one page of `AGENTS-SECTION.md`.
 - The heartbeat alone, with zero crons enabled, accomplishes every ops-* goal at a slower cadence.
-- Adding the two cron recipes tightens close-of-day sealing and weekly PARA alignment without changing the program definitions.
+- Adding the two cron routines tightens close-of-day sealing and weekly PARA alignment without changing the program definitions.
 - No package-owned state files exist anywhere. The workspace's git tree, daily notes, PARA entities, and session transcripts are the only ledger.
 - The install never overwrites operator content silently; diffs + confirmation only.
 - The agent consults the operator whenever placement, filing, or risk is ambiguous; acts on judgment when it is obvious.

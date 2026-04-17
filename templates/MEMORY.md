@@ -17,5 +17,5 @@ Curated dashboard. `INDEX.md` files have complete listings. All PARA directories
 ## Infrastructure
 - PARA conventions: `memory/para-structure.md`
 - Daily note format: `memory/daily-note-structure.md`
-- Cron recipes and on/off state: `memory/crons.md`
+- Cron routines and on/off state: `memory/crons.md`
 - Daily notes: exactly one file per day in `memory/`, named `YYYY-MM-DD.md`. Never create topic-suffixed variants like `YYYY-MM-DD-foo.md`.

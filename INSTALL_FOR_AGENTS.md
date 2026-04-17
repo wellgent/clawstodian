@@ -44,9 +44,9 @@ Read these files in order and build a mental model of the install:
 - `~/clawstodian/templates/para-structure.md` - PARA convention.
 - `~/clawstodian/templates/daily-note-structure.md` - daily note format.
 - `~/clawstodian/templates/MEMORY.md` - dashboard skeleton.
-- `~/clawstodian/templates/crons.md` - cron recipe catalog.
-- `~/clawstodian/cron-recipes/close-of-day.md` - close-of-day burst.
-- `~/clawstodian/cron-recipes/weekly-para-align.md` - weekly align burst.
+- `~/clawstodian/templates/crons.md` - cron routine catalog.
+- `~/clawstodian/cron-routines/close-of-day.md` - close-of-day burst.
+- `~/clawstodian/cron-routines/weekly-para-align.md` - weekly align burst.
 
 ## Step 3 - Survey the target workspace
 
@@ -68,7 +68,8 @@ Produce a short, explicit plan for the operator that covers:
 - **Reference templates** - for each of `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`: install from clawstodian template, skip (already exists with non-clawstodian content), or update (exists with an older clawstodian template marker)?
 - **PARA folders** - create missing top-level `projects/`, `areas/`, `resources/`, `archives/` if not present? (ask; some workspaces may prefer different names)
 - **Heartbeat config** - show the recommended snippet from `~/clawstodian/README.md` ("Recommended heartbeat config") and propose merging it into the operator's config. Do not edit config directly without confirmation.
-- **Cron recipes** - the two cron jobs are opt-in. Offer both, ask which to install. `close-of-day` starts disabled and is enabled by the heartbeat on demand; `weekly-para-align` is a plain scheduled job.
+- **Workspace `clawstodian/` directory** - create it with symlinks to the package's cron-routine files so the crons can reference them via short workspace-relative paths. The directory itself is a one-time setup even if no cron routines are installed yet.
+- **Cron routines** - the two cron jobs are opt-in. Offer both, ask which to install. `close-of-day` starts disabled and is enabled by the heartbeat on demand; `weekly-para-align` is a plain scheduled job.
 
 Present the plan as a short bulleted list. For each item, state: current state, proposed action, why. Wait for operator approval before proceeding.
 
@@ -80,7 +81,8 @@ When the operator approves a specific item, apply it:
 - **Installing reference templates**: copy from `~/clawstodian/templates/<file>` to the workspace path. Preserve the template marker.
 - **Creating PARA folders**: create the folders and add an empty `INDEX.md` in each with just `# <folder name> INDEX` as the header.
 - **Applying heartbeat config**: show the exact diff the operator would apply to their OpenClaw config. Let them apply it themselves, or, with explicit confirmation, apply it for them via the openclaw CLI.
-- **Adding cron recipes**: the `cron-recipes/*.md` file contains the exact `openclaw cron add` invocation. Run it only with operator confirmation. Each recipe specifies whether it starts disabled or enabled.
+- **Creating `clawstodian/` workspace directory**: run `mkdir -p clawstodian && ln -sf ~/clawstodian/cron-routines/close-of-day.md clawstodian/close-of-day.md && ln -sf ~/clawstodian/cron-routines/weekly-para-align.md clawstodian/weekly-para-align.md` from the workspace root. The symlinks let cron `--message` use short workspace-relative paths like `"Read clawstodian/close-of-day.md and execute."`.
+- **Adding cron routines**: follow the `## Install` section in each routine file (e.g. `~/clawstodian/cron-routines/close-of-day.md`). The install command is already parameterized; just run it with operator confirmation. Each routine specifies whether it starts disabled or enabled.
 
 Apply one item at a time. After each, verify by reading the resulting file or running the status command.
 
@@ -92,7 +94,8 @@ Confirm:
 2. `HEARTBEAT.md` contains the `clawstodian/heartbeat-section` marker and a parseable `tasks:` block.
 3. All agreed-upon reference templates exist at expected paths with their markers.
 4. Heartbeat config matches the recommended stance.
-5. If cron recipes installed: they exist, are disabled, and show in `openclaw cron list`.
+5. If the workspace `clawstodian/` directory was created: it exists and the symlinks resolve (`readlink clawstodian/*.md` should point inside `~/clawstodian/cron-routines/`).
+6. If cron routines installed: they exist and show in `openclaw cron list` (with the expected `enabled` state per routine).
 
 Report the verification as a short checklist to the operator.
 

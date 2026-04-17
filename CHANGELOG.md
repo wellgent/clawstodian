@@ -9,7 +9,7 @@ Added:
 - `HEARTBEAT-SECTION.md` tasks block that runs and orchestrates the programs.
 - `INSTALL_FOR_AGENTS.md` for agent-driven one-line install.
 - `templates/para-structure.md`, `templates/daily-note-structure.md`, `templates/MEMORY.md`, `templates/crons.md` as installable workspace reference docs.
-- `cron-recipes/close-of-day.md` (demand-driven burst, heartbeat-managed) and `cron-recipes/weekly-para-align.md` (plain weekly scheduled job) as opt-in cron recipes.
+- `cron-routines/close-of-day.md` (demand-driven burst, heartbeat-managed) and `cron-routines/weekly-para-align.md` (plain weekly scheduled job) as opt-in cron routines. Each routine file holds the full run instructions (target selection, exec safety, trivial-day fast-path, what-to-do, after-processing, commit, failure handling, reply format) and the install command at the bottom. The cron's `--message` is a one-liner pointing back to the routine file, so routine updates take effect without editing cron state.
 - Realignment brief at `docs/briefs/2026-04-16-realignment-brief.md`.
 
 Changed:

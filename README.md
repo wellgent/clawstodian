@@ -64,9 +64,9 @@ clawstodian/
     MEMORY.md                        installable to workspace root MEMORY.md
     crons.md                         installable to memory/crons.md
 
-  cron-recipes/
-    close-of-day.md                  past-day sealing burst (opt-in)
-    weekly-para-align.md             weekly PARA integrity burst (opt-in)
+  cron-routines/
+    close-of-day.md                  past-day sealing burst (opt-in, demand-driven)
+    weekly-para-align.md             weekly PARA integrity burst (opt-in, scheduled)
 
   docs/
     architecture.md                  first-principles design
