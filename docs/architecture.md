@@ -33,7 +33,7 @@ This inverts the ops-* model (scan cron as orchestrator, demand-driven worker cr
 
 No package-owned state files. Git, daily notes, PARA entities, `MEMORY.md`, and session transcripts are the only state. Every heartbeat tick derives what it needs from those artifacts, acts, writes observations back to those artifacts, and forgets.
 
-This is why `isolatedSession: true` + `lightContext: true` is correct. Cross-tick memory does not live in a session history; it lives in files. Token cost per tick drops from roughly 100K to 2-5K as a consequence.
+This is why `isolatedSession: true` is correct: cross-tick memory does not live in a session history; it lives in files. The full workspace bootstrap (`AGENTS.md`, `MEMORY.md`, etc.) loads each tick and caches across ticks, so the agent always has its authorities and workspace map at the cost of a single cached bootstrap per cache window, not one reload per tick.
 
 ### 4. Co-create, do not guess
 
@@ -43,7 +43,7 @@ This is the hardest invariant to preserve as programs grow; it is the one that m
 
 ### 5. Small reversible actions over broad audits
 
-The maintainer prefers one concrete small change over a theoretical sweep. It never invents projects or workstreams. Escalates before anything destructive, risky, or ambiguous.
+The maintainer prefers one concrete small change over a theoretical sweep. It surfaces emerging projects or misfiled efforts but does not silently promote them. Escalates before anything destructive, risky, or ambiguous.
 
 ### 6. Quiet by default
 
@@ -54,7 +54,7 @@ If a tick produced no meaningful change, reply `HEARTBEAT_OK`. The maintainer ea
 ```
 standing authority       AGENTS.md         (charter + six programs)
 recurring execution      HEARTBEAT.md      (tasks block)
-interval cadence         heartbeat         (30m default, active hours, isolated + light)
+interval cadence         heartbeat         (2h default, active hours, isolated session)
 wall-clock jobs          cron              (opt-in; demand-driven or plain scheduled)
 audit trail              session transcripts + git history
 workspace memory         memory/, projects/, areas/, resources/, archives/

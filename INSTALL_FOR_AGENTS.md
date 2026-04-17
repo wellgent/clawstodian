@@ -57,7 +57,7 @@ Before proposing any change, read what the operator already has. Specifically ch
 3. Workspace `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md` - which already exist?
 4. Workspace PARA folders - `projects/`, `areas/`, `resources/`, `archives/`. Which already exist, which are populated?
 5. Existing cron jobs - `openclaw cron list`. Note any `close-of-day` or `weekly-para-align` jobs already present.
-6. Current heartbeat config - `~/.openclaw/config.*` or wherever the operator keeps it. Note current `every`, `isolatedSession`, `lightContext`, `target`, `activeHours`.
+6. Current heartbeat config - `~/.openclaw/config.*` or wherever the operator keeps it. Note current `every`, `isolatedSession`, `target`, `activeHours`, and channel heartbeat visibility flags (`showOk`, `showAlerts`, `useIndicator`).
 
 ## Step 4 - Propose a merge plan
 
@@ -67,7 +67,7 @@ Produce a short, explicit plan for the operator that covers:
 - **HEARTBEAT.md** - create new (install clawstodian section as the whole file)? Append the clawstodian section? Replace an older version of the section?
 - **Reference templates** - for each of `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`: install from clawstodian template, skip (already exists with non-clawstodian content), or update (exists with an older clawstodian template marker)?
 - **PARA folders** - create missing top-level `projects/`, `areas/`, `resources/`, `archives/` if not present? (ask; some workspaces may prefer different names)
-- **Heartbeat config** - show the recommended snippet and propose merging it into the operator's config. Do not edit config directly without confirmation.
+- **Heartbeat config** - show the recommended snippet from `~/clawstodian/README.md` ("Recommended heartbeat config") and propose merging it into the operator's config. Do not edit config directly without confirmation.
 - **Cron recipes** - the two cron jobs are opt-in. Offer both, ask which to install. `close-of-day` starts disabled and is enabled by the heartbeat on demand; `weekly-para-align` is a plain scheduled job.
 
 Present the plan as a short bulleted list. For each item, state: current state, proposed action, why. Wait for operator approval before proceeding.

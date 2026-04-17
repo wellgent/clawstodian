@@ -25,7 +25,7 @@ Six programs defined in `AGENTS-SECTION.md` and executed by the heartbeat tasks 
 
 ## How it runs
 
-- **Heartbeat** is the orchestrator. On a default 30-minute cadence, due tasks in `HEARTBEAT.md` run the programs. Each tick is isolated and light-context (roughly 2-5K tokens instead of 100K).
+- **Heartbeat** is the orchestrator. On a default 2-hour cadence, due tasks in `HEARTBEAT.md` run the programs. Each tick runs in an isolated session with the full workspace bootstrap (`AGENTS.md`, `MEMORY.md`, etc.) loaded and cached across ticks.
 - **Cron** is optional. Two recipes ship: `close-of-day` (`every 30m` while enabled; heartbeat enables on demand when past-day notes accumulate; self-disables when queue empty) and `weekly-para-align` (simple `Sunday 06:00` verification pass).
 - **No package state files.** Git, daily notes, PARA entities, and session transcripts are the ledger.
 
@@ -86,11 +86,10 @@ clawstodian/
   agents: {
     defaults: {
       heartbeat: {
-        every: "30m",
+        every: "2h",
         isolatedSession: true,
-        lightContext: true,
         includeReasoning: false,
-        target: "none",
+        target: "<your-maintainer-channel-id>",  // or "last" to use the agent's most-recent channel
         activeHours: {
           start: "08:00",
           end: "22:00",
@@ -98,11 +97,22 @@ clawstodian/
         }
       }
     }
+  },
+  channels: {
+    defaults: {
+      heartbeat: {
+        showOk: false,      // suppress HEARTBEAT_OK acks
+        showAlerts: true,   // deliver real tick summaries
+        useIndicator: true  // emit UI indicator events
+      }
+    }
   }
 }
 ```
 
-`isolatedSession` + `lightContext` are deliberate. Cross-tick memory lives in the workspace, not in session history. Every tick reads what it needs from files, acts, writes its observations back, and forgets.
+`isolatedSession: true` is deliberate: cross-tick memory lives in the workspace, not in session history. Every tick reads what it needs from files, acts, writes its observations back, and forgets. The full workspace bootstrap loads each tick and caches across ticks, so the agent always has its authorities (`AGENTS.md`) and workspace map (`MEMORY.md`) without paying to reload them from scratch.
+
+Set `target` to a dedicated channel (Telegram chat, Slack channel, Discord channel ID) if you want a single place for all maintainer updates. `"last"` works if you prefer the heartbeat to land wherever the agent last spoke.
 
 ## Status
 
