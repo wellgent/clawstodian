@@ -62,20 +62,23 @@ workspace memory         memory/, projects/, areas/, resources/, archives/
 
 There is no "standing orders" primitive in the OpenClaw codebase; the term in OpenClaw's docs refers to rules written into `AGENTS.md`. clawstodian uses the standing-orders anatomy (authority / trigger / approval gate / escalation / execution steps / what NOT to do) to structure each program, but the mechanism remains the AGENTS.md file loaded at session bootstrap.
 
-## The six programs
+## The nine programs
 
-Each program has a single-page definition in `AGENTS-SECTION.md` and a heartbeat task in `HEARTBEAT-SECTION.md` that executes it.
+Each program has a single-page spec in `programs/`. `AGENTS-SECTION.md` catalogs them; `HEARTBEAT-SECTION.md` coordinates each tick; individual specs are read on demand when a program is about to run.
 
-| Program | Heartbeat task | Cron routine | Replaces |
+| Program | Class | Cron | Replaces |
 | - | - | - | - |
-| Daily notes | `daily-notes-tend` (2h) | `close-of-day` (opt-in) | ops-daily scan/capture/polish |
-| Durable insight capture | `daily-notes-tend` (2h) | none | ops-daily polish editorial layer |
-| PARA graph | `para-tend` (4h) | `weekly-para-align` (opt-in) | ops-para extract/distill/verify/align |
-| Workspace tidiness | `workspace-sweep` (6h) | none | ops-clean sweep |
-| Git hygiene | `workspace-sweep` (6h) | none | ops-clean git |
-| Health sweep | `workspace-sweep` (6h) | none | (new; distilled from all three) |
+| `daily-notes-tend` | heartbeat-direct | - | ops-daily scan/capture |
+| `durable-insight` | heartbeat-inline | - | ops-daily polish editorial layer |
+| `para-tend` | heartbeat-direct | - | ops-para extract/distill |
+| `workspace-tidiness` | heartbeat-direct | - | ops-clean sweep |
+| `git-hygiene` | heartbeat-direct | - | ops-clean git |
+| `health-sweep` | heartbeat-direct | - | (new; distilled from all three) |
+| `close-of-day` | burst worker | opt-in, demand-driven | ops-daily polish scheduled layer |
+| `para-backfill` | burst worker | opt-in, demand-driven | ops-para verify/align scheduled layer |
+| `weekly-para-align` | fixed cron | opt-in, Sunday 06:00 | ops-para weekly structural check |
 
-The tidiness / git / health programs share a heartbeat tick because they all inspect the workspace. They remain distinct programs in `AGENTS.md` for clarity of authority and boundaries, but they batch for efficiency.
+The tidiness / git / health programs typically share a tick because they all inspect the workspace. They remain distinct programs for clarity of authority and boundaries; the heartbeat coordinator batches them when appropriate.
 
 ## Observability and troubleshooting
 

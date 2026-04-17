@@ -1,4 +1,4 @@
-<!-- template: clawstodian/crons 2026-04-16 -->
+<!-- template: clawstodian/crons 2026-04-17 -->
 # Cron jobs
 
 Dashboard for this workspace's cron jobs. Authoritative state: `openclaw cron list --all`.
@@ -10,7 +10,7 @@ Seals one past-day daily note per run with disk-fidelity. Self-disables when the
 - Schedule: `every 30m` (while enabled)
 - Starts disabled. Heartbeat `daily-notes-tend` enables it when past-day notes with `status: active` exist.
 
-Install: `~/clawstodian/cron-routines/close-of-day.md`.
+Install: `~/clawstodian/programs/close-of-day.md`.
 
 ## para-backfill
 
@@ -19,7 +19,7 @@ Propagates one sealed daily note into PARA per run. Self-disables when the queue
 - Schedule: `every 30m` (while enabled)
 - Starts disabled. Heartbeat enables it when sealed notes with `para_status: pending` exist.
 
-Install: `~/clawstodian/cron-routines/para-backfill.md`.
+Install: `~/clawstodian/programs/para-backfill.md`.
 
 ## weekly-para-align
 
@@ -28,7 +28,7 @@ Verifies PARA structural integrity once per ISO week.
 - Schedule: `0 6 * * 0` (Sunday 06:00, workspace timezone)
 - Always enabled.
 
-Install: `~/clawstodian/cron-routines/weekly-para-align.md`.
+Install: `~/clawstodian/programs/weekly-para-align.md`.
 
 ## Schedule overview
 

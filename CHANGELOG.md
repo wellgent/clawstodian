@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.0-draft - 2026-04-17
+
+Catalog model. The v0.2 draft embedded full program specs inside `AGENTS-SECTION.md` and embedded per-interval task prompts inside `HEARTBEAT-SECTION.md`. v0.3 separates authority from spec: programs are cataloged in `AGENTS.md`, spec files live in `programs/`, and the heartbeat coordinator reads spec files fresh each tick.
+
+Added:
+- Six new heartbeat-program specs under `programs/`: `daily-notes-tend`, `durable-insight`, `para-tend`, `workspace-tidiness`, `git-hygiene`, `health-sweep`. Previously these were inline in `AGENTS-SECTION.md`.
+
+Changed:
+- Renamed `cron-routines/` to `programs/`. Cron routines and heartbeat programs now share one home.
+- `AGENTS-SECTION.md` is now a catalog pointing at `clawstodian/programs/<name>.md`, not inline specs. Size dropped from ~15k to ~5k characters. Spec discipline: "read the spec before executing any program."
+- `HEARTBEAT-SECTION.md` is a pure coordinator (prose dispatcher, no YAML `tasks:` block). Each tick reads workspace state fresh and decides which programs need attention. Shape matches what wellgent iterated to in practice.
+- Workspace symlink convention simplified from N per-file symlinks to one `clawstodian/programs → ~/clawstodian/programs` directory symlink.
+- Template markers bumped from `2026-04-16` to `2026-04-17` for changed sections.
+- `README.md`, `INSTALL_FOR_AGENTS.md`, `templates/crons.md`, `docs/architecture.md`: updated for the rename and new shape.
+- `INSTALL_FOR_AGENTS.md`: Step 5 uses a single directory symlink; Step 3 survey compares marker dates for update detection; new "Updating an existing install" section for re-runs.
+
+Trade-off:
+- The pure-coordinator heartbeat runs the LLM every tick (no OpenClaw `no-tasks-due` skip). Picked over the hybrid `tasks:` model because every tick has at least one thing to check (today's daily note) and the coordinator discipline is cleaner. Workspaces that want stricter interval control can replace `HEARTBEAT.md` with a `tasks:` block.
+
 ## 0.2.0-draft - 2026-04-16
 
 Scope realignment. The v0.1 draft was too minimal to replace the ops-* packages. v0.2 reshapes the package around six explicit programs that cover all the ops-daily / ops-para / ops-clean goals through heartbeat-driven execution.
