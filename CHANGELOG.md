@@ -22,6 +22,13 @@ Removed:
 - `SETUP.md` - folded into `README.md` and `INSTALL_FOR_AGENTS.md`.
 - `templates/HEARTBEAT.md` - superseded by root-level `HEARTBEAT-SECTION.md`.
 
+Absorbed into `AGENTS-SECTION.md` from the retiring ops-* packages' AGENTS sections:
+- Memory and navigation orientation (three-layer model, finding-things workflow, convention deep-dive pointers).
+- Memory maintenance rules (log in canonical daily note, one file per day, internalize-don't-collect, docs describe the present). These are universal workspace rules, not heartbeat-specific.
+- Commit topic conventions in program 5 (`<topic>: <short description>` with a shared topic list).
+
+When ops-* retires, a workspace can remove the `🧠 Memory`, `Pipeline (ops-para)`, `Daily Note Pipeline (ops-daily)`, and `Workspace Cleanup & Git Hygiene (ops-clean)` sections from its `AGENTS.md` without losing these universal conventions - they now live inside the clawstodian section.
+
 ## 0.1.0-draft - 2026-04-16
 
 - Created the `clawstodian` project as a draft sharable package.
