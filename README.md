@@ -101,12 +101,11 @@ clawstodian/
     para-structure.md                installable to memory/para-structure.md
     daily-note-structure.md          installable to memory/daily-note-structure.md
     crons.md                         installable to memory/crons.md
-    session-ledger.md                installable to memory/session-ledger.md (empty skeleton; format spec in docs/session-ledger.md)
+    session-ledger.md                installable to memory/session-ledger.md (empty skeleton; format spec in daily-note-structure.md)
 
   docs/
     architecture.md                  first-principles design
     heartbeat-config.md              heartbeat gateway config reference
-    session-ledger.md                format spec for memory/session-ledger.md
     writing-a-program.md             guide for adding new programs (domain authorities)
     writing-a-routine.md             guide for adding new routines (scheduled invocations)
     briefs/

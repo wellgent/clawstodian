@@ -53,7 +53,7 @@ Three layers give continuity across sessions:
 - Known file path -> `read` directly.
 - Complete listings -> `projects/INDEX.md`, `areas/INDEX.md`, `resources/INDEX.md`.
 - Convention deep-dives -> `memory/para-structure.md`, `memory/daily-note-structure.md`, `memory/crons.md`.
-- Capture state (internal; written by `capture-sessions`) -> `memory/session-ledger.md`. Format spec is in the clawstodian package at `docs/session-ledger.md`, not in the workspace file.
+- Capture state (internal; written by `capture-sessions`) -> `memory/session-ledger.md`. Format spec lives in `memory/daily-note-structure.md` under the "Session Ledger" section.
 
 **Memory maintenance (applies to all agents in this workspace, not just clawstodian-driven runs):**
 

@@ -38,15 +38,16 @@ v0.4-draft. See `docs/briefs/2026-04-18-v0.4-observability-brief.md` for the act
 - `INSTALL.md` - agent-driven install flow. References `VERIFY.md` for the post-install check and `UNINSTALL.md` for removal.
 - `VERIFY.md` - standalone verification of an existing install; idempotent, can be run any time.
 - `UNINSTALL.md` - full removal flow.
-- `templates/` - installable workspace files. Seven templates: `AGENTS.md` (workspace charter with programs + routines catalogs), `HEARTBEAT.md` (pure-orchestrator heartbeat), `MEMORY.md` (dashboard skeleton), `para-structure.md` and `daily-note-structure.md` (convention specs), `crons.md` (operator-facing cron dashboard), `session-ledger.md` (empty-skeleton state file - the format spec lives in `docs/session-ledger.md`, not in the template). Each template carries optional `<!-- template: clawstodian/... -->` markers for update detection.
-- `programs/` - the four domain authorities: `daily-notes.md`, `para.md`, `workspace-tidy.md`, `git-hygiene.md`. Each is a thick spec containing conventions, authority, approval gates, escalation rules, and named behaviors.
-- `routines/` - the six scheduled dispatchers. Always-on crons: `workspace-tidy.md`, `git-hygiene.md`. Fixed cron: `para-align.md`. Heartbeat-toggled bursts: `capture-sessions.md`, `seal-past-days.md`, `para-extract.md`. Each routine references a program, picks a behavior, defines target + run report + install command.
+- `templates/` - installable workspace files. Seven templates: `AGENTS.md` (workspace charter with programs + routines catalogs), `HEARTBEAT.md` (pure-orchestrator heartbeat), `MEMORY.md` (dashboard skeleton), `para-structure.md` and `daily-note-structure.md` (convention specs - `daily-note-structure.md` also contains the session-ledger format spec), `crons.md` (operator-facing cron dashboard), `session-ledger.md` (empty-skeleton state file, format spec in `daily-note-structure.md`). Each template carries optional `<!-- template: clawstodian/... -->` markers for update detection.
+- `programs/` - four domain authorities: `daily-notes.md`, `para.md`, `workspace-tidy.md`, `git-hygiene.md`. Each is a thin convention spec (goal, authority, approval gates, escalation, what-NOT-to-do). The operational procedures that implement these conventions live in the routines that dispatch them.
+- `routines/` - six scheduled dispatchers. Always-on crons: `workspace-tidy.md`, `git-hygiene.md`. Fixed cron: `para-align.md`. Heartbeat-toggled bursts: `capture-sessions.md`, `seal-past-days.md`, `para-extract.md`. Each routine references a program for conventions and carries its own full operational procedure.
 - `docs/architecture.md` - first-principles design.
 - `docs/heartbeat-config.md` - authoritative reference for the heartbeat gateway config.
-- `docs/session-ledger.md` - authoritative format spec for `memory/session-ledger.md` (fields, update rules, design rationale).
 - `docs/writing-a-program.md` - guide for adding a new program (domain authority).
 - `docs/writing-a-routine.md` - guide for adding a new routine (scheduled invocation).
 - `docs/briefs/` - scope briefs.
+
+The session-ledger format spec lives in `templates/daily-note-structure.md` (workspace-installed), not in `docs/` - it's tightly coupled to the daily-notes pipeline and belongs with the other daily-notes conventions.
 
 ## Non-goals for this repo
 

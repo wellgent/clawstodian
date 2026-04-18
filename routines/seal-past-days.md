@@ -1,14 +1,19 @@
 # seal-past-days (routine)
 
-Seals one past-day note per firing per the daily-notes program.
+Closes and finalizes one unsealed past-day note per firing per the daily-notes program. Editorial pass with disk-fidelity.
 
 ## Program
 
-`clawstodian/programs/daily-notes.md` - follow the "Seal a past-day note" behavior (including target selection, trivial-day fast-path, and full seal steps).
+`clawstodian/programs/daily-notes.md` - follow its conventions, authority, approval gates, escalation rules, and what-NOT-to-do constraints. The program defines the workspace's daily-note lifecycle (`status: active -> sealed`, `para_status: pending`); this routine describes the cron's sealing procedure.
 
-## Target
+See `memory/daily-note-structure.md` for the format, frontmatter fields, and what the editorial pass keeps vs. removes.
 
-The oldest candidate returned by the program's target selection (past date, `status: active` or missing with commits for that day, respecting the 2h midnight grace for yesterday).
+## Target selection
+
+1. List `memory/YYYY-MM-DD.md` files where the date is before today (workspace local timezone).
+2. Candidate = frontmatter `status: active`, OR the file is missing for a past date where `git log --since=YYYY-MM-DD --until=YYYY-MM-DD+1d` shows commits.
+3. **Midnight grace.** Reject any candidate whose date is yesterday if the current workspace-local time is less than 2 hours past midnight. A session whose activity straddles midnight needs at least one more `capture-sessions` firing to land pre-midnight content into yesterday's note; sealing early creates a race that sends late-captured content into the `bleed_over` accumulator. Only yesterday is affected; older past-days have no live sessions.
+4. Pick the **oldest** remaining candidate.
 
 ## Exec safety
 
@@ -20,7 +25,47 @@ The oldest candidate returned by the program's target selection (past date, `sta
 
 - One note per firing. Do not loop.
 - Do not merge multiple days' content into one operation.
-- If the program's approval gates say "surface" on a note, do not seal; surface it and stop.
+- If the program's approval gates say "surface" on a note, do not seal; surface the issue and stop.
+
+## Trivial-day fast-path
+
+Before the full seal, inspect the note body (excluding frontmatter). If **<=2 sections and <=1 KB body**:
+
+- Standardize frontmatter per `memory/daily-note-structure.md`.
+- Write a 1-2 sentence day summary if missing.
+- Flip `status: active` -> `status: sealed`.
+- Leave or set `para_status: pending`.
+- Update `last_updated`.
+- Commit and push.
+
+Skip the merge and organize steps. This prevents expensive compute on "quiet day" notes.
+
+## Full seal
+
+1. **Merge topic-suffixed variants.** Check for `memory/YYYY-MM-DD-*.md`. Read, merge into canonical, delete the variants. If none, skip.
+2. **Read the full daily note** and understand it before changing anything.
+3. **Gather authoritative inputs:**
+   - Raw session JSONL on disk for that date (the authoritative record; `sessions_history` is a safety-filtered view).
+   - `git log --since --until` for that date.
+   - `git diff` summaries for touched files.
+4. **Organize the note:**
+   - Chronological order (by UTC timestamp).
+   - Merge duplicate sections covering the same topic.
+   - Every `##` header descriptive and searchable: topic name + what happened + `(~HH:MM UTC)` timestamp.
+   - Write a 2-3 sentence day summary after the `# YYYY-MM-DD` heading: what was this day about?
+5. **Remove noise.** Heartbeat digest output with no user interaction, tick status sections, cron-run dumps unless they led to decisions or discussion.
+6. **Curate frontmatter** per `memory/daily-note-structure.md`. Judgment calls:
+   - `people` - remove-the-name test: if I remove this name, does the day's story change? Exclude internet strangers, bystanders, names in cron reminders.
+   - `projects` - same test. Include implicit work. Exclude projects mentioned only in file paths.
+   - `topics` - 3-8 specific phrases. The day's themes, not a section-by-section list.
+7. **Thread continuity.** When a section clearly continues work from a previous day, add `(continued from YYYY-MM-DD)` in the section body. Only when the continuation is unambiguous.
+8. **Flip `status: active` -> `status: sealed`.** Set `para_status: pending`. Update `last_updated` to the current ISO timestamp.
+
+Do not perform PARA extraction here; that is `clawstodian/programs/para.md`'s domain (dispatched by the `para-extract` routine).
+
+## Commit
+
+Add only the files you changed - never `git add -A` or `git add .`. Commit message: `memory: seal YYYY-MM-DD - <topic summary>`. Push immediately.
 
 ## Self-disable on empty queue
 

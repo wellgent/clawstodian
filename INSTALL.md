@@ -56,11 +56,11 @@ Read these files in order and build a mental model of the install:
 - `~/clawstodian/templates/daily-note-structure.md` - daily note format (includes `para_status` queue semantics).
 - `~/clawstodian/templates/MEMORY.md` - dashboard skeleton.
 - `~/clawstodian/templates/crons.md` - cron routine catalog.
-- `~/clawstodian/templates/session-ledger.md` - starter skeleton for the session ledger. The full format spec lives at `~/clawstodian/docs/session-ledger.md`; the template is intentionally empty beyond its marker so a fresh workspace starts with a clean state file.
+- `~/clawstodian/templates/session-ledger.md` - starter skeleton for the session ledger. The full format spec is a section of `~/clawstodian/templates/daily-note-structure.md`; the ledger template is intentionally empty beyond its marker so a fresh workspace starts with a clean state file.
 
 Then skim the program specs under `~/clawstodian/programs/` (domain authorities: daily-notes, para, workspace-tidy, git-hygiene) and routine specs under `~/clawstodian/routines/` (scheduled dispatchers). You do not need to copy them into the workspace - they are read on demand via the `clawstodian/programs/` and `clawstodian/routines/` symlinks created in Step 5.
 
-All seven templates are installable workspace files: copy to the workspace and adapt as needed. Six of them are reference docs that describe workspace conventions the operator can edit (`AGENTS.md`, `HEARTBEAT.md`, `MEMORY.md`, `para-structure.md`, `daily-note-structure.md`, `crons.md`); the seventh (`session-ledger.md`) is an empty skeleton for an internal state file that only the `capture-sessions` routine writes. The format spec for the session ledger is not in the template - it lives at `~/clawstodian/docs/session-ledger.md`. The template marker comments are optional scaffolding that lets the install detect when a template has updated; the operator can drop the markers if they prefer plain files.
+All seven templates are installable workspace files: copy to the workspace and adapt as needed. Six of them are reference docs that describe workspace conventions the operator can edit (`AGENTS.md`, `HEARTBEAT.md`, `MEMORY.md`, `para-structure.md`, `daily-note-structure.md`, `crons.md`); the seventh (`session-ledger.md`) is an empty skeleton for an internal state file that only the `capture-sessions` routine writes. The format spec for the session ledger is a section of `daily-note-structure.md`, not in the skeleton. The template marker comments are optional scaffolding that lets the install detect when a template has updated; the operator can drop the markers if they prefer plain files.
 
 ## Step 3 - Survey the target workspace
 
