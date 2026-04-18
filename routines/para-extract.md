@@ -1,6 +1,6 @@
 # para-extract (routine)
 
-Processes one sealed note per firing, propagating its content into the PARA knowledge graph.
+Processes one sealed note per firing, reconciling its content against the PARA knowledge graph - updating existing entities the note touches and creating new ones where content clears creation thresholds.
 
 ## Program
 
@@ -23,14 +23,18 @@ Legacy sealed notes without `para_status` are not automatically queued.
 
 ## Steps
 
-1. Read the full daily note.
-2. Walk the note and detect candidate entities against `memory/para-structure.md` thresholds (projects, areas/people, areas/companies, areas/servers, resources).
-3. For each candidate:
-   - Obvious placement -> create or update in place.
-   - Ambiguous placement -> surface in the run report without creating.
-4. Update any touched `INDEX.md` files.
-5. Update root `MEMORY.md` only when a new project is listed.
-6. Flip the note's `para_status` from `pending` to `done`. Leave `status: sealed` unchanged. Update `last_updated`.
+1. **Read the full sealed daily note.**
+2. **Read the PARA indices for comprehension.** Load `projects/INDEX.md`, `areas/INDEX.md`, `resources/INDEX.md`. These enumerate existing entities; keep them available as you walk the note. Spot-check root `MEMORY.md` if the note touches the active-projects dashboard. Updating-first requires knowing what is already there.
+3. **Walk the note for candidate subjects** (projects, people, companies, servers, reusable patterns). For each candidate, match against the indices:
+   - **Match found -> UPDATE in place.** Read the entity. Apply the changes the note implies: revise `status` or next steps on a project, record a dated decision or outcome on an area/person/company page, sharpen a resource with the new insight, touch `last_updated`, add a `related:` pointer when a new connection is now explicit. Do not rewrite existing prose cosmetically.
+   - **No match + clears thresholds in `memory/para-structure.md` -> CREATE** in the right bucket with required frontmatter.
+   - **No match + thresholds not cleared -> skip.** Content remains in the daily note; a future day's additional mention may clear the threshold later.
+   - **Ambiguous match (multiple plausible targets) or ambiguous placement -> surface** in the run report without acting.
+4. **Update touched `INDEX.md` files.** Creations add entries; updates normally do not require INDEX changes unless the entity's title or visible status shifted.
+5. **Update root `MEMORY.md`** only when a new project is listed or an active project retires.
+6. **Flip the note's `para_status`** from `pending` to `done`. Leave `status: sealed` unchanged. Update the note's `last_updated`.
+
+Update is the common case; a sealed note typically touches more entities than it introduces.
 
 ## Commit
 
@@ -45,10 +49,11 @@ Add only the files you changed. Commit message: `para: extract YYYY-MM-DD - <sum
 ## Worker discipline
 
 - One note per firing. Do not drain the queue in a single run.
-- Touch only the frontmatter fields needed to mark queue progress (`para_status`, `last_updated`). Do not rewrite sealed note prose cosmetically.
+- Touch the daily note's frontmatter only to mark queue progress (`para_status`, `last_updated`). Do not rewrite the sealed note's prose.
+- On PARA entities, apply the updates the note's content implies; do not rewrite existing entity prose cosmetically (per `programs/para.md`).
 - Do not invent `related:` pointers.
 - Do not create stubs.
-- If approval gates say "surface" on a candidate entity, do not create; surface it in the run report.
+- If approval gates say "surface" - whether for creation or an ambiguous update target - do not act; surface in the run report.
 
 ## Self-disable on empty queue
 
