@@ -34,50 +34,67 @@ openclaw cron disable para-extract
 
 ## Run report
 
-Two artifacts per firing: a full report on disk and a one-line summary to the notifications channel.
+Two artifacts per firing: a full report on disk following the shared run-report shape, and a multi-line scannable summary posted to the notifications channel.
 
 ### File on disk
 
 Write to `memory/runs/para-extract/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
-File shape:
-
 ```markdown
 # para-extract run report
 
 - timestamp: 2026-04-18T03:00:00Z
+- context: 2026-04-17
+- outcome: processed
+- cron_state: enabled → disabled
+
+## What happened
+
 - target: memory/2026-04-17.md
-- outcome: processed | skipped | failed
-- para_status transition: pending -> done
-
-## Entities
-
-- updated: 3
+- para_status transition: pending → done
+- entities updated: 3
   - areas/people/alice.md
   - projects/vps-migration/README.md
   - resources/1password-secrets-management.md
-- created: 1
+- entities created: 1
   - areas/companies/pulsy.md
-- ambiguous (surfaced, not acted on): 0
+- entities ambiguous (surfaced, not acted on): 0
 
 ## Queue after firing
 
-- remaining sealed notes with para_status: pending - N
-- cron state: enabled | disabled
+- remaining sealed notes with para_status: pending - 0
+- cron state: disabled
 
-## Commit
+## Commits
 
-- <hash short> para: extract 2026-04-17 - <summary>
+- def5678 para: extract 2026-04-17 - VPS migration entities
+
+## Surfaced for operator
+
+- (none)
 
 ## Channel summary
 
-para-extract 2026-04-17: processed | entities 3u/1c/0a | queue: 0 | cron: disabled | report: memory/runs/para-extract/2026-04-18T03-00-00Z.md
+para-extract · 2026-04-17 · processed
+Entities: 3 updated · 1 created · 0 ambiguous
+Commit: def5678 para: extract 2026-04-17 - VPS migration entities
+Queue: 0 sealed-pending notes · cron: disabled
+Report: memory/runs/para-extract/2026-04-18T03-00-00Z.md
 ```
 
 ### Channel summary
 
+Multi-line. One insight per line:
+
 ```
-para-extract YYYY-MM-DD: <processed|skipped|failed> | entities <N>u/<M>c/<K>a | queue: <remaining> | cron: <enabled|disabled> | report: memory/runs/para-extract/<ts>.md
+para-extract · <date> · <outcome>
+Entities: <U> updated · <C> created · <A> ambiguous
+Commit: <hash short> <subject>
+Queue: <N> sealed-pending notes · cron: <enabled|disabled>
+Report: memory/runs/para-extract/<ts>.md
 ```
 
-Counts are compact: `u` updated, `c` created, `a` ambiguous. Never return `NO_REPLY`; every firing produces both artifacts.
+- `outcome` is `processed | skipped | failed`.
+- If ambiguous is non-zero, also append a "Surfaced" list in the file (channel stays at five lines).
+
+Never return `NO_REPLY`; every firing is a meaningful PARA transition and produces both artifacts.

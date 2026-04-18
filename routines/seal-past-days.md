@@ -81,50 +81,68 @@ openclaw cron disable seal-past-days
 
 ## Run report
 
-Two artifacts per firing: a full report written to disk and a single-line summary to the notifications channel.
+Two artifacts per firing: a full report on disk following the shared run-report shape, and a multi-line scannable summary posted to the notifications channel.
 
 ### File on disk
 
 Write to `memory/runs/seal-past-days/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
-File shape:
-
 ```markdown
 # seal-past-days run report
 
 - timestamp: 2026-04-18T02:30:00Z
-- target: memory/2026-04-17.md
-- outcome: sealed | skipped | failed
-- path: full | trivial-day-fast-path
+- context: 2026-04-17
+- outcome: sealed
+- path: full
+- cron_state: enabled → enabled
 
 ## What happened
 
-- Slug siblings merged: 0
-- Sections before: 7
-- Sections after: 5
-- Noise removed: 2 heartbeat digest blocks
-- Day summary written: yes
-- Frontmatter curated: topics (5), people (2), projects (3)
+- target: memory/2026-04-17.md
+- slug siblings merged: 0
+- sections before: 7
+- sections after: 5
+- noise removed: 2 heartbeat digest blocks
+- day summary written: yes
+- frontmatter curated: topics=5, people=2, projects=3
 - para_status set to: pending
 
 ## Queue after firing
 
-- remaining past-active notes with capture_status: done - N
-- cron state: enabled | disabled
+- remaining past-active notes with capture_status: done - 2
+- cron state: enabled
 
-## Commit
+## Commits
 
-- <hash short> memory: seal 2026-04-17 - <topic>
+- abc1234 memory: seal 2026-04-17 - VPS migration
+
+## Surfaced for operator
+
+- (none)
 
 ## Channel summary
 
-seal-past-days 2026-04-17: sealed (full) | sections 7->5 | para_status: pending | queue: 2 | cron: enabled | report: memory/runs/seal-past-days/2026-04-18T02-30-00Z.md
+seal-past-days · 2026-04-17 · sealed (full)
+Sections: 7 → 5 · noise blocks: 2 · slugs merged: 0
+Frontmatter: topics=5 · people=2 · projects=3
+Commit: abc1234 memory: seal 2026-04-17 - VPS migration
+Queue: 2 notes remaining · cron: enabled
+Report: memory/runs/seal-past-days/2026-04-18T02-30-00Z.md
 ```
 
 ### Channel summary
 
+Multi-line. One insight per line:
+
 ```
-seal-past-days YYYY-MM-DD: <sealed|skipped|failed> (<path>) | sections N->N | para_status: pending | queue: <remaining> | cron: <enabled|disabled> | report: memory/runs/seal-past-days/<ts>.md
+seal-past-days · <date> · <outcome> (<path>)
+Sections: <before> → <after> · noise blocks: <N> · slugs merged: <M>
+Frontmatter: topics=<t> · people=<p> · projects=<pr>
+Commit: <hash short> <subject>
+Queue: <N> notes remaining · cron: <enabled|disabled>
+Report: memory/runs/seal-past-days/<ts>.md
 ```
 
-`<path>` is `full` or `trivial-day-fast-path` - encodes which code path ran. Never return `NO_REPLY` on a seal attempt; every firing produces both a file and a channel post. A target-selection miss (no candidate qualifies) writes an abbreviated file with `outcome: skipped` (reason: no-target) and a one-line channel note.
+- `outcome` is `sealed | skipped | failed`; `path` is `full | trivial-day-fast-path | no-target`. On a `skipped` outcome (no candidate qualifies), the path line becomes `skipped · no-target` and the Sections/Frontmatter/Commit lines are dropped.
+
+Never return `NO_REPLY`; every firing produces both a file and a channel post. A target-miss still writes an abbreviated file with `outcome: skipped`, `path: no-target`.

@@ -115,34 +115,35 @@ openclaw cron disable capture-sessions
 
 ## Run report
 
-Two artifacts per meaningful firing: a full report written to disk and a single-line summary delivered to the notifications channel. The operator sees the scannable summary in the channel and can drill into the file when they want detail.
+Two artifacts per meaningful firing: a full report on disk following the shared run-report shape, and a multi-line scannable summary posted to the notifications channel.
 
 ### File on disk
 
-Write to `memory/runs/capture-sessions/<YYYY-MM-DD>T<HH-MM-SS>Z.md` (UTC, colons replaced with hyphens so the filename is filesystem-safe and sorts chronologically).
-
-File shape:
+Write to `memory/runs/capture-sessions/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ```markdown
 # capture-sessions run report
 
 - timestamp: 2026-04-18T12:30:00Z
-- cron_state_before: enabled
-- cron_state_after: enabled
+- context: 2026-04-18T12:30Z firing
+- outcome: captured
+- cron_state: enabled → enabled
 
-## Phase 1 - admissions
+## What happened
+
+### Phase 1 - admissions
 
 - admitted: 3
-  - 96a0c068 -> interactive (kind: main)
-  - 5f12bbdd -> skipped (kind: cron, reason: cron session)
-  - 7c83eeaa -> skipped (kind: cron, reason: cron session)
+  - 96a0c068 → interactive (kind: main)
+  - 5f12bbdd → skipped (kind: cron, reason: cron session)
+  - 7c83eeaa → skipped (kind: cron, reason: cron session)
 
-## Phase 2 - captures
+### Phase 2 - captures
 
 - processed: 1
-  - 96a0c068: lines 142 -> 189 | dates: [2026-04-18] | sections appended: 2 | slugs merged: 0 | insights filed: 0 | bleed: 0
+  - 96a0c068: lines 142 → 189 · dates: [2026-04-18] · sections appended: 2 · slugs merged: 0 · insights filed: 0 · bleed: 0
 
-## Bleed-over (if any)
+### Bleed-over
 
 - (none)
 
@@ -150,30 +151,45 @@ File shape:
 
 - un-admitted: 0
 - stale: 0
+- cron state: enabled
+
+## Commits
+
+- (none - capture-sessions does not commit)
+
+## Surfaced for operator
+
+- (none)
 
 ## Channel summary
 
-capture-sessions: admitted 3 (skipped=2, interactive=1) | captured 1 | dates [2026-04-18] | bleed 0 | queue: u=0/s=0 | cron: enabled | report: memory/runs/capture-sessions/2026-04-18T12-30-00Z.md
+capture-sessions · 2026-04-18T12:30Z · captured
+Admitted: 3 (skipped=2, interactive=1)
+Captured: 1 session · dates: 2026-04-18
+Bleed: 0 · slugs merged: 0 · insights filed: 0
+Queue: un-admitted=0 · stale=0 · cron: enabled
+Report: memory/runs/capture-sessions/2026-04-18T12-30-00Z.md
 ```
-
-Keep each section tight. The file exists for post-mortem, not for narrative. Skip writing the file entirely on NO_REPLY firings (see below).
 
 ### Channel summary
 
-Single line the cron runner delivers to the notifications channel:
+Multi-line. One insight per line. Exactly six lines on a typical firing:
 
 ```
-capture-sessions: admitted <N> (skipped=<s>, interactive=<i>) | captured <M> | dates [YYYY-MM-DD, ...] | bleed <Z> | queue: u=<u>/s=<s2> | cron: <enabled|disabled> | report: memory/runs/capture-sessions/<ts>.md
+capture-sessions · <ISO timestamp UTC> · <outcome>
+Admitted: <N> (skipped=<s>, interactive=<i>)
+Captured: <M> sessions · dates: <list>
+Bleed: <Z> · slugs merged: <X> · insights filed: <Y>
+Queue: un-admitted=<u> · stale=<s2> · cron: <enabled|disabled>
+Report: memory/runs/capture-sessions/<ts>.md
 ```
 
-- `admitted` - total ledger entries added this firing; `skipped` + `interactive` sum to it.
-- `captured` - interactive sessions whose cursor advanced (includes Phase 1 admissions that got a Phase 2 first-read).
-- `bleed` - count of sessions whose new content touched a sealed-date note. Detail lives in the file.
-- `queue: u=/s=` - un-admitted / stale counts remaining; drives the heartbeat's next toggle decision.
-- `report: ...` - relative path to the file so the operator can open it with one step.
+- Line 1 `outcome` is one of: `captured` (interactive work done), `admitted-only` (only skipped admissions), `disabled` (queue drained, cron self-disabled this firing).
+- `dates` is a bracketed comma-separated list, or `-` when captured is 0.
+- Omit the Bleed line if there is no interactive work AND bleed is 0 (keeps admitted-only announcements short).
 
 ### NO_REPLY
 
-Return `NO_REPLY` (no channel post, no file on disk) when `admitted` is 0 OR all admissions were `skipped`, AND `captured` is 0, AND the cron state did not change. A no-op firing produces no artifacts.
+Return `NO_REPLY` (no channel post, no file on disk) when the firing produced no observable effect: admitted is 0 OR all admissions were skipped, AND captured is 0, AND the cron state did not change.
 
 Always report (file + channel) when: any interactive capture happened (`captured > 0`), any bleed surfaced (`bleed > 0`), or the cron self-disabled (state transition).

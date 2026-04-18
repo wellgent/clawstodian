@@ -58,21 +58,70 @@ openclaw cron disable <routine-name>
 
 ## Run report
 
-Two artifacts on meaningful firings: a detail file on disk and a one-line summary delivered to the logs channel by the cron runner.
+Two artifacts on meaningful firings: a detail file on disk and a multi-line scannable summary delivered to the logs channel by the cron runner. Both follow a shared shape across all routines so the operator does not need to learn a new format per routine.
 
 ### File on disk
 
-Write to `memory/runs/<routine-name>/<YYYY-MM-DD>T<HH-MM-SS>Z.md` (UTC, colons replaced with hyphens so the filename is filesystem-safe and sorts chronologically). File shape is per-routine but usually: frontmatter-style fields (timestamp, outcome, cron state), section per phase / action, a "Channel summary" section at the bottom with the exact line posted to the channel.
+Write to `memory/runs/<routine-name>/<YYYY-MM-DD>T<HH-MM-SS>Z.md` (UTC, colons replaced with hyphens so the filename is filesystem-safe and sorts chronologically). File shape:
 
-Skip the file on `NO_REPLY` firings - no work means no artifact.
+\`\`\`markdown
+# <routine-name> run report
 
-### Channel summary
+- timestamp: 2026-04-18T12:30:00Z
+- context: <date | ISO-week | timestamp>     # routine's unit identifier
+- outcome: <sealed|processed|committed|tidied|skipped|failed|...>  # routine-specific enum
+- path: <alternate code path if any, e.g. "full" / "trivial-day-fast-path" for seal>
+- cron_state: <enabled|disabled> → <enabled|disabled>  # omit line for always-on and fixed crons
+
+## What happened
+
+<Routine-specific subsections. One subsection per concern (admission, capture, merge,
+curate, etc.). Inside each: short bullets with counts and names.>
+
+## Queue after firing
+
+<routine-relevant queue state + cron-state-after. Use "n/a (always-on)" or "n/a (fixed cron)"
+when not applicable.>
+
+## Commits
+
+<Each commit this firing produced: short hash + subject. "(none)" if the routine does
+not commit or the tree was clean.>
+
+## Surfaced for operator
+
+<Things the routine flagged for operator judgment instead of acting on. Bullets.
+"(none)" if nothing needed surfacing.>
+
+## Channel summary
+
+<The exact multi-line text posted to the channel, for self-containment.>
+\`\`\`
+
+Drop any section that is genuinely `(none)` *and* stably so for this routine (e.g. `para-align` never commits, so it does not need the `Commits` section at all). Keep the five-section skeleton whenever the section could in principle have content.
+
+### Channel summary format
+
+Multi-line, one insight per line. Scannable. Shared shape across routines:
 
 \`\`\`
-<routine-name> <context>: <fields separated by pipes> | report: memory/runs/<routine-name>/<ts>.md
+<routine-name> · <context> · <outcome or path>
+<primary insight line>
+<secondary insight line(s)>
+Queue: <queue state> · cron: <enabled|disabled>      # omit for always-on and fixed crons
+Report: memory/runs/<routine-name>/<ts>.md
 \`\`\`
 
-Always end with `report: memory/runs/...` so the operator has a one-step drill-down path.
+Conventions:
+
+- Line 1 is the header: name · context · categorical outcome. Dots (`·`) as field separators so the header reads left-to-right like "what · when · result".
+- Middle lines carry the news. One primary concern per line; group tightly-related secondary counts on the same line separated by `·`.
+- The Queue line appears only for burst workers that track a queue (`capture-sessions`, `seal-past-days`, `para-extract`). Drop it for `workspace-tidy`, `git-hygiene`, `para-align`.
+- The Report line is always last. Relative path from workspace root so it clicks or copies cleanly.
+
+### NO_REPLY
+
+Return `NO_REPLY` (no channel post, no file on disk) when the firing produced no observable effect. A no-op firing is silent across both surfaces. Exact conditions are routine-specific (see each routine's spec).
 
 <When to return NO_REPLY, if applicable.>
 ```
@@ -100,12 +149,32 @@ Shape:
 Examples:
 
 ```
-capture-sessions: admitted 3 (skipped=2, interactive=1) | captured 1 | dates [2026-04-18] | bleed 0 | queue: u=0/s=0 | cron: enabled | report: memory/runs/capture-sessions/2026-04-18T12-30-00Z.md
-seal-past-days 2026-04-15: sealed | sections 7->5 | para_status: pending | queue: 2 | cron: enabled | report: memory/runs/seal-past-days/2026-04-16T02-30-00Z.md
-para-align 2026-W16: verified 48 entities | trivial fixes 3 | proposals 1 (awaiting operator) | report: memory/runs/para-align/2026-04-20T06-00-00Z.md
+capture-sessions · 2026-04-18T12:30Z · captured
+Admitted: 3 (skipped=2, interactive=1)
+Captured: 1 session · dates: 2026-04-18
+Bleed: 0 · slugs merged: 0 · insights filed: 0
+Queue: un-admitted=0 · stale=0 · cron: enabled
+Report: memory/runs/capture-sessions/2026-04-18T12-30-00Z.md
 ```
 
-Keep reports greppable and scan-friendly. Prose belongs elsewhere.
+```
+seal-past-days · 2026-04-17 · sealed (full)
+Sections: 7 → 5 · noise blocks removed: 2 · slugs merged: 0
+Frontmatter: topics=5 · people=2 · projects=3
+Commit: abc1234 memory: seal 2026-04-17 - VPS migration
+Queue: 2 notes remaining · cron: enabled
+Report: memory/runs/seal-past-days/2026-04-18T02-30-00Z.md
+```
+
+```
+para-align · 2026-W16 · fixes-applied
+Verified: 48 entities (clean=47, violations=1)
+Trivial fixes: 3 applied
+Proposals: 1 awaiting operator
+Report: memory/runs/para-align/2026-04-20T06-00-00Z.md
+```
+
+Keep reports greppable line-by-line. Prose belongs elsewhere.
 
 ## NO_REPLY convention
 

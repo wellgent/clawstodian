@@ -27,42 +27,56 @@ The current workspace working tree and its remote-tracking branch.
 
 ## Run report
 
-On firings that committed or surfaced anything: a full report on disk plus a one-line summary to the notifications channel. On clean-tree firings: `NO_REPLY`, no file, no channel post.
+Two artifacts on firings that committed or surfaced anything: a full report on disk following the shared run-report shape, and a multi-line scannable summary posted to the notifications channel. On clean-tree firings: `NO_REPLY` (no file, no channel post).
 
 ### File on disk
 
-Write to `memory/runs/git-hygiene/<YYYY-MM-DD>T<HH-MM-SS>Z.md` when there was work.
-
-File shape:
+Write to `memory/runs/git-hygiene/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ```markdown
 # git-hygiene run report
 
 - timestamp: 2026-04-18T14:00:00Z
-- outcome: committed | surfaced-only | failed
+- context: 2026-04-18T14:00Z firing
+- outcome: committed
 - branch: main
+- pushed: yes
+
+## What happened
+
+- commits made: 2
 - pushed: yes
 
 ## Commits
 
-- 2
-  - <hash short> memory: append 2026-04-18 notes on VPS migration
-  - <hash short> projects/vps-migration: add provisioning steps
+- abc1234 memory: append 2026-04-18 notes on VPS migration
+- def5678 projects/vps-migration: add provisioning steps
 
-## Awaiting operator decision (surfaced, not committed)
+## Surfaced for operator
 
 - 1
   - .env.new at workspace root - looks like secrets; ignored rather than committed. Operator to confirm.
 
 ## Channel summary
 
-git-hygiene: 2 commits pushed | 1 awaiting operator decision | report: memory/runs/git-hygiene/2026-04-18T14-00-00Z.md
+git-hygiene · 2026-04-18T14:00Z · committed
+Commits: 2 pushed
+Awaiting decision: 1
+Report: memory/runs/git-hygiene/2026-04-18T14-00-00Z.md
 ```
 
 ### Channel summary
 
+Multi-line. One insight per line:
+
 ```
-git-hygiene: <N> commits pushed | <M> awaiting operator decision | report: memory/runs/git-hygiene/<ts>.md
+git-hygiene · <ISO timestamp UTC> · <outcome>
+Commits: <N> pushed
+Awaiting decision: <M>
+Report: memory/runs/git-hygiene/<ts>.md
 ```
 
-Return `NO_REPLY` when the tree was already clean. No file is written in that case.
+- `outcome` is `committed | surfaced-only | failed`.
+- Omit the "Awaiting decision" line when M is 0.
+
+Return `NO_REPLY` when the tree was already clean (no commits, nothing surfaced). No file is written in that case.
