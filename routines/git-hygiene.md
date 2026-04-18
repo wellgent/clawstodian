@@ -1,10 +1,10 @@
 # git-hygiene
 
-Commit meaningful drift, keep the working tree sane, maintain `.gitignore`. Heartbeat-direct: same tick as `workspace-tidiness`. Also ambient: runs after any commit-worthy change during a normal turn.
+Commit meaningful drift, keep the working tree sane, maintain `.gitignore`. Always-on cron: fires on its own cadence; no heartbeat toggling.
 
 ## References
 
-- Related programs (same tick) -> `clawstodian/programs/workspace-tidiness.md`, `clawstodian/programs/health-sweep.md`
+- Related routines -> `clawstodian/routines/workspace-tidy.md`, `clawstodian/routines/daily-note.md`
 
 ## Authority
 
@@ -17,8 +17,7 @@ Never force-push. Never rewrite history. Never push to branches the operator has
 
 ## Trigger
 
-- Heartbeat task `workspace-sweep` on interval.
-- Ambient: when a normal turn leaves the tree dirty with work worth committing.
+Every 30 minutes (see Install). No enable/disable logic: drift either exists or it does not; quiet ticks reply `NO_REPLY` and stay silent.
 
 ## Approval gates
 
@@ -39,11 +38,11 @@ If `git push` fails (network, auth, protected branch), surface the error and sto
 
 ## What to do
 
-1. Run `git status`. If clean, skip.
+1. Run `git status`. If clean, reply `NO_REPLY` and stop.
 2. Group dirty files into logical commits, one concern per commit.
 3. For each group: stage files by exact path. Commit with a `<topic>: <short description>` message - lowercase, specific, meaningful. Common topics: `memory:`, `para:`, `config:`, `fix:`, `content:`, `insight:`, `guide:`, `skill:`, `ops:`.
 4. Push immediately after each commit.
-5. For any new untracked file that appears ephemeral (cache, build output, log): add to `.gitignore` and commit. If the file's nature is not obvious, queue for the tick's signalling batch and ask.
+5. For any new untracked file that appears ephemeral (cache, build output, log): add to `.gitignore` and commit. If the file's nature is not obvious, surface in the reply instead of committing or ignoring.
 
 ## What NOT to do
 
@@ -54,3 +53,45 @@ If `git push` fails (network, auth, protected branch), surface the error and sto
 - No amending published commits.
 - No committing to branches the operator has not opted into.
 - No emoji in commit messages unless the workspace style already uses them.
+
+## Reply
+
+Single line. The runner announces it to the logs channel. Quiet runs reply `NO_REPLY` so clean ticks produce no channel noise:
+
+```
+git-hygiene: <N> commits pushed | <M> awaiting operator decision
+```
+
+Or on clean tree:
+
+```
+NO_REPLY
+```
+
+## Install
+
+Prerequisite: `clawstodian/routines` symlink to `~/clawstodian/routines` (created by `INSTALL_FOR_AGENTS.md`).
+
+```bash
+openclaw cron add \
+  --name git-hygiene \
+  --every 30m \
+  --session isolated \
+  --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/git-hygiene.md and execute."
+```
+
+Substitute `--no-deliver` if the operator prefers no delivery.
+
+## Verify
+
+```bash
+openclaw cron list | grep git-hygiene
+```
+
+## Uninstall
+
+```bash
+openclaw cron remove git-hygiene
+```

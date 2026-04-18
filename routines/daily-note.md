@@ -1,33 +1,38 @@
-# daily-notes-tend
+# daily-note
 
-Keep one canonical daily note per calendar day with activity. Heartbeat-direct: executed by `HEARTBEAT.md` on each tick.
+Keep today's canonical daily note current throughout the day: append session activity, merge any `YYYY-MM-DD-slug.md` siblings, polish against conventions. Always-on cron.
 
 ## References
 
 - Daily note format -> `memory/daily-note-structure.md`
-- Companion program -> `clawstodian/programs/durable-insight.md` (run inline while tending)
-- Burst worker for past days -> `clawstodian/programs/close-of-day.md`
+- PARA conventions -> `memory/para-structure.md`
+- Past-day sealer -> `clawstodian/routines/seal-past-days.md`
 
-Read `memory/daily-note-structure.md` before writing. It defines frontmatter, section rules, and the PARA handoff marker.
+Read `memory/daily-note-structure.md` before writing. It defines frontmatter (including `para_status`), section rules, and the PARA handoff marker.
 
 ## Authority
 
-- Create and edit `memory/YYYY-MM-DD.md`.
-- Read session transcripts via `sessions_list` and `sessions_history`, and read raw JSONL from disk when fidelity matters.
+- Create and edit `memory/YYYY-MM-DD.md` for today's date only.
+- Merge and delete `memory/YYYY-MM-DD-<slug>.md` sibling files into today's canonical note (delete only after merging their content).
+- File clearly durable insights surfaced during the pass into the appropriate PARA entity (obvious placements only; ambiguous ones surface in the reply).
+- Read session transcripts via `sessions_list`, `sessions_history`, and raw JSONL from disk when fidelity matters.
 - Update frontmatter fields defined in `memory/daily-note-structure.md`.
 
 ## Trigger
 
-Heartbeat task `daily-notes-tend` every tick, coordinated by `HEARTBEAT.md`. Past-day sealing is not this program's job - enqueue via `close-of-day` burst worker.
+Every 30 minutes (see Install). Always-on cron; no heartbeat toggling. Past-day sealing is not this routine's job - enqueue via `seal-past-days`.
 
 ## Approval gates
 
-- No approval for writes to today's active note.
+- No approval needed for writes to today's active note or merges of today's slug siblings.
+- No approval needed for filing an insight into a clearly-obvious PARA location.
 - Ask before materially rewriting any sealed past-day note.
+- Ask before filing an insight whose placement is ambiguous (multiple plausible homes, new top-level folder, crosses entities).
 
 ## Escalation
 
-If `sessions_list` returns nothing but `git log` shows commits for the day (or vice versa), surface the discrepancy in the tick summary and do not guess.
+- If `sessions_list` returns nothing but `git log` shows commits for the day (or vice versa), surface the discrepancy in the reply and do not guess.
+- If a slug sibling's content conflicts materially with the canonical note, surface the conflict and leave both files untouched until the operator resolves.
 
 ## Exec safety
 
@@ -36,16 +41,60 @@ Run commands by exact path. Never inline code through heredocs piped into shell 
 ## What to do
 
 1. Determine today's date in workspace local time. Target: `memory/YYYY-MM-DD.md`.
-2. Use today's note as the durable cursor: read its frontmatter, latest section, and current body before appending.
-3. Discover session activity with `sessions_list`. Pull `sessions_history` for sessions with new activity or missing note coverage. Use `git log` for the same window.
-4. If the cursor is fuzzy, rescan a safe recent window and deduplicate against the note instead of guessing.
-5. Append only net-new material. Do not rewrite existing sections cosmetically.
-6. Update frontmatter: `status`, `last_updated`, `topics`, `people`, `projects`, `sessions`, and the daily-note queue fields defined in `memory/daily-note-structure.md`.
-7. If durable insights surface during the pass, run `durable-insight` inline.
+2. Use today's note as the durable cursor: read its frontmatter, latest section, current body.
+3. **Merge slug siblings.** Check `memory/YYYY-MM-DD-*.md`. For each: read, merge into canonical note under a descriptive section, delete the sibling file. Ambiguous merges surface in the reply instead.
+4. **Append session activity.** Discover with `sessions_list`. Pull `sessions_history` for sessions with new activity or missing note coverage. Use `git log` for the same window. When the cursor is fuzzy, rescan a safe recent window and deduplicate against the note instead of guessing.
+5. **Append only net-new material.** Do not rewrite existing sections cosmetically.
+6. **File obvious durable insights inline.** If a decision, resolved bug, or reusable pattern clearly belongs in `resources/` or a project's `README.md`, file it now. Ambiguous insights surface in the reply.
+7. **Update frontmatter** per `memory/daily-note-structure.md`: `status`, `last_updated`, `topics`, `people`, `projects`, `sessions`, and `para_status` (leave as set or initialize to `pending` per the structure spec).
 
 ## What NOT to do
 
-- Do not create `memory/YYYY-MM-DD-<topic>.md` topic-suffixed variants.
+- Do not create `memory/YYYY-MM-DD-<slug>.md` new files; merge any that exist into the canonical note.
 - Do not reconstruct content for days with no evidence.
 - Do not rewrite sealed notes cosmetically.
-- Do not do backlog drain for past days inline - that is the `close-of-day` burst worker's job.
+- Do not drain past-day backlog; that is `seal-past-days`.
+- Do not auto-create new top-level directories for insight filing.
+- Do not create stub PARA entities.
+
+## Reply
+
+Single line. The runner announces to the logs channel. Reply `NO_REPLY` when nothing changed:
+
+```
+daily-note YYYY-MM-DD: appended <N> sections | merged <M> slug siblings | filed <K> insights | <L> awaiting operator
+```
+
+Or:
+
+```
+NO_REPLY
+```
+
+## Install
+
+Prerequisite: `clawstodian/routines` symlink to `~/clawstodian/routines`.
+
+```bash
+openclaw cron add \
+  --name daily-note \
+  --every 30m \
+  --session isolated \
+  --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/daily-note.md and execute."
+```
+
+Substitute `--no-deliver` if the operator prefers no delivery.
+
+## Verify
+
+```bash
+openclaw cron list | grep daily-note
+```
+
+## Uninstall
+
+```bash
+openclaw cron remove daily-note
+```

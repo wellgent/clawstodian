@@ -1,12 +1,24 @@
-# close-of-day
+# seal-past-days
 
-Seal one unsealed past-day daily note per run. Demand-driven: starts disabled; heartbeat enables when past-day notes accumulate; self-disables when the queue is empty.
+Seal one unsealed past-day daily note per run. Burst worker: starts disabled; heartbeat enables when past-day notes accumulate; self-disables when the queue is empty.
 
 ## References
 
 - Daily note format -> `memory/daily-note-structure.md`
+- Today's note routine -> `clawstodian/routines/daily-note.md`
+- PARA extractor -> `clawstodian/routines/para-extract.md`
 
-Read `memory/daily-note-structure.md` before sealing. It defines the output format and the PARA handoff marker. Do not reinvent it here.
+Read `memory/daily-note-structure.md` before sealing. It defines the output format, frontmatter (including `para_status`), and the PARA handoff marker. Do not reinvent it here.
+
+## Authority
+
+- Edit `memory/YYYY-MM-DD.md` for past dates in seal form.
+- Merge and delete `memory/YYYY-MM-DD-<slug>.md` siblings for past dates.
+- Toggle this cron's enabled state via `openclaw cron disable` when the queue is empty.
+
+## Trigger
+
+Every 30 minutes while enabled (see Install). Starts disabled. Heartbeat enables when past-day notes accumulate with `status: active`. Self-disables on empty queue.
 
 ## Exec safety
 
@@ -21,7 +33,7 @@ Run commands by exact path. Never inline code through heredocs piped into shell 
 **Skip if:** no candidates exist. Disable the cron and stop:
 
 ```bash
-openclaw cron disable close-of-day
+openclaw cron disable seal-past-days
 ```
 
 ## Trivial-day fast-path
@@ -42,7 +54,7 @@ This prevents expensive compute on "quiet day - no user interactions" notes.
 
 ## Full seal
 
-**Merge topic-suffixed variants.** Check for `memory/YYYY-MM-DD-*.md` (e.g. `memory/2026-04-07-ops-para-fix.md`). These are variants created outside the sealing pipeline - during interactive sessions, by other tools, or by manual edits. Read their content, merge into the canonical `memory/YYYY-MM-DD.md`, then delete the variants. If none exist, skip.
+**Merge topic-suffixed variants.** Check for `memory/YYYY-MM-DD-*.md` (e.g. `memory/2026-04-07-ops-para-fix.md`). Read their content, merge into the canonical `memory/YYYY-MM-DD.md`, then delete the variants. If none exist, skip.
 
 **Read the full daily note.** Understand it before changing anything.
 
@@ -53,7 +65,7 @@ This prevents expensive compute on "quiet day - no user interactions" notes.
 
 **Organize the note:**
 - Chronological order (by UTC timestamp).
-- Merge duplicate sections covering the same topic (common when multiple sessions touched the same work).
+- Merge duplicate sections covering the same topic.
 - Every `##` header must be descriptive and searchable - `memory_search` matches on these. Include topic name + what happened + `(~HH:MM UTC)` timestamp.
 - Write a 2-3 sentence day summary after the `# YYYY-MM-DD` heading: what was this day about?
 
@@ -63,15 +75,15 @@ This prevents expensive compute on "quiet day - no user interactions" notes.
 - Cron-run dumps unless they led to decisions or discussion.
 
 **Curate frontmatter** per `memory/daily-note-structure.md`. Judgment calls:
-- `people` - people the day was *about*. Remove-the-name test: if I remove this name, does the day's story change? Exclude internet strangers, bystanders in group chats, names in cron reminders.
-- `projects` - same test. Include implicit work (work that clearly serves a known project even without naming it). Exclude projects mentioned only in file paths.
+- `people` - people the day was *about*. Remove-the-name test: if I remove this name, does the day's story change? Exclude internet strangers, bystanders, names in cron reminders.
+- `projects` - same test. Include implicit work (work clearly serving a known project even without naming it). Exclude projects mentioned only in file paths.
 - `topics` - 3-8 specific phrases. The day's themes, not a section-by-section list.
 
-**Thread continuity.** When a section clearly continues work from a previous day (same project, topic, or person interaction spanning days), add `(continued from YYYY-MM-DD)` in the section body. Only when the continuation is unambiguous.
+**Thread continuity.** When a section clearly continues work from a previous day, add `(continued from YYYY-MM-DD)` in the section body. Only when the continuation is unambiguous.
 
 **Flip `status: active` -> `status: sealed`. Leave or set `para_status: pending`. Update `last_updated` to the current ISO timestamp.**
 
-Do not perform PARA extraction here. `para-backfill` owns sealed-note propagation into PARA.
+Do not perform PARA extraction here. `para-extract` owns sealed-note propagation into PARA.
 
 ## After processing
 
@@ -81,7 +93,7 @@ Do not perform PARA extraction here. `para-backfill` owns sealed-note propagatio
 2. **If none:** disable the cron:
 
    ```bash
-   openclaw cron disable close-of-day
+   openclaw cron disable seal-past-days
    ```
 
 The cron stays dormant until heartbeat re-enables it when new past-day notes accumulate.
@@ -90,54 +102,47 @@ The cron stays dormant until heartbeat re-enables it when new past-day notes acc
 
 ## Commit
 
-Add only the files you changed - never `git add -A` or `git add .`. Commit message: `memory: seal YYYY-MM-DD - <topic summary>`. Push immediately after the commit - unpushed commits are invisible to other sessions. No AI attribution lines (`Co-Authored-By`, `Generated by`, etc.).
+Add only the files you changed - never `git add -A` or `git add .`. Commit message: `memory: seal YYYY-MM-DD - <topic summary>`. Push immediately after the commit. No AI attribution lines.
 
 ## Failure handling
 
-If any step fails (note unreadable, API overload, disk IO error): do NOT disable the cron - the next slot retries. Do NOT silently skip. The reply surfaces what failed and why. The heartbeat `workspace-sweep` health check catches repeated failures and surfaces them to the operator.
+If any step fails (note unreadable, API overload, disk IO error): do NOT disable the cron - the next slot retries. Do NOT silently skip. Surface what failed and why in the reply.
 
 ## Reply
 
-Single line summary to the session. The cron runs `--no-deliver`, so this lands nowhere external - but the session transcript captures it for the health sweep:
+Single line summary. The runner announces it to the logs channel:
 
 ```
-close-of-day YYYY-MM-DD: <sealed|skipped|failed> | sections N->N | para_status: pending | queue: <remaining> | cron: <enabled|disabled>
+seal-past-days YYYY-MM-DD: <sealed|skipped|failed> | sections N->N | para_status: pending | queue: <remaining> | cron: <enabled|disabled>
 ```
 
 ## Install
 
-Prerequisite: the workspace has a `clawstodian/programs` symlink to the package's `programs/` directory. `INSTALL_FOR_AGENTS.md` creates this during setup; if you are adding this routine later, create it first:
-
-```bash
-mkdir -p clawstodian
-ln -sf ~/clawstodian/programs clawstodian/programs
-```
-
-Register the cron with operator confirmation. Starts disabled; the heartbeat enables on demand. Summaries announce to the workspace's maintainer logs channel (replace `<your-logs-channel-id>` with your Discord/Slack/Telegram channel id):
+Prerequisite: `clawstodian/routines` symlink to `~/clawstodian/routines`.
 
 ```bash
 openclaw cron add \
-  --name close-of-day \
+  --name seal-past-days \
   --every 30m \
   --disabled \
   --session isolated \
   --light-context \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/programs/close-of-day.md and execute."
+  --message "Read clawstodian/routines/seal-past-days.md and execute."
 ```
 
-If the operator prefers no delivery, substitute `--no-deliver`. The runner only announces when the agent's reply is non-empty and non-`NO_REPLY`, so quiet runs stay quiet.
+Starts disabled; heartbeat enables it on demand. Substitute `--no-deliver` for silent runs.
 
 ## Verify
 
 ```bash
-openclaw cron list --all | grep close-of-day
+openclaw cron list --all | grep seal-past-days
 ```
 
-Shows the job as disabled.
+Shows the job as disabled at install time.
 
 ## Uninstall
 
 ```bash
-openclaw cron remove close-of-day
+openclaw cron remove seal-past-days
 ```
