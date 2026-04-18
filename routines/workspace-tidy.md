@@ -1,6 +1,6 @@
 # workspace-tidy
 
-Keep the working tree navigable. Remove trash, move misplaced files to their intuitive home, leave signal. Always-on cron.
+Keep the working tree navigable. Remove trash, move misplaced files to their intuitive home, leave signal.
 
 ## References
 
@@ -15,10 +15,6 @@ Keep the working tree navigable. Remove trash, move misplaced files to their int
 - Remove scratch files the agent itself created and no longer references.
 - Move misplaced files to their intuitive location when the right home is obvious per `memory/para-structure.md`.
 - Edit `.gitignore`.
-
-## Trigger
-
-Every 2 hours (see Install). Always-on cron; no heartbeat toggling. Quiet runs reply `NO_REPLY` to stay silent.
 
 ## Approval gates
 
@@ -50,7 +46,7 @@ Run commands by exact path. Never inline code through heredocs piped into shell 
    - **Anomalies** (broken symlinks, oversized files, unknown-origin files).
 2. For each candidate:
    - Obvious action (per authority and approval gates): apply.
-   - Ambiguous: surface in the reply and leave alone.
+   - Ambiguous: surface in the summary and leave alone.
 3. Keep the tree clean: `.gitignore` patterns for any ephemeral files that slipped in.
 
 ## What NOT to do
@@ -61,44 +57,12 @@ Run commands by exact path. Never inline code through heredocs piped into shell 
 - Do not trash anything produced by another routine without tracing origin first.
 - Do not auto-archive inactive projects (archive lifecycle is user-managed).
 
-## Reply
+## Summary
 
-Single line summary. The runner announces it to the logs channel. Reply `NO_REPLY` on quiet runs:
+When something changed, report one line:
 
 ```
 workspace-tidy: removed <N>, moved <M>, awaiting decision on <K>
 ```
 
-Or:
-
-```
-NO_REPLY
-```
-
-## Install
-
-Prerequisite: `clawstodian/routines` symlink to `~/clawstodian/routines`.
-
-```bash
-openclaw cron add \
-  --name workspace-tidy \
-  --every 2h \
-  --session isolated \
-  --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/workspace-tidy.md and execute."
-```
-
-Substitute `--no-deliver` for silent runs.
-
-## Verify
-
-```bash
-openclaw cron list | grep workspace-tidy
-```
-
-## Uninstall
-
-```bash
-openclaw cron remove workspace-tidy
-```
+When nothing changed, produce no summary. Under cron dispatch, return `NO_REPLY`.

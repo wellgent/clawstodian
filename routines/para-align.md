@@ -1,6 +1,6 @@
 # para-align
 
-Verify PARA structural and semantic health. Apply trivial structural fixes; surface everything else. Fixed cron: weekly by default; heartbeat may trigger mid-week if `para-extract` reports drift.
+Verify PARA structural and semantic health. Apply trivial structural fixes; surface everything else.
 
 ## References
 
@@ -16,7 +16,7 @@ Read `memory/para-structure.md` before starting. It defines the conventions you 
 - Apply trivial structural fixes in place: missing `INDEX.md` entry, frontmatter whitespace, obviously-inferable `last_updated`.
 - Update `MEMORY.md` dashboard to reflect current active projects, area pointers, and infrastructure references.
 - Update `related:` pointers after confirmed entity renames or moves (operator-confirmed or obvious from file-presence evidence only).
-- Propose all non-trivial fixes in the reply; do not apply them.
+- Propose all non-trivial fixes in the summary; do not apply them.
 
 ## Scope
 
@@ -27,13 +27,19 @@ Covers four dimensions of PARA health:
 3. **Naming and slug conventions** - kebab-case, no spaces, no underscores, lowercase; consistent with `memory/para-structure.md`.
 4. **MEMORY.md currency** - every active project is listed; retired projects are not; infrastructure and area pointers resolve.
 
-## Trigger
+## Approval gates
 
-Cron-scheduled weekly (Sunday 06:00 UTC by default; see Install). The heartbeat orchestrator may also `--wake now` this routine mid-week when `para-extract` reports drift it cannot safely resolve.
+- Trivial structural fixes: apply in place.
+- Entity content, path, status semantics, ambiguous `related:` target, slug rename with downstream implications, new top-level folder: surface; do not apply.
+
+## Escalation
+
+- A rename that would update many referrers ambiguously: surface the set of proposed changes; wait.
+- A structural anomaly that looks intentional (e.g. an entity is non-conforming because a plugin created it): surface; do not correct.
 
 ## Exec safety
 
-Run commands by exact path. Never inline code through heredocs piped into shell interpreters; the gateway's exec safety layer blocks that as obfuscation.
+Run commands by exact path. Never inline code through heredocs piped into shell interpreters.
 
 ## What to do
 
@@ -50,7 +56,7 @@ For each entity file in `projects/`, `areas/`, `resources/`, `archives/`:
 - For every `related:` pointer, verify the target file exists at the given path.
 - For every entity path mentioned in `MEMORY.md` or in another entity's body, verify it resolves.
 - If a target moved or was renamed and the new path is unambiguous (e.g. old and new both in index history; slug differs only by known convention change), update the referrer.
-- If a target appears deleted or archived and no replacement is obvious, surface in the reply.
+- If a target appears deleted or archived and no replacement is obvious, surface in the summary.
 
 **3. Verify `MEMORY.md`.**
 
@@ -65,27 +71,11 @@ If MEMORY.md has drifted, update it in place. The dashboard is the summary of cu
 
 For each discrepancy from steps 1-3:
 - **Trivial structural fix** (missing `INDEX.md` entry, frontmatter whitespace, inferrable `last_updated`, broken `related:` pointer with obvious replacement, MEMORY.md dashboard sections out of date): apply in place.
-- **Anything else** (entity content, path, status semantics, ambiguous `related:` target, slug rename with downstream implications, new top-level folder): do NOT rewrite. Surface in the reply with file path, observed state, proposed fix. The operator decides.
-
-## After processing
-
-Single-run job. The cron is scheduled weekly; it fires, completes, and waits for next week. No self-disable; no queue to drain. A heartbeat-triggered mid-week run completes the same way.
+- **Anything else** (entity content, path, status semantics, ambiguous `related:` target, slug rename with downstream implications, new top-level folder): do NOT rewrite. Surface in the summary with file path, observed state, proposed fix. The operator decides.
 
 ## Commit
 
 Add only the files you changed - never `git add -A`. Commit message: `para: align YYYY-Www - <summary>`. Push immediately after the commit. No AI attribution lines.
-
-## Failure handling
-
-If any step fails, the reply surfaces what failed and why. Do NOT attempt partial rewrites to work around structural problems. The operator resolves manually. The cron stays scheduled regardless.
-
-## Reply
-
-Single line summary. The runner announces it to the logs channel:
-
-```
-para-align YYYY-Www: verified <N> entities | trivial fixes <M> | proposals <K> (awaiting operator)
-```
 
 ## What NOT to do
 
@@ -95,30 +85,10 @@ para-align YYYY-Www: verified <N> entities | trivial fixes <M> | proposals <K> (
 - Do not disable or enable any cron.
 - Do not auto-archive inactive projects (archive lifecycle is user-managed).
 
-## Install
+## Summary
 
-Prerequisite: `clawstodian/routines` symlink to `~/clawstodian/routines`.
+Report one line:
 
-```bash
-openclaw cron add \
-  --name para-align \
-  --cron "0 6 * * 0" \
-  --session isolated \
-  --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/para-align.md and execute."
 ```
-
-Runs Sunday 06:00 UTC. Starts enabled. Substitute `--no-deliver` for silent runs.
-
-## Verify
-
-```bash
-openclaw cron list | grep para-align
-```
-
-## Uninstall
-
-```bash
-openclaw cron remove para-align
+para-align YYYY-Www: verified <N> entities | trivial fixes <M> | proposals <K> (awaiting operator)
 ```
