@@ -129,7 +129,8 @@ Heartbeat runs in the agent's main session (where the operator already DMs with 
         //   session: main (collaborative continuity with the operator)
         //   isolatedSession: false
         //   lightContext: false (full workspace bootstrap each tick)
-        target: "<your-notifications-channel-id>",
+        target: "discord", // channel plugin name: discord | slack | telegram | whatsapp | ...
+        to: "channel:<your-notifications-channel-id>", // channel-specific recipient
         activeHours: {
           start: "08:00",
           end: "22:00",

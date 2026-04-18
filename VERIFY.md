@@ -67,12 +67,12 @@ Any `FAIL` should be investigated before relying on the install.
 The heartbeat lives in `~/.openclaw/openclaw.json` (or `config.toml`), not in the workspace. Read it and confirm:
 
 - `agents.defaults.heartbeat.every` is set (recommended: `"2h"`).
-- `agents.defaults.heartbeat.target` is set to the notifications channel id (not empty, not `"last"`).
+- `agents.defaults.heartbeat.target` is set to a channel plugin (`discord`, `slack`, `telegram`, etc.) and `agents.defaults.heartbeat.to` is set to the channel-specific recipient (e.g. `"channel:<id>"`). Avoid `target: "last"` - the notifications channel should be stable.
 - `agents.defaults.heartbeat.activeHours` has `start`, `end`, `timezone` - matches the operator's preferred window.
 - `channels.defaults.heartbeat.showAlerts` is `true`.
 - `agents.defaults.heartbeat.session`, `isolatedSession`, and `lightContext` are either omitted (defaults) or set to: no `session` override, `isolatedSession: false`, `lightContext: false`. These defaults mean heartbeat runs in the agent's main session with full workspace bootstrap.
 
-A config that passes every other check but has `target: ""` or `showAlerts: false` will produce a silent heartbeat. That is the failure mode v0.4 is designed to prevent; catch it here.
+A config that passes every other check but has an unregistered `target` plugin, a malformed `to` recipient, or `showAlerts: false` will produce a silent heartbeat. That is the failure mode v0.4 is designed to prevent; catch it here.
 
 **Not checked here:** `session.maintenance`, `agents.defaults.contextPruning`, `session.dmScope`, `session.reset`. These are host-wide policy choices from the operator's sessions baseline; clawstodian does not prescribe them.
 

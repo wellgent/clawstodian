@@ -24,7 +24,8 @@ The split matches how OpenClaw's channel routing actually works. Main-session in
         // session omitted -> main session (default) -> collaborative continuity with the operator
         // isolatedSession omitted -> false (default)
         // lightContext omitted -> false (default) -> full workspace bootstrap each tick
-        target: "<your-notifications-channel-id>",
+        target: "discord", // channel plugin: discord | slack | telegram | whatsapp | bluebubbles | last | none
+        to: "channel:<your-notifications-channel-id>", // channel-specific recipient
         activeHours: {
           start: "08:00",
           end: "22:00",
@@ -52,7 +53,8 @@ clawstodian deliberately does NOT set `session.maintenance`, `agents.defaults.co
 - **`session`** (omitted) - heartbeat runs in the agent's main session by default. The operator's DM with the agent IS the maintenance thread. No named session to create, no session-routing to configure.
 - **`isolatedSession`** (omitted, default `false`) - conversation history persists across ticks as a natural consequence of running in the main session.
 - **`lightContext`** (omitted, default `false`) - full workspace bootstrap loads each tick: `AGENTS.md` (programs catalog), `MEMORY.md` (dashboard), daily notes, any other bootstrap files the workspace uses. The maintainer is fully workspace-aware every tick.
-- **`target`** - the dedicated notifications channel (Discord, Slack, Telegram channel id). This is where heartbeat posts AND where cron routines announce their summaries. One pane for all maintenance observability.
+- **`target`** - channel plugin name (`discord`, `slack`, `telegram`, `whatsapp`, `bluebubbles`, ...), or `"last"` for last-contact, or `"none"` to run internally without delivery. For the notifications channel, use the plugin that hosts it.
+- **`to`** - channel-specific recipient within `target`. For Discord/Slack/Telegram channels, this is typically `"channel:<channel-id>"`. For SMS/iMessage it is a phone number. Match whatever shape the cron routines use for `--to` so heartbeat and routines land in the same place. One pane for all maintenance observability.
 - **`activeHours`** - the agent's working window. Ticks outside skip silently. Match the operator's actual availability.
 - **`showAlerts: true`** - deliver substantive replies.
 - **`useIndicator: true`** - emit UI indicator events.
@@ -96,7 +98,7 @@ No `sessions_send` bridge. No channel-to-session binding. The main session is al
 
 ## Notifications channel
 
-The `target` channel receives:
+The channel resolved by `target` + `to` receives:
 
 - Heartbeat posts: status (every tick), daily retrospective (once/day), weekly review (once/week).
 - Per-routine announcements from the six cron routines (`daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`). Each routine runs in its own isolated cron session and posts a single-line run report via `--announce --channel --to`.
@@ -128,7 +130,7 @@ If cost becomes a concern:
 
 1. Confirm the gateway is running and the heartbeat config loaded: `openclaw config show | grep -A5 heartbeat`.
 2. Check `activeHours` - ticks outside the window skip silently.
-3. Check `target` - if empty or invalid, the run may happen internally but not deliver. Gateway logs (`/tmp/openclaw/openclaw-<date>.log`) carry the reason.
+3. Check `target` + `to` - `target` must be a registered channel plugin (`discord`, `slack`, etc.); `to` must be a recipient that plugin understands (e.g. `"channel:<id>"`). If either is wrong, the run may happen internally but not deliver. Gateway logs (`/tmp/openclaw/openclaw-<date>.log`) carry the reason.
 4. Check `memory/heartbeat-trace.md` - if it has recent append lines, the heartbeat is firing but delivery is failing. If it's empty, the heartbeat is not firing at all.
 5. Review the gateway's internal scheduler state.
 

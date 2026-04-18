@@ -49,7 +49,7 @@ Read fresh each tick (file state is authoritative; session memory is conversatio
 - `git status` - tree state overview.
 - `openclaw cron list --all` - which crons exist, which are enabled, last-run timestamps.
 - `openclaw cron logs --name <routine> --limit 1` (or equivalent) for each clawstodian routine - the most recent reply text.
-- Heartbeat config in `~/.openclaw/openclaw.json` - `session`, `isolatedSession`, `lightContext`, `target`, `activeHours`, visibility flags.
+- Heartbeat config in `~/.openclaw/openclaw.json` - `session`, `isolatedSession`, `lightContext`, `target`, `to`, `activeHours`, visibility flags.
 - Workspace symlinks under `clawstodian/` - both `programs` and `routines` resolve correctly.
 
 ### 1. Assess burst worker queues
@@ -73,7 +73,7 @@ The weekly schedule still fires on Sunday regardless.
 
 Inspect and report any anomaly. Do not repair from here:
 
-- Heartbeat config matches recommended stance: `every` set, `target` is a real notifications channel id, `activeHours` set, `showAlerts: true`. `session`, `isolatedSession`, and `lightContext` are either omitted or at defaults (main session, non-isolated, full bootstrap).
+- Heartbeat config matches recommended stance: `every` set, `target` is a channel plugin (`discord`, `slack`, ...) and `to` is the channel-specific recipient, `activeHours` set, `showAlerts: true`. `session`, `isolatedSession`, and `lightContext` are either omitted or at defaults (main session, non-isolated, full bootstrap).
 - All clawstodian cron entries exist: `daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`.
 - Recent cron runs: any routine that has not reported in the last 2 expected intervals, or has failed-status replies in a row.
 - Installed reference docs (`memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`) match package template markers.

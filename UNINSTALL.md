@@ -86,7 +86,7 @@ Edit `~/.openclaw/openclaw.json` (or `config.toml`). The operator chose the conf
 Typical revert options:
 
 - Set `agents.defaults.heartbeat.every` back to the operator's prior value, or remove the heartbeat block entirely to disable it.
-- Reset `target` to the prior channel or `"last"`.
+- Reset `target` (and `to`) to the prior values, or to `target: "last"` / `target: "none"`.
 - Reset `activeHours` to prior values.
 - Reset `channels.defaults.heartbeat.showAlerts` / `showOk` / `useIndicator` to prior values.
 
