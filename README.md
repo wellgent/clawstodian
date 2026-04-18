@@ -1,6 +1,6 @@
 # clawstodian
 
-A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. The package ships **four programs** (domain authorities for daily notes, PARA knowledge graph, workspace tidiness, git hygiene) and **six routines** (scheduled cron invocations of specific program behaviors) so the workspace stays in good shape whether the operator is actively working or not.
+A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. The package ships **four programs** (domain authorities for daily notes, PARA knowledge graph, workspace tidiness, git hygiene) and **seven routines** (scheduled cron invocations of specific program behaviors) so the workspace stays in good shape whether the operator is actively working or not.
 
 Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenClaw primitives, and the observable-by-design execution pattern those packages got right.
 
@@ -33,26 +33,27 @@ The agent reads `INSTALL.md`, surveys your workspace, proposes a merge plan, ask
 - `workspace-tidy` - workspace cleanliness. Trash removal, misplaced-file relocation, `.gitignore` upkeep.
 - `git-hygiene` - commit discipline. Stage-by-path commits, clear messages, immediate push.
 
-**Six routines** (`routines/`): the scheduled invocations.
+**Seven routines** (`routines/`): the scheduled invocations.
 
 Always-on crons:
-- `daily-note` (every 30m) - daily-notes: tend today's note.
+- `daily-note` (every 30m) - daily-notes: ingest recent session activity (90m window) into today's note.
 - `workspace-tidy` (every 2h) - workspace-tidy: walk and tidy.
 - `git-hygiene` (every 30m) - git-hygiene: commit drift.
 - `para-align` (Sunday 06:00 UTC) - para: align PARA structure. Heartbeat may also `--wake now` on mid-week drift.
 
 Heartbeat-toggled bursts (start disabled; orchestrator enables on demand):
+- `backfill-sessions` - daily-notes: ingest one historical session per firing (sessions older than the 90m window with no ledger entry).
 - `seal-past-days` - daily-notes: seal a past-day note.
 - `para-extract` - para: extract PARA from a sealed note.
 
-`AGENTS.md` holds the programs catalog; `HEARTBEAT.md` runs the orchestrator; `memory/crons.md` is the routine dashboard. All specs are read on demand from the workspace symlinks.
+`AGENTS.md` holds the programs catalog; `HEARTBEAT.md` runs the orchestrator; `memory/crons.md` is the routine dashboard; `memory/session-ledger.md` is the authoritative per-session capture-cursor file. All specs are read on demand from the workspace symlinks.
 
 ## How it runs
 
 - **Each routine runs as its own cron job.** Isolated session, light context, per-routine announcement to the logs channel. A quiet run returns `NO_REPLY` and stays silent.
 - **Heartbeat is the orchestrator, not an executor.** On its cadence it reads workspace state, toggles burst workers based on queues (sealed-notes pending, past-day notes unsealed), spot-checks configuration health, appends a trace line to `memory/heartbeat-trace.md`, and posts a one-line executive summary. It never goes silent: even a healthy no-change tick posts.
 - **Three-layer observability.** Per-routine run reports (detail on demand), heartbeat executive summary (ambient awareness), `memory/heartbeat-trace.md` (forensic record). Silence in any of the three is itself informative.
-- **No package-owned state files.** Git, daily notes, PARA entities, session transcripts, and `memory/heartbeat-trace.md` are the ledger.
+- **No package-owned state files.** Git, daily notes, PARA entities, session transcripts, `memory/session-ledger.md` (authoritative capture state for daily-notes), and `memory/heartbeat-trace.md` are the only state.
 - **In-session agents and cron dispatch share the same programs.** An agent finishing a work session can follow the `git-hygiene` program to commit drift; the `git-hygiene` routine fires every 30m to catch anything missed. Both read the same program spec.
 
 ## Co-creation, not automation
@@ -85,10 +86,11 @@ clawstodian/
     git-hygiene.md                   domain: commit discipline
 
   routines/
-    daily-note.md                    always-on; invokes daily-notes/tend
+    daily-note.md                    always-on; invokes daily-notes/ingest-recent
     workspace-tidy.md                always-on; invokes workspace-tidy/walk-and-tidy
     git-hygiene.md                   always-on; invokes git-hygiene/commit-drift
     para-align.md                    fixed cron; invokes para/align
+    backfill-sessions.md             burst; invokes daily-notes/ingest-historical
     seal-past-days.md                burst; invokes daily-notes/seal
     para-extract.md                  burst; invokes para/extract
 
@@ -99,6 +101,7 @@ clawstodian/
     para-structure.md                installable to memory/para-structure.md
     daily-note-structure.md          installable to memory/daily-note-structure.md
     crons.md                         installable to memory/crons.md
+    session-ledger.md                installable to memory/session-ledger.md (daily-notes capture state)
 
   docs/
     architecture.md                  first-principles design

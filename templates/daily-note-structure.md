@@ -5,9 +5,11 @@ Single source of truth for the daily note model. The `daily-note`, `seal-past-da
 
 ## Overview
 
-Daily notes live at `memory/YYYY-MM-DD.md`. Each file represents exactly one calendar day. Content flows in from session transcripts, git activity, and workspace changes via the `daily-note` cron routine. Past days are sealed by the `seal-past-days` burst worker. PARA entities get extracted from sealed notes by `para-extract`.
+Daily notes live at `memory/YYYY-MM-DD.md`. Each file represents exactly one calendar day. Content flows in from session transcripts, git activity, and workspace changes via the `daily-note` cron routine. Past days are sealed by the `seal-past-days` burst worker. PARA entities get extracted from sealed notes by `para-extract`. Sessions that fall outside the steady-state window are processed by the `backfill-sessions` burst worker.
 
 **One canonical file per day.** The primary daily note is always `memory/YYYY-MM-DD.md`. Topic-suffixed variants such as `memory/YYYY-MM-DD-foo.md` may appear during active sessions; the `daily-note` routine merges them into the canonical note on its next run for today, and `seal-past-days` merges them on seal for past dates. Sealed notes never have topic-suffixed siblings.
+
+**Capture state lives in the ledger, not the note.** Per-session cursors (how far each session transcript has been read) live in `memory/session-ledger.md`. Daily notes reference sessions only by id; the `sessions:` frontmatter field is a human-readable attribution list, not capture state.
 
 ```
 daily-note (always-on cron)              seal-past-days (burst worker)            para-extract (burst worker)
@@ -15,6 +17,12 @@ daily-note (always-on cron)              seal-past-days (burst worker)          
 appends new content to today's           seals yesterday (or older) with           propagates sealed note into
 note from sessions + git; merges         disk JSONL fidelity; merges any           PARA entities; flips
 slug siblings inline; status: active     slug variants; status: sealed             para_status pending -> done
+
+backfill-sessions (burst worker)
+-----------------------------
+processes sessions older than the
+90m activeMinutes window that have
+no ledger entry yet; one per firing
 ```
 
 ## Frontmatter
@@ -43,7 +51,7 @@ sessions: [96a0c068, b513d1a5]
 - `topics` - 3 to 8 short phrases. Specific enough to be useful, brief enough to scan.
 - `people` - real people mentioned. Test: remove the name. Does the section lose something?
 - `projects` - project names, lowercase, matching workspace conventions.
-- `sessions` - 8-character prefixes of session files that contributed content to this date.
+- `sessions` - 8-character prefixes of session ids that contributed content to this date. Attribution only; capture cursors for those sessions live in `memory/session-ledger.md`.
 
 ### Status transitions
 

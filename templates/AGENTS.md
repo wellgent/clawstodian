@@ -11,7 +11,7 @@
 <!-- template: clawstodian/agents 2026-04-18 -->
 ## Workspace Maintainer (clawstodian)
 
-This workspace runs four maintenance **programs** that define how the workspace operates, and six **routines** that schedule those programs to run on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, and session transcripts are the only state.
+This workspace runs four maintenance **programs** that define how the workspace operates, and seven **routines** that schedule those programs to run on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, session transcripts, and `memory/session-ledger.md` are the only state.
 
 ### Operating model
 
@@ -52,7 +52,7 @@ Three layers give continuity across sessions:
 - Reference material -> `memory_search` first, then `read` the top result.
 - Known file path -> `read` directly.
 - Complete listings -> `projects/INDEX.md`, `areas/INDEX.md`, `resources/INDEX.md`.
-- Convention deep-dives -> `memory/para-structure.md`, `memory/daily-note-structure.md`, `memory/crons.md`.
+- Convention deep-dives -> `memory/para-structure.md`, `memory/daily-note-structure.md`, `memory/crons.md`, `memory/session-ledger.md` (authoritative capture state for the daily-notes program).
 
 **Memory maintenance (applies to all agents in this workspace, not just clawstodian-driven runs):**
 
@@ -83,9 +83,10 @@ Two execution classes:
 
 Current routines:
 
-- **daily-note** (always-on, every 30m) - invokes daily-notes: tend today's note.
-- **seal-past-days** (burst) - invokes daily-notes: seal a past-day note.
-- **para-extract** (burst) - invokes para: extract PARA from a sealed note.
+- **daily-note** (always-on, every 30m) - invokes daily-notes: ingest recent session activity into today's note.
+- **backfill-sessions** (burst, every 30m while enabled) - invokes daily-notes: ingest one historical session per firing. Heartbeat enables when the session ledger is behind `sessions_list`.
+- **seal-past-days** (burst, every 30m while enabled) - invokes daily-notes: seal one past-day note per firing.
+- **para-extract** (burst, every 30m while enabled) - invokes para: extract PARA from one sealed note per firing.
 - **para-align** (fixed cron, Sunday 06:00 UTC) - invokes para: align PARA structure.
 - **workspace-tidy** (always-on, every 2h) - invokes workspace-tidy: walk and tidy.
 - **git-hygiene** (always-on, every 30m) - invokes git-hygiene: commit drift.

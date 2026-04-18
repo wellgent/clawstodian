@@ -18,7 +18,7 @@ Principle: **co-uninstall, don't automate**. Show the operator what each step re
 Disable first (stops future firings), then remove (deletes the job entry).
 
 ```bash
-for name in daily-note workspace-tidy git-hygiene para-align seal-past-days para-extract; do
+for name in daily-note backfill-sessions workspace-tidy git-hygiene para-align seal-past-days para-extract; do
   openclaw cron disable "$name" 2>/dev/null
   openclaw cron remove "$name" 2>/dev/null
 done
@@ -27,7 +27,7 @@ done
 Verify:
 
 ```bash
-openclaw cron list --all | grep -E " (daily-note|workspace-tidy|git-hygiene|para-align|seal-past-days|para-extract) "
+openclaw cron list --all | grep -E " (daily-note|backfill-sessions|workspace-tidy|git-hygiene|para-align|seal-past-days|para-extract) "
 ```
 
 Should return nothing.
@@ -92,6 +92,8 @@ Typical revert options:
 
 clawstodian does NOT set `session`, `isolatedSession`, `lightContext`, `session.maintenance`, `agents.defaults.contextPruning`, `session.dmScope`, or `session.reset` at install time - those are either defaults or host-wide baseline choices. Do not touch them during uninstall.
 
+**`tools.sessions.visibility`** - the install sets this to `"all"` so isolated cron sessions can observe other sessions' transcripts. If the operator had a different value before clawstodian (e.g. `"tree"`), offer to restore the prior value. If they had no value set, leaving `"all"` in place is harmless unless another agent on the same gateway expects tighter scoping; let the operator decide.
+
 The heartbeat ran in the agent's main session, so there is no separate maintainer session to prune. If the operator wants to reset main-session history entirely, that is a separate, more invasive decision handled outside this uninstall flow.
 
 Show the operator the exact diff before applying. Prefer letting the operator apply it themselves.
@@ -111,7 +113,8 @@ Only do this with explicit operator confirmation. Other workspaces on the same m
 These outlive clawstodian and stay in the workspace unless the operator explicitly asks to remove them:
 
 - **Reference templates** - `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`. These are workspace conventions; PARA and daily-note conventions remain useful after clawstodian is gone.
-- **Workspace state** - daily notes at `memory/YYYY-MM-DD.md`, PARA entities under `projects/` / `areas/` / `resources/` / `archives/`, and everything git-tracked. The uninstall does not touch the ledger.
+- **Workspace state** - daily notes at `memory/YYYY-MM-DD.md`, PARA entities under `projects/` / `areas/` / `resources/` / `archives/`, and everything git-tracked. The uninstall does not touch content.
+- **`memory/session-ledger.md`** - historical record of which sessions were classified and how far their transcripts were captured. If the operator ever reinstalls clawstodian or a successor, this file lets capture resume where it left off instead of re-processing every session. Keep.
 - **`memory/heartbeat-trace.md`** - historical tick record. Keep or archive at the operator's discretion.
 - **Git history** - commits made by routines remain part of the workspace's history.
 
@@ -121,7 +124,7 @@ Run these to confirm the removal:
 
 ```bash
 # Cron jobs gone
-openclaw cron list --all | grep -E " (daily-note|workspace-tidy|git-hygiene|para-align|seal-past-days|para-extract) " && echo "FAIL cron entries remain" || echo "OK  cron entries removed"
+openclaw cron list --all | grep -E " (daily-note|backfill-sessions|workspace-tidy|git-hygiene|para-align|seal-past-days|para-extract) " && echo "FAIL cron entries remain" || echo "OK  cron entries removed"
 
 # Workspace symlinks gone
 [ -e clawstodian/programs ] && echo "FAIL programs symlink still present" || echo "OK  programs symlink removed"

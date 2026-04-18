@@ -109,7 +109,8 @@ Shape:
 Examples:
 
 ```
-daily-note 2026-04-18: appended 3 sections | merged 1 slug sibling | filed 0 insights | 0 awaiting operator
+daily-note 2026-04-18: sessions 4/2/1 | appended 3 sections | merged 1 slugs | filed 0 insights | bleed 0 sealed | 0 awaiting operator
+backfill-sessions 96a0c068: captured | classification: interactive | lines: 384 | dates: [2026-04-15, 2026-04-16] | bleed: 2 sealed | queue: 17 | cron: enabled
 seal-past-days 2026-04-15: sealed | sections 7->5 | para_status: pending | queue: 2 | cron: enabled
 para-align 2026-W16: verified 48 entities | trivial fixes 3 | proposals 1 (awaiting operator)
 ```

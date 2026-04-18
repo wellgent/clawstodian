@@ -101,7 +101,7 @@ No `sessions_send` bridge. No channel-to-session binding. The main session is al
 The channel resolved by `target` + `to` receives:
 
 - Heartbeat posts: status (every tick), daily retrospective (once/day), weekly review (once/week).
-- Per-routine announcements from the six cron routines (`daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`). Each routine runs in its own isolated cron session and posts a single-line run report via `--announce --channel --to`.
+- Per-routine announcements from the seven cron routines (`daily-note`, `backfill-sessions`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`). Each routine runs in its own isolated cron session and posts a single-line run report via `--announce --channel --to`.
 
 This gives one unified pane of maintenance activity. An operator glancing at the channel sees: "heartbeat status at 10:00, git-hygiene committed 3 things at 10:15, daily-note merged a slug sibling at 11:00, heartbeat daily retrospective at noon, etc."
 
@@ -115,7 +115,7 @@ Per-tick cost with the recommended config (main session, `lightContext: false`, 
 - Steady state: grows with main session history. Typical workspaces in active use: ~40-80K tokens per heartbeat tick.
 - Without any session maintenance enforcement, growth is linear; the operator's host-wide `session.maintenance` policy (or the OpenClaw defaults) caps it eventually.
 
-At 8-12 ticks/day in active hours, steady-state cost is ~300-1000K tokens/day for the heartbeat alone. Combined with the six routine crons (~5K each in isolated cron sessions, fired on their schedules), total maintenance cost is ~400K-1.2M tokens/day. Roughly $1-8/day depending on model pricing.
+At 8-12 ticks/day in active hours, steady-state cost is ~300-1000K tokens/day for the heartbeat alone. Combined with the seven routine crons (~5K each for maintenance workers in isolated sessions, fired on their schedules; `daily-note` and `backfill-sessions` can cost 10-30K per firing when session activity is high), total maintenance cost is ~500K-1.5M tokens/day in active workspaces. Roughly $1-10/day depending on model pricing.
 
 If cost becomes a concern:
 

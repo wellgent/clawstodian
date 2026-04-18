@@ -54,6 +54,7 @@ Read fresh each tick (file state is authoritative; session memory is conversatio
 
 ### 1. Assess burst worker queues
 
+- **`backfill-sessions`** - enable if `sessions_list({limit: 500})` returns more rows than `memory/session-ledger.md` has H2 entries (grep for `^## ` and count). Disable when the counts match. This is the session-capture queue for historical work and anything that slipped past the `daily-note` routine's 90m window.
 - **`seal-past-days`** - enable if any `memory/YYYY-MM-DD.md` for a past date has `status: active`, or a past date is missing but `git log` shows commits that day. Disable when none exist.
 - **`para-extract`** - enable if any `memory/YYYY-MM-DD.md` has `status: sealed` and `para_status: pending`. Disable when none exist.
 
@@ -74,9 +75,10 @@ The weekly schedule still fires on Sunday regardless.
 Inspect and report any anomaly. Do not repair from here:
 
 - Heartbeat config matches recommended stance: `every` set, `target` is a channel plugin (`discord`, `slack`, ...) and `to` is the channel-specific recipient, `activeHours` set, `showAlerts: true`. `session`, `isolatedSession`, and `lightContext` are either omitted or at defaults (main session, non-isolated, full bootstrap).
-- All clawstodian cron entries exist: `daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`.
+- Session visibility config: `tools.sessions.visibility` in `~/.openclaw/openclaw.json` is `"all"`. If it is `"tree"` (the default) or unset, the `daily-note` and `backfill-sessions` routines silently capture nothing. This is the single most load-bearing config for the daily-notes program.
+- All clawstodian cron entries exist: `daily-note`, `backfill-sessions`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`.
 - Recent cron runs: any routine that has not reported in the last 2 expected intervals, or has failed-status replies in a row.
-- Installed reference docs (`memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`) match package template markers.
+- Installed reference docs (`memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`) match package template markers. The session ledger starts as a near-empty template and grows; only check the marker line, not the body.
 - Workspace symlinks resolve: `clawstodian/programs` -> `~/clawstodian/programs` and `clawstodian/routines` -> `~/clawstodian/routines`.
 
 Anomalies go into the summary. The heartbeat does not edit configs, restart services, or auto-repair symlinks. Anything requiring operator judgment surfaces in the channel post.
@@ -86,7 +88,7 @@ Anomalies go into the summary. The heartbeat does not edit configs, restart serv
 Append one line to `memory/heartbeat-trace.md` (create the file if missing):
 
 ```
-YYYY-MM-DDTHH:MM:SSZ | seal=<0|1> extract=<0|1> | enabled: <routines toggled> | health: <ok|anomaly:reason> | summary: <one-line>
+YYYY-MM-DDTHH:MM:SSZ | backfill=<0|1> seal=<0|1> extract=<0|1> | enabled: <routines toggled> | health: <ok|anomaly:reason> | summary: <one-line>
 ```
 
 Append-only. Never rewrite prior lines. The file is the forensic record that proves heartbeat fired this tick, independent of session history (which can be compacted).
@@ -98,13 +100,13 @@ One message per tick. Never silent - even "nothing changed" gets a one-liner. Tw
 **Healthy no-change:**
 
 ```
-status <HH:MMZ> | queues: seal=0 extract=0 | <N> routines reported quiet | health: ok
+status <HH:MMZ> | queues: backfill=0 seal=0 extract=0 | <N> routines reported quiet | health: ok
 ```
 
 **Something happened:**
 
 ```
-status <HH:MMZ> | queues: seal=<n> extract=<m> (toggled: <which> <enabled|disabled>) | recent: <routine>@<time> <summary>, ... | health: <ok|anomaly: <reason>>
+status <HH:MMZ> | queues: backfill=<b> seal=<n> extract=<m> (toggled: <which> <enabled|disabled>) | recent: <routine>@<time> <summary>, ... | health: <ok|anomaly: <reason>>
 ```
 
 Keep under 300 characters. Per-routine detail already arrived via each routine's own announce; this message is the orchestrator overview. Speak plainly - this is a running conversation, not a report template.

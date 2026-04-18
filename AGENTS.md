@@ -38,9 +38,9 @@ v0.4-draft. See `docs/briefs/2026-04-18-v0.4-observability-brief.md` for the act
 - `INSTALL.md` - agent-driven install flow. References `VERIFY.md` for the post-install check and `UNINSTALL.md` for removal.
 - `VERIFY.md` - standalone verification of an existing install; idempotent, can be run any time.
 - `UNINSTALL.md` - full removal flow.
-- `templates/` - installable workspace reference docs. Six templates: `AGENTS.md` (workspace charter with programs + routines catalogs), `HEARTBEAT.md` (pure-orchestrator heartbeat), `MEMORY.md` (dashboard skeleton), `para-structure.md`, `daily-note-structure.md`, `crons.md`. Each template carries optional `<!-- template: clawstodian/... -->` markers for update detection.
+- `templates/` - installable workspace reference docs. Seven templates: `AGENTS.md` (workspace charter with programs + routines catalogs), `HEARTBEAT.md` (pure-orchestrator heartbeat), `MEMORY.md` (dashboard skeleton), `para-structure.md`, `daily-note-structure.md`, `crons.md`, `session-ledger.md` (capture-state file for the daily-notes program). Each template carries optional `<!-- template: clawstodian/... -->` markers for update detection.
 - `programs/` - the four domain authorities: `daily-notes.md`, `para.md`, `workspace-tidy.md`, `git-hygiene.md`. Each is a thick spec containing conventions, authority, approval gates, escalation rules, and named behaviors.
-- `routines/` - the six scheduled dispatchers. Always-on crons: `daily-note.md`, `workspace-tidy.md`, `git-hygiene.md`, `para-align.md`. Heartbeat-toggled bursts: `seal-past-days.md`, `para-extract.md`. Each routine references a program, picks a behavior, defines target + run report + install command.
+- `routines/` - the seven scheduled dispatchers. Always-on crons: `daily-note.md`, `workspace-tidy.md`, `git-hygiene.md`, `para-align.md`. Heartbeat-toggled bursts: `backfill-sessions.md`, `seal-past-days.md`, `para-extract.md`. Each routine references a program, picks a behavior, defines target + run report + install command.
 - `docs/architecture.md` - first-principles design.
 - `docs/writing-a-program.md` - guide for adding a new program (domain authority).
 - `docs/writing-a-routine.md` - guide for adding a new routine (scheduled invocation).

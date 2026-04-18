@@ -9,10 +9,17 @@ Install commands live in `~/clawstodian/INSTALL.md` under "Cron install commands
 
 ## daily-note
 
-Invokes `daily-notes` program: tend today's canonical note. Appends session activity, merges slug siblings, files obvious durable insights.
+Invokes `daily-notes` program: ingest recent session activity. Reads `sessions_list({activeMinutes: 90})`, advances per-session cursors in `memory/session-ledger.md`, appends to today's (and if still active, yesterday's) note, merges slug siblings, files obvious durable insights.
 
 - Schedule: `every 30m`
 - Always enabled. Quiet runs reply `NO_REPLY` and stay silent.
+
+## backfill-sessions
+
+Invokes `daily-notes` program: ingest one historical session per firing. Picks the oldest session from `sessions_list` that has no entry in `memory/session-ledger.md`. Classifies it, reads the full transcript, buckets by date, applies to active-date notes and surfaces bleed for sealed-date buckets. Self-disables when `sessions_list` count matches ledger entry count.
+
+- Schedule: `every 30m` (while enabled)
+- Starts disabled. Heartbeat enables it when the session ledger is behind `sessions_list`.
 
 ## workspace-tidy
 
@@ -58,6 +65,7 @@ every 30m     git-hygiene
 every 2h      workspace-tidy
 
 HEARTBEAT-TOGGLED BURSTS (start disabled)
+every 30m     backfill-sessions
 every 30m     seal-past-days
 every 30m     para-extract
 
