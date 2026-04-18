@@ -22,6 +22,9 @@ Read `memory/daily-note-structure.md` before writing.
 - **Lifecycle:**
   - `status: active` while the day is current and content is still arriving (today plus any past date not yet sealed).
   - `status: sealed` after the editorial pass has finalized the day.
+- **Capture readiness:**
+  - `capture_status: done` set by the heartbeat when no more session content can land in this note (past-day, no pending sessions, all contributing sessions demonstrably past the date). `seal-past-days` reads `status: active` + `capture_status: done` as its queue.
+  - Unset while capture may still land content.
 - **PARA handoff:**
   - `para_status: pending` set at seal time; queues the note for PARA extraction.
   - `para_status: done` set after PARA extraction completes.

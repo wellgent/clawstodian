@@ -33,6 +33,7 @@ pushes                                 prioritizes live over historical         
 ---
 date: 2026-04-18
 status: active
+capture_status: done
 para_status: pending
 last_updated: 2026-04-18T17:30Z
 topics:
@@ -48,7 +49,8 @@ sessions: [96a0c068, b513d1a5]
 
 - `date` - the date this note covers (`YYYY-MM-DD`).
 - `status` - `active` while the day is still receiving content, `sealed` after `seal-past-days` has finalized it.
-- `para_status` - PARA extraction lifecycle. `pending` when the sealed note has not yet been propagated into PARA entities, `done` after `para-extract` has processed it. Omit or leave empty on `status: active` notes; set to `pending` at seal time.
+- `capture_status` - capture-completeness lifecycle. Unset while capture may still land content (today's note, or past-days where the capture pipeline has not yet demonstrably finished). Set to `done` by the heartbeat when no more content can land here (see "Capture status transitions" below). `seal-past-days` reads `status: active` + `capture_status: done` as its queue.
+- `para_status` - PARA extraction lifecycle. `pending` when the sealed note has not yet been propagated into PARA entities, `done` after `para-extract` has processed it. Unset on `status: active` notes; set to `pending` at seal time.
 - `last_updated` - ISO timestamp of the most recent write.
 - `topics` - 3 to 8 short phrases. Specific enough to be useful, brief enough to scan.
 - `people` - real people mentioned. Test: remove the name. Does the section lose something?
@@ -60,9 +62,21 @@ sessions: [96a0c068, b513d1a5]
 - `active` - day is current or recent; content still arriving; `capture-sessions` may append.
 - `sealed` - day has been closed by `seal-past-days`; no further appends. Only material corrections allowed, and only with operator approval.
 
+### Capture status transitions
+
+- (unset) - capture is still in progress. Always the case for today's note. Also the case for past-days where the capture pipeline has not yet marked them complete.
+- `done` - the heartbeat has determined that no more content can land in this note. The three conditions it checks:
+  1. Date < today (workspace-local).
+  2. No sessions in `sessions_list` with `updatedAt` within this date's window lack a ledger entry (nothing pending admission).
+  3. For every ledger entry whose `dates_touched` includes this date: `lines_captured` equals the current transcript line count (session is fully captured) AND `last_activity` is strictly past end of this date (session has demonstrably moved on).
+
+All three conditions together mean no turn with a date-X timestamp can still arrive from any session, so the note is safe to seal.
+
+`seal-past-days` reads `status: active` + `capture_status: done` as its queue. If the heartbeat is not running (gateway down, paused), `capture_status` does not get set and `seal-past-days` does not fire - which is the correct behavior when the orchestrator is not there to supervise.
+
 ### PARA status transitions
 
-- (unset) - note is `active`; not in the PARA queue yet.
+- (unset) - note is not yet in the PARA queue (either `status: active` or a legacy sealed note predating this field).
 - `pending` - note is `sealed` and queued for `para-extract`.
 - `done` - `para-extract` has processed this note; PARA entities have been created or updated.
 

@@ -60,17 +60,33 @@ The status task fires every tick. Keep it fast and focused.
 - `git status` - tree state overview.
 - `openclaw cron list --all` - which crons exist, which are enabled, last-run timestamps.
 
-### 1. Assess burst worker queues
+### 1. Sweep capture-completeness on past-active notes
+
+Before accounting for the `seal-past-days` queue, evaluate which past-active notes are now capture-complete and write `capture_status: done` on them.
+
+For each `memory/YYYY-MM-DD.md` with frontmatter `status: active` AND date strictly before today (workspace-local), AND where `capture_status` is not already `done`:
+
+Check all three conditions. Set `capture_status: done` only when ALL hold:
+
+1. Date < today (trivially true given the filter above).
+2. No session in `sessions_list` has `updatedAt` within this date's window OR earlier while lacking a ledger entry. (No pending admission that could contain date-X content.)
+3. For every ledger entry whose `dates_touched` includes this date: `lines_captured` equals the current transcript line count (session is fully captured) AND `last_activity` is strictly past end of this date (session has demonstrably moved on).
+
+Write the flag via a narrow `Edit` on the frontmatter block - do not rewrite the whole note. Never remove `capture_status` once set; transitions are one-way.
+
+This is the trigger that gates `seal-past-days`. If the heartbeat is not running, `capture_status` does not get set, `seal-past-days` does not fire - which is the correct behavior when the orchestrator is not there to supervise.
+
+### 2. Assess burst worker queues
 
 - **`capture-sessions`** - enable if EITHER is true, disable only when BOTH are false:
   - **admission gap**: `sessions_list` rows without a matching `^## ` entry in `memory/session-ledger.md`.
   - **stale cursor**: ledger entries whose `last_activity` is more than 6h behind the matching `sessions_list` row's `updatedAt`. (6h threshold is noise damping; small live-session lag does not count.)
-- **`seal-past-days`** - enable if any `memory/YYYY-MM-DD.md` for a past date has `status: active`, or a past date is missing but `git log` shows commits that day. Disable when none exist.
+- **`seal-past-days`** - enable if any `memory/YYYY-MM-DD.md` has `status: active` AND `capture_status: done`. Disable when none exist.
 - **`para-extract`** - enable if any `memory/YYYY-MM-DD.md` has `status: sealed` and `para_status: pending`. Disable when none exist.
 
 Toggle with `openclaw cron enable <name>` / `openclaw cron disable <name>`. Do not delete. The routines self-disable on empty queue too; re-disabling a disabled cron is a no-op and safe.
 
-### 2. Nudge `para-align` on mid-week drift
+### 3. Nudge `para-align` on mid-week drift
 
 If the most recent `para-extract` reply reports structural drift it could not safely resolve (frontmatter violations, orphaned pointers, renames needing cross-reference updates) and the current day is not Sunday:
 
@@ -80,7 +96,7 @@ openclaw cron wake para-align --now
 
 The weekly schedule still fires on Sunday regardless.
 
-### 3. Append tick trace
+### 4. Append tick trace
 
 Append one line to `memory/heartbeat-trace.md` (create the file if missing):
 
@@ -90,7 +106,7 @@ YYYY-MM-DDTHH:MM:SSZ | capture=<0|1> seal=<0|1> extract=<0|1> | enabled: <routin
 
 Append-only. Never rewrite prior lines. The file is the forensic record that proves heartbeat fired this tick, independent of session history (which can be compacted).
 
-### 4. Post a channel summary
+### 5. Post a channel summary
 
 One message per tick. Never silent - even "nothing changed" gets a one-liner. Two shapes:
 

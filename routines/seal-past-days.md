@@ -11,9 +11,10 @@ See `memory/daily-note-structure.md` for the format, frontmatter fields, and wha
 ## Target selection
 
 1. List `memory/YYYY-MM-DD.md` files where the date is before today (workspace local timezone).
-2. Candidate = frontmatter `status: active`, OR the file is missing for a past date where `git log --since=YYYY-MM-DD --until=YYYY-MM-DD+1d` shows commits.
-3. **Midnight grace.** Reject any candidate whose date is yesterday if the current workspace-local time is less than 2 hours past midnight. A session whose activity straddles midnight needs at least one more `capture-sessions` firing to land pre-midnight content into yesterday's note; sealing early creates a race that sends late-captured content into the `bleed_over` accumulator. Only yesterday is affected; older past-days have no live sessions.
-4. Pick the **oldest** remaining candidate.
+2. Candidate = frontmatter `status: active` AND `capture_status: done`. The heartbeat sets `capture_status: done` when it has verified that no more session content can land in the note (past-date, no pending admissions, all contributing sessions demonstrably past the date). See `memory/daily-note-structure.md` for the exact conditions.
+3. Pick the **oldest** remaining candidate.
+
+No time-based heuristics, no midnight grace. Sealing happens when the orchestrator has marked the day capture-complete. If the heartbeat is not running, `capture_status: done` does not get set and this routine does not fire - which is the correct behavior.
 
 ## Exec safety
 
@@ -32,13 +33,14 @@ See `memory/daily-note-structure.md` for the format, frontmatter fields, and wha
 Before the full seal, inspect the note body (excluding frontmatter). If **<=2 sections and <=1 KB body**:
 
 - Standardize frontmatter per `memory/daily-note-structure.md`.
+- Curate `topics`, `people`, `projects` from whatever content the note does have - a short day still has identifiable themes and people worth indexing, and missing them costs us searchability later.
 - Write a 1-2 sentence day summary if missing.
 - Flip `status: active` -> `status: sealed`.
 - Leave or set `para_status: pending`.
 - Update `last_updated`.
 - Commit and push.
 
-Skip the merge and organize steps. This prevents expensive compute on "quiet day" notes.
+Skip the merge and full-organize steps. The point of the fast-path is to avoid expensive editorial compute on a "quiet day" note - not to skip curation.
 
 ## Full seal
 
@@ -92,7 +94,7 @@ File shape:
 
 - timestamp: 2026-04-18T02:30:00Z
 - target: memory/2026-04-17.md
-- outcome: sealed | fast-path-sealed | skipped | failed
+- outcome: sealed | skipped | failed
 - path: full | trivial-day-fast-path
 
 ## What happened
@@ -107,7 +109,7 @@ File shape:
 
 ## Queue after firing
 
-- remaining past-day notes with status: active - N
+- remaining past-active notes with capture_status: done - N
 - cron state: enabled | disabled
 
 ## Commit
@@ -116,13 +118,13 @@ File shape:
 
 ## Channel summary
 
-seal-past-days 2026-04-17: sealed | sections 7->5 | para_status: pending | queue: 2 | cron: enabled | report: memory/runs/seal-past-days/2026-04-18T02-30-00Z.md
+seal-past-days 2026-04-17: sealed (full) | sections 7->5 | para_status: pending | queue: 2 | cron: enabled | report: memory/runs/seal-past-days/2026-04-18T02-30-00Z.md
 ```
 
 ### Channel summary
 
 ```
-seal-past-days YYYY-MM-DD: <sealed|skipped|failed> | sections N->N | para_status: pending | queue: <remaining> | cron: <enabled|disabled> | report: memory/runs/seal-past-days/<ts>.md
+seal-past-days YYYY-MM-DD: <sealed|skipped|failed> (<path>) | sections N->N | para_status: pending | queue: <remaining> | cron: <enabled|disabled> | report: memory/runs/seal-past-days/<ts>.md
 ```
 
-Never return `NO_REPLY` on a seal attempt; every firing produces both a file and a channel post. A target-selection miss (no candidate qualifies) writes an abbreviated file with `outcome: no-target` and a one-line channel note.
+`<path>` is `full` or `trivial-day-fast-path` - encodes which code path ran. Never return `NO_REPLY` on a seal attempt; every firing produces both a file and a channel post. A target-selection miss (no candidate qualifies) writes an abbreviated file with `outcome: skipped` (reason: no-target) and a one-line channel note.
