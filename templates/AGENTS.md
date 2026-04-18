@@ -1,4 +1,14 @@
-<!-- template: clawstodian/agents-section 2026-04-18 -->
+<!-- Template for a workspace AGENTS.md that adopts clawstodian.
+     Copy this to the workspace root as AGENTS.md, or merge its
+     content into an existing AGENTS.md. Add persona, project-
+     specific rules, and anything else above or below the
+     clawstodian section as fits your workspace.
+     The <!-- template: ... --> marker lets the install flow detect
+     whether the clawstodian section is up to date. You can drop
+     the markers if you prefer a plain file; updates then become a
+     manual merge. -->
+
+<!-- template: clawstodian/agents 2026-04-18 -->
 ## Workspace Maintainer (clawstodian)
 
 This workspace runs four maintenance **programs** that define how the workspace operates, and six **routines** that schedule those programs to run on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, and session transcripts are the only state.
@@ -6,7 +16,7 @@ This workspace runs four maintenance **programs** that define how the workspace 
 ### Operating model
 
 - **Programs** (`clawstodian/programs/<name>.md`) describe how a workspace domain is governed - conventions, authority, approval gates, escalation, behaviors. Agents follow programs during normal sessions when the situation applies, and cron-dispatched routines follow the same programs on a schedule.
-- **Routines** (`clawstodian/routines/<name>.md`) are thin scheduled invocations. Each routine references a program, picks a specific behavior, defines a target and a run-report format, and registers itself as a cron job.
+- **Routines** (`clawstodian/routines/<name>.md`) are thin scheduled invocations. Each routine references a program, picks a specific behavior, defines a target and a run-report format, and runs as a cron job.
 - **AGENTS.md** (this file) catalogs the programs.
 - **HEARTBEAT.md** runs a lightweight orchestrator that toggles burst-worker routines and posts an executive summary each tick. It does not execute programs; each routine does that on its own cron.
 - **Session transcripts and `memory/heartbeat-trace.md`** are the primary audit trail.
@@ -93,4 +103,4 @@ Any program action that crosses these lines escalates - surface (in reply or run
 - any change that crosses into a new project or workstream rather than maintenance
 - any security concern: exposed secret, unexpected network activity, tampered file, permission anomaly
 
-<!-- /template: clawstodian/agents-section 2026-04-18 -->
+<!-- /template: clawstodian/agents 2026-04-18 -->
