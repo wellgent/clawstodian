@@ -95,9 +95,9 @@ The filter output is what lands in the daily note. Everything else stays in the 
 
 ### Capture one session's new content
 
-One session per firing. Dispatched by the `capture-sessions` routine. Picks the highest-priority gap in the session ledger, reads the session's JSONL tail (or full transcript on first admission), buckets by date, and applies per date.
+Dispatched by the `capture-sessions` routine. This behavior describes the unit of work for **one session**: enumerate gaps, pick a target, classify if new, read its unread JSONL span, bucket by date, apply per-date, advance the ledger cursor. The routine owns the per-firing strategy (how many units, in what order, with what budget caps); see `clawstodian/routines/capture-sessions.md` for the Phase 1 / Phase 2 batching rules. This section defines what happens for each unit.
 
-The single behavior covers every case: a brand-new operator session that just appeared, an active session whose cursor fell behind during a gateway outage, a historical session from before the install was ever done. The only differences are which session is selected and how many JSONL lines get read on this firing; the apply-logic is identical.
+The single unit covers every case: a brand-new operator session that just appeared, an active session whose cursor fell behind during a gateway outage, a historical session from before the install was ever done. The only differences are which session is selected and how many JSONL lines get read for this unit; the apply-logic is identical.
 
 1. **Enumerate gaps.** Read `memory/session-ledger.md`. Call `sessions_list({limit: 500})`. For each sessions_list row, determine its gap state:
    - **un-admitted** - row is in sessions_list but has no ledger entry.
@@ -105,9 +105,9 @@ The single behavior covers every case: a brand-new operator session that just ap
    - **current** - row is in sessions_list, ledger entry exists, `row.updatedAt == ledger.last_activity` (no work).
    - **skipped** - ledger entry with `classification: skipped` (no work).
 
-2. **Select target.** Among sessions with `un-admitted` or `stale` state, pick the one with the **newest `updatedAt`**. This prioritizes live operator sessions over historical drain. If there are no un-admitted or stale sessions, nothing to do - self-disable the cron (see the routine spec) and return.
+2. **Select target.** Pick one gap to process as this unit of work. The routine's calling strategy decides which: typically the newest-`updatedAt` un-admitted or stale session on a given invocation, so live sessions capture before historical drain.
 
-3. **Classify if new.** For an `un-admitted` target, apply the classification rules. Append a ledger entry. If classification is `skipped`, stop here; run report returns `NO_REPLY` because admitting a skipped session is not interesting enough to announce (cron / hook / subagent admissions are noisy during initial backfill).
+3. **Classify if new.** For an `un-admitted` target, apply the classification rules. Append a ledger entry. If classification is `skipped`, this unit is done - no JSONL read, no daily-note write. The routine may continue to the next unit.
 
 4. **Read JSONL tail, filtered.** Raw `Read` of a session transcript can blow context on active sessions: tool results and tool calls dominate transcript bytes (empirically ~88% in a large active session; user+assistant text is often under 3%). Pick the lightest reading layer that covers the unread span:
 
@@ -139,7 +139,7 @@ The single behavior covers every case: a brand-new operator session that just ap
 
 11. **Update frontmatter** on each touched daily note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if not present), and `para_status` handling per the structure spec.
 
-12. **One session per firing.** Do not loop to the next gap. The burst worker re-fires on its schedule; the heartbeat re-toggles enable state as gaps drain.
+12. **Return to the caller.** This unit of work is complete. The routine decides whether to process another unit in the same firing or end the firing.
 
 If a cursor advance fails (note write succeeded but ledger edit failed, or vice versa), the next firing retries from the old cursor. The worst case is re-ingesting some of the same content; the per-date "merge with existing sections on same topic" rule makes that a no-op in terms of final note state. Cursor idempotency is what makes the whole loop safe to re-run.
 
@@ -202,6 +202,6 @@ Do not perform PARA extraction here. That responsibility belongs to `clawstodian
 - Do not perform PARA extraction as part of tending or sealing.
 - Do not auto-create new top-level directories for insight filing.
 - Do not create stub PARA entities.
-- Do not batch multiple past-day seals in one pass; one note per invocation.
-- Do not loop in a single firing. Each behavior processes one unit of work (one session's new lines for capture; one past-day note for sealing) and returns.
+- Do not batch multiple past-day seals in one pass; the seal behavior is strictly one note per invocation.
 - Do not treat the `capture-sessions` cron as the primary writer of daily notes. Agents in session are the primary writers; the cron is the backstop.
+- Do not conflate the program's unit of work with the routine's per-firing strategy. The program's capture behavior describes one session's content; the routine decides how many sessions per firing.
