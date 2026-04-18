@@ -1,8 +1,6 @@
 # para-extract (routine)
 
-Every 30 minutes while enabled. Drains the PARA extraction queue one sealed note per run per the para program.
-
-Starts disabled. The heartbeat orchestrator enables the cron when sealed notes with `para_status: pending` exist and disables it when the queue is empty.
+Processes one sealed note per firing per the para program.
 
 ## Program
 
@@ -18,7 +16,7 @@ Run commands by exact path. Never inline code through heredocs piped into shell 
 
 ## Worker discipline
 
-- Process exactly one note per firing. Do not drain the queue in a single run.
+- One note per firing. Do not drain the queue in a single run.
 - Touch only the frontmatter fields the program allows (`para_status`, `last_updated`).
 - If the program's approval gates say "surface" on a candidate entity, do not create; surface it in the run report.
 

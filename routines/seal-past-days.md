@@ -1,8 +1,6 @@
 # seal-past-days (routine)
 
-Every 30 minutes while enabled. Drains the past-day sealing queue one note per run per the daily-notes program.
-
-Starts disabled. The heartbeat orchestrator enables the cron when past-day notes with `status: active` exist and disables it when the queue is empty.
+Seals one past-day note per firing per the daily-notes program.
 
 ## Program
 
@@ -10,7 +8,7 @@ Starts disabled. The heartbeat orchestrator enables the cron when past-day notes
 
 ## Target
 
-The oldest candidate returned by the program's target selection (past date, `status: active` or missing with commits for that day).
+The oldest candidate returned by the program's target selection (past date, `status: active` or missing with commits for that day, respecting the 2h midnight grace for yesterday).
 
 ## Exec safety
 
@@ -18,13 +16,13 @@ Run commands by exact path. Never inline code through heredocs piped into shell 
 
 ## Worker discipline
 
-- Process exactly one note per firing. Do not loop.
+- One note per firing. Do not loop.
 - Do not merge multiple days' content into one operation.
-- If the program's approval gates say "surface" on a note, do not seal; surface it and move on to the next oldest candidate (or stop).
+- If the program's approval gates say "surface" on a note, do not seal; surface it and stop.
 
 ## Self-disable on empty queue
 
-After processing, re-run target selection. If the queue is empty, disable the cron so idle firings stop:
+After processing, re-run target selection. If the queue is empty, disable the cron:
 
 ```bash
 openclaw cron disable seal-past-days

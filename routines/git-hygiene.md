@@ -1,6 +1,6 @@
 # git-hygiene (routine)
 
-Every 30 minutes, always enabled. Runs one commit-drift pass per the git-hygiene program.
+Runs one commit-drift pass per the git-hygiene program.
 
 ## Program
 

@@ -1,6 +1,6 @@
 # workspace-tidy (routine)
 
-Every 2 hours, always enabled. Runs one tidy pass across the workspace per the workspace-tidy program.
+Runs one tidy pass across the workspace per the workspace-tidy program.
 
 ## Program
 

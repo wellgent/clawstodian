@@ -1,6 +1,6 @@
 # para-align (routine)
 
-Sunday 06:00 UTC, always enabled. Verifies PARA structural and semantic health across the full graph per the para program. The heartbeat orchestrator may also `--wake now` this routine mid-week if `para-extract` reports drift it cannot safely resolve.
+Verifies PARA structural and semantic health across the full graph per the para program.
 
 ## Program
 
@@ -16,8 +16,9 @@ Run commands by exact path. Never inline code through heredocs piped into shell 
 
 ## Worker discipline
 
-- Single-run job. Walk the graph, classify findings, apply trivial fixes, surface the rest. No self-disable; the cron is scheduled weekly regardless.
+- Single-run job. Walk the graph, classify findings, apply trivial fixes, surface the rest.
 - Apply only the trivial structural fixes the program authorizes. Everything else surfaces in the run report.
+- No self-disable; this cron is scheduled, not queue-driven. The heartbeat orchestrator may `--wake now` this routine mid-week if `para-extract` reports drift it cannot safely resolve.
 
 ## Run report
 
