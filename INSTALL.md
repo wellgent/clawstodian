@@ -50,8 +50,8 @@ If the operator's clone is behind its default branch, ask whether to pull. Do no
 Read these files in order and build a mental model of the install:
 
 - `~/clawstodian/README.md` - scope and philosophy.
-- `~/clawstodian/AGENTS-SECTION.md` - the workspace charter, programs catalog, and routines catalog.
-- `~/clawstodian/HEARTBEAT-SECTION.md` - the heartbeat orchestrator.
+- `~/clawstodian/templates/AGENTS.md` - the workspace charter, programs catalog, and routines catalog. Installed to workspace root as `AGENTS.md`.
+- `~/clawstodian/templates/HEARTBEAT.md` - the heartbeat orchestrator. Installed to workspace root as `HEARTBEAT.md`.
 - `~/clawstodian/templates/para-structure.md` - PARA convention.
 - `~/clawstodian/templates/daily-note-structure.md` - daily note format (includes `para_status` queue semantics).
 - `~/clawstodian/templates/MEMORY.md` - dashboard skeleton.
@@ -59,12 +59,14 @@ Read these files in order and build a mental model of the install:
 
 Then skim the program specs under `~/clawstodian/programs/` (domain authorities: daily-notes, para, workspace-tidy, git-hygiene) and routine specs under `~/clawstodian/routines/` (scheduled dispatchers). You do not need to copy them into the workspace - they are read on demand via the `clawstodian/programs/` and `clawstodian/routines/` symlinks created in Step 5.
 
+All six templates are installable reference docs: copy to the workspace and adapt as needed. The template marker comments are optional scaffolding that lets the install detect when a template has updated; the operator can drop the markers if they prefer plain files.
+
 ## Step 3 - Survey the target workspace
 
 Before proposing any change, read what the operator already has. Specifically check for:
 
-1. Workspace `AGENTS.md` - does it exist? If yes, does it already contain a clawstodian section (template marker `clawstodian/agents-section`)? What date is the marker? Compare against the package's `AGENTS-SECTION.md` marker date.
-2. Workspace `HEARTBEAT.md` - does it exist? If yes, does it already contain a clawstodian section (template marker `clawstodian/heartbeat-section`)? What marker date?
+1. Workspace `AGENTS.md` - does it exist? If yes, does it already contain a clawstodian section (template marker `clawstodian/agents`)? What date is the marker? Compare against `~/clawstodian/templates/AGENTS.md`'s marker date. (Legacy markers: `clawstodian/agents-section` from v0.3 / early v0.4.)
+2. Workspace `HEARTBEAT.md` - does it exist? If yes, does it already contain a clawstodian section (template marker `clawstodian/heartbeat`)? What marker date? (Legacy markers: `clawstodian/heartbeat-section`.)
 3. Workspace `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md` - which already exist? Check marker dates.
 4. Workspace PARA folders - `projects/`, `areas/`, `resources/`, `archives/`. Which already exist, which are populated?
 5. Existing cron jobs - `openclaw cron list --all`. Note any clawstodian routine (`daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`) already present, and any legacy v0.3 routines (`daily-notes-tend`, `close-of-day`, `para-backfill`, `weekly-para-align`, `workspace-tidiness`, `para-tend`, `durable-insight`, `health-sweep`).
@@ -77,9 +79,13 @@ Before proposing any change, read what the operator already has. Specifically ch
 
 Produce a short, explicit plan for the operator. Items in the order the install should apply them:
 
-- **AGENTS.md** - append the clawstodian section? Replace an existing clawstodian section if the installed marker is older than the package's? Leave alone if marker dates match. Warn before replacing a customized block where the operator has clearly reshaped the sections (memory moved out, escalation merged elsewhere).
-- **HEARTBEAT.md** - create new (install clawstodian section as the whole file)? Append the clawstodian section? Replace an older version? Warn explicitly before replacing a non-empty non-clawstodian HEARTBEAT.md.
-- **Reference templates** - for each of `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`: install from clawstodian template, skip (already exists with non-clawstodian content), or update (exists with an older clawstodian template marker)?
+- **AGENTS.md** (workspace root) - for each case:
+  - No existing file: install `~/clawstodian/templates/AGENTS.md` verbatim.
+  - Existing AGENTS.md with no clawstodian marker: propose appending the full clawstodian section from the template, or let the operator hand-merge. Warn before inserting anywhere that would reorganize existing content.
+  - Existing AGENTS.md with current clawstodian marker: leave alone.
+  - Existing AGENTS.md with older clawstodian marker: propose replacing just the clawstodian-marked block with the latest from the template. Warn before replacing a customized block.
+- **HEARTBEAT.md** (workspace root) - same cases as AGENTS.md, using `~/clawstodian/templates/HEARTBEAT.md`. For most workspaces HEARTBEAT.md is dedicated to the orchestrator and the full template works as-is; an existing non-clawstodian HEARTBEAT.md is unusual and should prompt an explicit warning.
+- **Reference templates** - for each of `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`: install from clawstodian template, skip (already exists with non-clawstodian content), or update (exists with an older clawstodian template marker).
 - **PARA folders** - create missing top-level `projects/`, `areas/`, `resources/`, `archives/` if not present? (ask; some workspaces prefer different names.)
 - **Workspace `clawstodian/` directory** - create it with two directory symlinks pointing at the package's `programs/` and `routines/` directories:
   ```bash
@@ -105,7 +111,7 @@ Present the full plan as a short bulleted list. For each item, state: current st
 
 When the operator approves a specific item, apply it:
 
-- **Appending to AGENTS.md or HEARTBEAT.md**: append the section verbatim from the clawstodian file. Preserve everything already in the file above and below. Include the template marker comments.
+- **Installing `AGENTS.md` / `HEARTBEAT.md` templates**: copy from `~/clawstodian/templates/AGENTS.md` to workspace `AGENTS.md` (same for HEARTBEAT.md). If the workspace file already exists with other content, insert the clawstodian-marked block (everything between the `<!-- template: clawstodian/... -->` comments) at the appropriate location, preserving everything else.
 - **Installing reference templates**: copy from `~/clawstodian/templates/<file>` to the workspace path. Preserve the template marker.
 - **Creating PARA folders**: create the folders and add an empty `INDEX.md` in each with just `# <folder name> INDEX` as the header.
 - **Creating `clawstodian/` workspace directory**: run the two-symlink commands above. Verify with `readlink clawstodian/programs` and `readlink clawstodian/routines`.

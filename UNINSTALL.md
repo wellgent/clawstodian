@@ -47,10 +47,14 @@ Run from the workspace root.
 Delete everything between the opening and closing template markers inclusive:
 
 ```
-<!-- template: clawstodian/agents-section <date> -->
+<!-- template: clawstodian/agents <date> -->
 ...
-<!-- /template: clawstodian/agents-section <date> -->
+<!-- /template: clawstodian/agents <date> -->
 ```
+
+(Legacy marker: `clawstodian/agents-section` from v0.3 / early v0.4.)
+
+If the operator removed the markers when they adopted the template, the clawstodian content is the section headed `## Workspace Maintainer (clawstodian)` plus the subsections below it down to and including `### Cross-program escalation rules`. Identify the span, confirm with the operator, then delete.
 
 If `AGENTS.md` becomes empty after this, the operator can delete the file or keep it as a stub.
 
@@ -61,10 +65,14 @@ If the operator customized the clawstodian block (moved memory-and-navigation in
 Same shape as Step 3. Delete everything between:
 
 ```
-<!-- template: clawstodian/heartbeat-section <date> -->
+<!-- template: clawstodian/heartbeat <date> -->
 ...
-<!-- /template: clawstodian/heartbeat-section <date> -->
+<!-- /template: clawstodian/heartbeat <date> -->
 ```
+
+(Legacy marker: `clawstodian/heartbeat-section`.)
+
+If the operator removed the markers, the clawstodian content is essentially the whole HEARTBEAT.md for most workspaces - delete the file or strip its orchestrator content entirely.
 
 If `HEARTBEAT.md` becomes empty:
 
@@ -115,9 +123,9 @@ openclaw cron list --all | grep -E " (daily-note|workspace-tidy|git-hygiene|para
 [ -e clawstodian/programs ] && echo "FAIL programs symlink still present" || echo "OK  programs symlink removed"
 [ -e clawstodian/routines ] && echo "FAIL routines symlink still present" || echo "OK  routines symlink removed"
 
-# Section markers gone
-grep -q 'clawstodian/agents-section' AGENTS.md 2>/dev/null && echo "FAIL agents-section still present" || echo "OK  agents-section removed"
-grep -q 'clawstodian/heartbeat-section' HEARTBEAT.md 2>/dev/null && echo "FAIL heartbeat-section still present" || echo "OK  heartbeat-section removed"
+# Section markers gone (checks both current and legacy marker names)
+grep -qE 'clawstodian/agents(-section)?' AGENTS.md 2>/dev/null && echo "FAIL agents marker still present" || echo "OK  agents marker removed"
+grep -qE 'clawstodian/heartbeat(-section)?' HEARTBEAT.md 2>/dev/null && echo "FAIL heartbeat marker still present" || echo "OK  heartbeat marker removed"
 ```
 
 All lines should print `OK`.
