@@ -11,7 +11,7 @@ Install commands live in `~/clawstodian/INSTALL.md` under "Cron install commands
 
 ## sessions-capture
 
-Invokes `daily-notes` program: capture one session's unread JSONL into the appropriate daily notes. Picks the session with the newest `updatedAt` among those with a gap (un-admitted in ledger, or stale cursor). Classifies if new, reads JSONL from `lines_captured + 1` to end, buckets by timestamp into daily notes, advances the cursor. Merges slug siblings and files obvious insights when today's bucket is touched. Self-disables when no gaps remain.
+Invokes `daily-notes` program: capture one session's unread JSONL into the appropriate daily notes. Picks the session with the newest `updatedAt` among those with a gap (un-admitted in ledger, or stale cursor). Classifies if new, reads JSONL from `lines_captured + 1` to end, buckets by timestamp into daily notes, advances the cursor. Merges slug siblings when today's bucket is touched. Self-disables when no gaps remain.
 
 - Schedule: `every 30m` (while enabled)
 - Starts disabled. Heartbeat enables it when the ledger has un-admitted sessions or stale cursors.

@@ -34,14 +34,15 @@ Read `memory/daily-note-structure.md` before writing.
 - Create and edit `memory/YYYY-MM-DD.md` for today or any unsealed past date.
 - Merge and delete `memory/YYYY-MM-DD-<slug>.md` siblings into the canonical file.
 - Update frontmatter fields defined in `memory/daily-note-structure.md`.
-- File clearly durable insights into obvious PARA locations (`resources/<slug>.md`, `projects/<name>/README.md` when scoped to a project). Ambiguous filings surface for operator decision.
+
+PARA entity writes are out of scope here; they are governed by `clawstodian/programs/para.md`, which in-session agents follow in parallel.
 
 Must NOT rewrite sealed notes cosmetically. Must NOT write into a sealed note: content intended for a sealed date surfaces as an anomaly (in-session: ask the operator in chat; under cron dispatch: include it in the routine's run report).
 
 ## Approval gates
 
-- **Obvious placement -> act.** Appending today's notable moment, merging an obvious slug sibling, filing an insight into a clearly-right location.
-- **Ambiguous placement -> surface.** An insight that could live in multiple PARA buckets, a slug sibling whose content conflicts with the canonical note, a new top-level folder. In-session: ask the operator. Under cron dispatch: include in the run report.
+- **Obvious placement -> act.** Appending today's notable moment, merging an obvious slug sibling.
+- **Ambiguous placement -> surface.** A slug sibling whose content conflicts materially with the canonical note. In-session: ask the operator. Under cron dispatch: include in the run report.
 - **Past-date content for a sealed note -> surface, do not apply.** The operator decides whether to reopen the seal.
 - **Material rewrite of a sealed note -> ask.** Only allowed with explicit operator approval.
 
@@ -57,6 +58,3 @@ Must NOT rewrite sealed notes cosmetically. Must NOT write into a sealed note: c
 - Do not rewrite sealed notes cosmetically.
 - Do not write into a sealed note at all; surface as an anomaly instead.
 - Do not store cursor state in daily-note frontmatter; the session ledger is authoritative (format in `memory/daily-note-structure.md`).
-- Do not perform PARA extraction as part of daily-note work.
-- Do not auto-create new top-level directories for insight filing.
-- Do not create stub PARA entities.

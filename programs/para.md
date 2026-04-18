@@ -4,9 +4,14 @@ The workspace maintains a PARA knowledge graph - `projects/`, `areas/`, `resourc
 
 ## Who writes
 
-**In-session agents are the primary writers.** When an agent notices a new project, person, company, or reusable resource in the course of a work session, they file it per the conventions below. This is the default path.
+**In-session agents are the primary writers and maintainers.** PARA is a live knowledge graph, not a write-once archive. During a work session, the agent both:
 
-Under cron, `para-extract` and `para-align` operate on the same graph - propagating sealed daily notes into new entities and verifying structural health across the graph. Each routine has its own spec; this program defines the conventions all of them (and in-session agents) follow.
+- **Updates existing entities** as new information surfaces - revises a project's status or next steps, records a decision or outcome on an area/person/company page, sharpens a resource with a new insight, touches `last_updated`, refreshes `related:` pointers when connections become clear.
+- **Files new entities** when a new project, person, company, or reusable resource clears the thresholds in `memory/para-structure.md`.
+
+Working with the existing graph is the more common motion; the graph is most useful when it reflects current reality.
+
+Under cron, `para-extract` and `para-align` operate on the same graph - propagating sealed daily notes into new or existing entities and verifying structural health across the graph. Each routine has its own spec; this program defines the conventions all of them (and in-session agents) follow.
 
 ## References
 

@@ -95,11 +95,11 @@ Applied to each interactive gap selected in Phase 2:
 
 5. **Merge slug siblings.** If today's date is in this session's buckets, check `memory/YYYY-MM-DD-*.md` for today, merge into the canonical note, delete the sibling. Ambiguous merges surface instead.
 
-6. **File obvious durable insights.** Clear decisions / resolved bugs / reusable patterns that belong in `resources/` or a project's `README.md` - file now. Ambiguous insights surface.
+6. **Advance the ledger cursor.** Update `lines_captured` to the line count captured in step 1, `last_activity` to the row's `updatedAt`, extend `dates_touched`. For a newly-admitted session, set `status`: `done` if the session's `updatedAt` is more than 7 days old, otherwise `active`.
 
-7. **Advance the ledger cursor.** Update `lines_captured` to the line count captured in step 1, `last_activity` to the row's `updatedAt`, extend `dates_touched`. For a newly-admitted session, set `status`: `done` if the session's `updatedAt` is more than 7 days old, otherwise `active`.
+7. **Update daily-note frontmatter** on each touched note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if absent), `para_status` per the structure spec.
 
-8. **Update daily-note frontmatter** on each touched note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if absent), `para_status` per the structure spec.
+PARA entity writes are not this routine's job. Durable insights that in-session agents did not file propagate to PARA later, when `para-extract` processes the sealed note.
 
 Cursor idempotency: if a cursor advance fails (note write succeeded but ledger edit failed, or vice versa), the next firing retries from the old cursor. The per-date merge rule makes any re-ingestion a no-op in terms of final note state.
 
@@ -141,7 +141,7 @@ Write to `memory/runs/sessions-capture/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 ### Phase 2 - captures
 
 - processed: 1
-  - 96a0c068: lines 142 → 189 · dates: [2026-04-18] · sections appended: 2 · slugs merged: 0 · insights filed: 0 · bleed: 0
+  - 96a0c068: lines 142 → 189 · dates: [2026-04-18] · sections appended: 2 · slugs merged: 0 · bleed: 0
 
 ### Bleed-over
 
@@ -166,7 +166,7 @@ Write to `memory/runs/sessions-capture/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 sessions-capture · 2026-04-18T12:30Z · captured
 Admitted: 3 (skipped=2, interactive=1)
 Captured: 1 session · dates: 2026-04-18
-Bleed: 0 · slugs merged: 0 · insights filed: 0
+Bleed: 0 · slugs merged: 0
 Queue: un-admitted=0 · stale=0 · cron: enabled
 Report: memory/runs/sessions-capture/2026-04-18T12-30-00Z.md
 ```
@@ -181,7 +181,7 @@ Multi-line. One insight per line.
 sessions-capture · <ISO timestamp UTC> · <outcome>
 Admitted: <N> (skipped=<s>, interactive=<i>)
 Captured: <M> sessions · dates: <list>
-Bleed: <Z> · slugs merged: <X> · insights filed: <Y>
+Bleed: <Z> · slugs merged: <X>
 Queue: un-admitted=<u> · stale=<s2> · cron: <enabled|disabled>
 Report: memory/runs/sessions-capture/<ts>.md
 ```

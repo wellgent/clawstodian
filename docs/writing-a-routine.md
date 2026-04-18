@@ -153,7 +153,7 @@ Examples:
 sessions-capture · 2026-04-18T12:30Z · captured
 Admitted: 3 (skipped=2, interactive=1)
 Captured: 1 session · dates: 2026-04-18
-Bleed: 0 · slugs merged: 0 · insights filed: 0
+Bleed: 0 · slugs merged: 0
 Queue: un-admitted=0 · stale=0 · cron: enabled
 Report: memory/runs/sessions-capture/2026-04-18T12-30-00Z.md
 ```
