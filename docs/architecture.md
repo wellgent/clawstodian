@@ -29,30 +29,34 @@ Use what OpenClaw ships:
 
 Avoid building a parallel orchestration layer.
 
-### 3. Cron is the execution substrate; heartbeat is the orchestrator
+### 3. Cron is the execution substrate; heartbeat is the collaborative maintainer
 
 Every routine runs as its own cron job with `--session isolated --light-context`. Cron persists jobs to disk, supports wall-clock-absolute schedules, and emits one observable delivery path per job; these qualities make the execution layer resilient and self-observing by default.
 
-The heartbeat does not execute programs or routines. Each tick it:
+The heartbeat does not execute programs or routines. It is the collaborative maintenance thread between the operator and the agent. Each tick it:
 
-1. Reads workspace state fresh (daily notes, PARA, git status, cron last-run times).
+1. Reads workspace state fresh (daily notes, PARA, git status, cron last-run times, recent cron replies).
 2. Toggles heartbeat-managed burst workers (`seal-past-days`, `para-extract`) based on their queue state.
 3. May `--wake now` `para-align` if mid-week structural drift was reported.
 4. Spot-checks health (config drift, missing crons, broken symlinks).
 5. Appends a trace line to `memory/heartbeat-trace.md`.
-6. Posts a one-line executive summary to the logs channel - never silent.
+6. Posts a brief status message to the maintainer channel - never silent.
+7. On longer cadences (daily retrospective, weekly review), produces reflections and proposes improvements.
 
-This inverts the v0.3 pure-prose dispatcher (which silently dropped ticks when any of seven heartbeat gates short-circuited) toward the `ops-daily` debuggability pattern: cron-per-job with per-job notifications.
+The heartbeat runs in a persistent named session (`session:clawstodian-maintainer`), not isolated, so the conversation between the agent and the operator persists across ticks. Mixed cadence is managed through a `tasks:` YAML block in `templates/HEARTBEAT.md`: a 2h status sweep (matches the heartbeat interval and fires every tick), a 24h daily retrospective, and a weekly review. Only due tasks fire on a given tick, keeping cost bounded.
 
-### 4. Three observability layers
+This inverts the v0.3 pure-prose dispatcher (which silently dropped ticks when any of seven heartbeat gates short-circuited) toward the `ops-daily` debuggability pattern, and goes further: the agent is not only an orchestrator, it is a collaborative partner with memory. See `docs/heartbeat-config.md` for the session-model trade-offs and recommended gateway config.
 
-A healthy install emits three streams, each serving a different reader:
+### 4. Four continuity layers
 
-- **Per-routine announcement** (detail on demand). Each cron routine posts a single-line run report to the logs channel on every run that changes something. Quiet runs return `NO_REPLY` and stay silent.
-- **Heartbeat executive summary** (ambient awareness). Every tick posts one line summarizing queues, recent routine activity, and health. Never silent - a tick with nothing to do still posts.
-- **Tick trace file** (forensic record). `memory/heartbeat-trace.md` is an append-only log an operator can `grep` or `tail` to prove heartbeat fired and see what it observed.
+A healthy install carries continuity on four layers, each serving a different need:
 
-Silence in any of the three is itself a signal. A dead heartbeat is not ambiguous.
+- **Per-routine announcement** (detail on demand). Each cron routine posts a single-line run report to the maintainer channel on every run that changes something. Quiet runs return `NO_REPLY` and stay silent.
+- **Heartbeat channel thread** (collaborative conversation). Every tick posts at least a status line; longer cadences add reflections and reviews. This is an ongoing conversation, not a report - the operator can reply and the agent remembers.
+- **Maintainer session history** (persistent memory). The heartbeat's dedicated session (`session:clawstodian-maintainer`) preserves conversation across ticks. Items the agent flagged, operator replies, in-flight decisions - all live here. Compaction bounds growth.
+- **Tick trace file** (forensic record). `memory/heartbeat-trace.md` is an append-only log independent of session state. Greppable and permanent. Survives compaction, session deletion, and anything else that might trim session history.
+
+Silence in any of the four is itself a signal. A dead heartbeat is not ambiguous.
 
 ### 5. The workspace is the ledger
 
@@ -76,10 +80,11 @@ The maintainer prefers one concrete small change over a theoretical sweep. It su
 
 ```
 standing authority           AGENTS.md + programs/     (charter + four domain authorities)
-orchestrator loop            HEARTBEAT.md              (reads state, toggles bursts, posts summary)
-orchestrator cadence         heartbeat                 (2h default, active hours, isolated session)
-scheduled invocations        routines/ + cron          (six routines; each a cron job)
-audit trail                  logs channel + session transcripts + git + heartbeat-trace.md
+collaborative maintainer     HEARTBEAT.md              (reads state, toggles bursts, reflects, converses)
+maintainer cadence           heartbeat                 (2h, persistent session, active hours)
+maintainer continuity        session:clawstodian-maintainer  (conversation history, auto-compacted)
+scheduled invocations        routines/ + cron          (six routines; each a cron job in its own isolated session)
+audit trail                  maintainer channel + session transcripts + git + heartbeat-trace.md
 workspace memory             memory/, projects/, areas/, resources/, archives/
 ```
 
@@ -136,6 +141,7 @@ If an operator needs to look at more than that to explain routine behavior, the 
 
 ## Open questions
 
-- Periodic workspace-audit routine: deferred. The install smoke test covers install-time correctness; an audit routine that verifies ongoing delivery is a separate iteration.
+- Periodic workspace-audit routine: deferred. The install-time smoke test in `VERIFY.md` covers install-time correctness; an audit routine that verifies ongoing delivery is a separate iteration.
 - Fixed cron with heartbeat-wake for `para-align` is v0.4's pragmatic solution; a fully declarative "trigger when drift report matches X" would need a queue primitive the package does not have yet.
-- `MEMORY.md` + `lightContext: true` interaction: isolated sessions do not auto-load `MEMORY.md`; routines that need it read it explicitly. Worth a test before adding a routine that depends on it.
+- `MEMORY.md` + `lightContext: true` interaction: isolated cron sessions do not auto-load `MEMORY.md`; routines that need it read it explicitly. Worth a test before adding a routine that depends on it.
+- Bidirectional flow from the maintainer channel into the heartbeat's persistent session is operator-workflow-dependent. If the gateway supports explicit channel-to-session binding, the operator types in the channel and the next tick sees it. Otherwise the fallback is `sessions_send` from the main DM agent. See `docs/heartbeat-config.md`.

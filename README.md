@@ -102,6 +102,7 @@ clawstodian/
 
   docs/
     architecture.md                  first-principles design
+    heartbeat-config.md              heartbeat gateway config reference
     writing-a-program.md             guide for adding new programs (domain authorities)
     writing-a-routine.md             guide for adding new routines (scheduled invocations)
     briefs/
@@ -116,15 +117,17 @@ clawstodian/
 
 ## Recommended heartbeat config
 
+The heartbeat runs in a dedicated persistent session (`session:clawstodian-maintainer`) so the agent and the operator share a continuous maintenance thread across ticks. Mixed cadence via `tasks:` in `templates/HEARTBEAT.md` (2h status, daily retrospective, weekly review). Delivery goes to a dedicated maintainer channel.
+
 ```json5
 {
   agents: {
     defaults: {
       heartbeat: {
         every: "2h",
-        isolatedSession: true,
+        session: "session:clawstodian-maintainer",
+        isolatedSession: false,
         lightContext: true,
-        includeReasoning: false,
         target: "<your-maintainer-channel-id>",
         activeHours: {
           start: "08:00",
@@ -141,11 +144,18 @@ clawstodian/
         useIndicator: true
       }
     }
+  },
+  session: {
+    maintenance: {
+      mode: "enforce",
+      pruneAfter: "30d",
+      maxEntries: 300
+    }
   }
 }
 ```
 
-`isolatedSession: true` and `lightContext: true` together keep per-tick cost low while the orchestrator does its observational work. Every tick posts a summary (the orchestrator never replies with `HEARTBEAT_OK` alone), so `showOk` is irrelevant in v0.4.
+`docs/heartbeat-config.md` is the authoritative reference: session-model trade-offs, field-by-field rationale, cost profile, how to create the maintainer session, bidirectional-flow options, and troubleshooting. Read it before adjusting values.
 
 **Recommended:** set `target` to a dedicated channel ID (Telegram chat ID, Slack channel ID, Discord channel ID) so maintainer updates land in one predictable place. The same channel receives per-routine announcements, keeping the operational thread in one place.
 
