@@ -1,14 +1,44 @@
 # para-align (routine)
 
-Verifies PARA structural and semantic health across the full graph per the para program.
+Verifies PARA structural and semantic health across the full graph, applies trivial fixes, and surfaces the rest.
 
 ## Program
 
-`clawstodian/programs/para.md` - follow the "Align PARA structure" behavior.
+`clawstodian/programs/para.md` - conventions, authority, approval gates, and escalation.
 
 ## Target
 
 The full PARA graph: all entities in `projects/`, `areas/`, `resources/`, `archives/`, plus `MEMORY.md` at workspace root.
+
+## Scope
+
+Four dimensions:
+
+1. **Structural integrity** - frontmatter schema, `INDEX.md` coverage, `related:` pointer resolution.
+2. **Cross-reference consistency** - when an entity moves or is renamed, every referrer updates; when an entity is deleted or archived, nothing still points at its old path.
+3. **Naming and slug conventions** - kebab-case, no spaces, no underscores, lowercase; consistent with `memory/para-structure.md`.
+4. **MEMORY.md currency** - every active project listed; retired projects not listed under active; infrastructure and area pointers resolve.
+
+## Steps
+
+1. **Walk the graph.** For each entity file in `projects/`, `areas/`, `resources/`, `archives/`:
+   - Frontmatter matches `memory/para-structure.md`.
+   - `related:` pointers resolve to existing files.
+   - The entity is listed in the relevant `INDEX.md`.
+   - The filename follows naming conventions.
+2. **Check cross-references.**
+   - For every `related:` pointer, verify the target exists at the given path.
+   - For every entity path mentioned in `MEMORY.md` or in another entity's body, verify it resolves.
+   - If a target moved or was renamed and the new path is unambiguous (slug differs only by known convention change), update the referrer.
+   - If a target appears deleted or archived and no replacement is obvious, surface.
+3. **Verify `MEMORY.md`.** Every project with `status: active` appears individually; retired or archived projects do not; infrastructure pointers resolve; top-level structure sections match reality. Rebuild the dashboard in place if drifted; the dashboard is a summary of current state, not a historical record.
+4. **Classify findings.**
+   - **Trivial structural fix** (missing `INDEX.md` entry, frontmatter whitespace, inferrable `last_updated`, broken `related:` pointer with obvious replacement, MEMORY.md dashboard sections out of date): apply in place.
+   - **Anything else** (entity content, path, status semantics, ambiguous `related:` target, slug rename with downstream implications, new top-level folder): do NOT rewrite. Surface with file path, observed state, proposed fix.
+
+## Commit
+
+Add only the files you changed. Commit message: `para: align YYYY-Www - <summary>`. Push immediately. If no trivial fixes were applied, there is nothing to commit.
 
 ## Exec safety
 
@@ -57,7 +87,7 @@ Write to `memory/runs/para-align/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ## Commits
 
-- (none - para-align does not commit)
+- 7aa12bc para: align 2026-W16 - 3 trivial fixes
 
 ## Surfaced for operator
 

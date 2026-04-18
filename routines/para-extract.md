@@ -1,14 +1,40 @@
 # para-extract (routine)
 
-Processes one sealed note per firing per the para program.
+Processes one sealed note per firing, propagating its content into the PARA knowledge graph.
 
 ## Program
 
-`clawstodian/programs/para.md` - follow the "Extract PARA from a sealed note" behavior (including queue definition, target selection, and steps).
+`clawstodian/programs/para.md` - conventions, authority, approval gates, and escalation.
 
-## Target
+## Queue definition
 
-The oldest queued sealed note: `memory/YYYY-MM-DD.md` with frontmatter `status: sealed` and `para_status: pending`.
+A daily note is queued for extraction only when all of the following are true:
+
+- the note lives at `memory/YYYY-MM-DD.md`
+- frontmatter `status: sealed`
+- frontmatter `para_status: pending`
+
+Legacy sealed notes without `para_status` are not automatically queued.
+
+## Target selection
+
+1. List canonical daily notes where frontmatter shows `status: sealed` and `para_status: pending`.
+2. Pick the **oldest** queued note.
+
+## Steps
+
+1. Read the full daily note.
+2. Walk the note and detect candidate entities against `memory/para-structure.md` thresholds (projects, areas/people, areas/companies, areas/servers, resources).
+3. For each candidate:
+   - Obvious placement -> create or update in place.
+   - Ambiguous placement -> surface in the run report without creating.
+4. Update any touched `INDEX.md` files.
+5. Update root `MEMORY.md` only when a new project is listed.
+6. Flip the note's `para_status` from `pending` to `done`. Leave `status: sealed` unchanged. Update `last_updated`.
+
+## Commit
+
+Add only the files you changed. Commit message: `para: extract YYYY-MM-DD - <summary>`. Push immediately.
 
 ## Exec safety
 
@@ -19,8 +45,10 @@ The oldest queued sealed note: `memory/YYYY-MM-DD.md` with frontmatter `status: 
 ## Worker discipline
 
 - One note per firing. Do not drain the queue in a single run.
-- Touch only the frontmatter fields the program allows (`para_status`, `last_updated`).
-- If the program's approval gates say "surface" on a candidate entity, do not create; surface it in the run report.
+- Touch only the frontmatter fields needed to mark queue progress (`para_status`, `last_updated`). Do not rewrite sealed note prose cosmetically.
+- Do not invent `related:` pointers.
+- Do not create stubs.
+- If approval gates say "surface" on a candidate entity, do not create; surface it in the run report.
 
 ## Self-disable on empty queue
 

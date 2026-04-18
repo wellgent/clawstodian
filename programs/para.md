@@ -2,6 +2,12 @@
 
 The workspace maintains a PARA knowledge graph - `projects/`, `areas/`, `resources/`, `archives/` - extracted from daily activity and aligned against a shared convention. Entities in PARA are the durable, searchable, structured record of what matters in this workspace.
 
+## Who writes
+
+**In-session agents are the primary writers.** When an agent notices a new project, person, company, or reusable resource in the course of a work session, they file it per the conventions below. This is the default path.
+
+Under cron, `para-extract` and `para-align` operate on the same graph - propagating sealed daily notes into new entities and verifying structural health across the graph. Each routine has its own spec; this program defines the conventions all of them (and in-session agents) follow.
+
 ## References
 
 - PARA conventions -> `memory/para-structure.md`
@@ -19,7 +25,7 @@ Read `memory/para-structure.md` before creating, moving, or validating entities.
 - **INDEX.md per bucket**: `projects/INDEX.md`, `areas/INDEX.md`, `resources/INDEX.md` are authoritative listings. Update when creating, moving, or archiving entities.
 - **MEMORY.md dashboard**: active projects are individually listed; area and resource pointers are directory-level; infrastructure section points to `memory/*.md` reference docs.
 - **Creation thresholds** (per `memory/para-structure.md`): a project needs a goal, timeline, or deliverable; a person needs context in 2+ notes; a topic needs reusable knowledge; a company needs a relationship worth tracking.
-- **Queue marker on source notes**: PARA extraction consumes sealed daily notes where `para_status: pending`. It flips them to `para_status: done` when complete.
+- **Extraction queue marker**: sealed daily notes with `para_status: pending` are queued for PARA extraction; processed notes flip to `para_status: done`.
 
 ## Authority
 
@@ -45,75 +51,6 @@ Must NOT reorganize existing entities without operator direction. Must NOT creat
 - A rename that would update many referrers with any ambiguity in the new path: surface the proposed change set; wait.
 - A structural anomaly that looks intentional (e.g. an entity was created by a plugin with non-standard shape): surface; do not correct.
 
-## Behaviors
-
-### Extract PARA from a sealed note
-
-Propagate one sealed daily note into PARA entities. One note per invocation.
-
-**Queue definition**. A note is queued for extraction only when all of the following are true:
-
-- the note lives at `memory/YYYY-MM-DD.md`
-- frontmatter `status: sealed`
-- frontmatter `para_status: pending`
-
-Legacy sealed notes without `para_status` are not automatically queued.
-
-**Target selection** (for cron-driven draining of the oldest pending note):
-
-1. List canonical daily notes where frontmatter shows `status: sealed` and `para_status: pending`.
-2. Pick the **oldest** queued note.
-
-**Steps:**
-
-1. Read the full daily note.
-2. Walk the note and detect candidate entities against `memory/para-structure.md` thresholds (projects, areas/people, areas/companies, areas/servers, resources).
-3. For each candidate:
-   - Obvious placement -> create or update in place.
-   - Ambiguous placement -> surface without creating.
-4. Update any touched `INDEX.md` files.
-5. Update root `MEMORY.md` only when a new project is listed.
-6. Flip the note's `para_status` from `pending` to `done`. Leave `status: sealed` unchanged. Update `last_updated`.
-
-**Worker discipline:**
-
-- Process one note, then stop. Do not drain multiple notes in one pass.
-- Do not rewrite sealed note prose cosmetically. Touch only the frontmatter fields needed to mark queue progress.
-- Do not invent `related:` pointers.
-- Do not create stubs.
-
-**Commit.** Add only the files you changed. Commit message: `para: extract YYYY-MM-DD - <summary>`. Push immediately.
-
-### Align PARA structure
-
-Verify and maintain PARA structural and semantic health across the full graph.
-
-**Scope** covers four dimensions:
-
-1. **Structural integrity** - frontmatter schema, `INDEX.md` coverage, `related:` pointer resolution.
-2. **Cross-reference consistency** - when an entity moves or is renamed, every referrer updates; when an entity is deleted or archived, nothing still points at its old path.
-3. **Naming and slug conventions** - kebab-case, no spaces, no underscores, lowercase; consistent with `memory/para-structure.md`.
-4. **MEMORY.md currency** - every active project listed; retired projects not listed under active; infrastructure and area pointers resolve.
-
-**Steps:**
-
-1. **Walk the graph.** For each entity file in `projects/`, `areas/`, `resources/`, `archives/`:
-   - Frontmatter matches `memory/para-structure.md`.
-   - `related:` pointers resolve to existing files.
-   - The entity is listed in the relevant `INDEX.md`.
-   - The filename follows naming conventions.
-2. **Check cross-references.**
-   - For every `related:` pointer, verify the target exists at the given path.
-   - For every entity path mentioned in `MEMORY.md` or in another entity's body, verify it resolves.
-   - If a target moved or was renamed and the new path is unambiguous (slug differs only by known convention change), update the referrer.
-   - If a target appears deleted or archived and no replacement is obvious, surface.
-3. **Verify `MEMORY.md`.** Every project with `status: active` appears individually; retired or archived projects do not; infrastructure pointers resolve; top-level structure sections match reality. Rebuild the dashboard in place if drifted; the dashboard is a summary of current state, not a historical record.
-4. **Classify findings.**
-   - **Trivial structural fix** (missing `INDEX.md` entry, frontmatter whitespace, inferrable `last_updated`, broken `related:` pointer with obvious replacement, MEMORY.md dashboard sections out of date): apply in place.
-   - **Anything else** (entity content, path, status semantics, ambiguous `related:` target, slug rename with downstream implications, new top-level folder): do NOT rewrite. Surface with file path, observed state, proposed fix.
-
-**Commit.** Add only files you changed. Commit message: `para: align YYYY-Www - <summary>`. Push immediately.
-
 ## What NOT to do
 
 - Do not rewrite entity content for style or brevity.
@@ -121,5 +58,4 @@ Verify and maintain PARA structural and semantic health across the full graph.
 - Do not auto-archive inactive projects (archive lifecycle is user-managed).
 - Do not modify `AGENTS.md`, `HEARTBEAT.md`, or anything in `.openclaw/`.
 - Do not disable or enable any cron.
-- Do not batch multiple extractions in one invocation; one note per run.
 - Do not create stubs.
