@@ -2,38 +2,44 @@
 
 ## 0.4.0-draft - 2026-04-18
 
-Cron-per-routine inversion and three-layer observability. v0.3 kept the heartbeat executing five routines in a pure-prose dispatcher; in live use a gateway restart produced a silent heartbeat failure with no detectable signal. v0.4 pushes routine execution onto cron (the self-observing substrate) and shrinks the heartbeat to a pure orchestrator that never goes silent.
+Program/routine split, cron-per-routine inversion, three-layer observability. v0.3 kept the heartbeat executing five routines in a pure-prose dispatcher; in live use a gateway restart produced a silent heartbeat failure with no detectable signal. v0.4 separates domain authorities (programs) from scheduled invocations (routines), pushes execution onto cron (the self-observing substrate), and shrinks the heartbeat to a pure orchestrator that never goes silent.
+
+The v0.4 draft went through two iterations inside the `2026-04-18` day. The first pass merged behavior and scheduling into a single set of "routines." The second pass separated them: behavior lives in `programs/` (domain authorities), scheduling lives in `routines/` (thin cron dispatchers). The final shape is what this entry describes.
 
 Added:
+- `programs/` directory with four domain authorities: `daily-notes.md`, `para.md`, `workspace-tidy.md`, `git-hygiene.md`. Each is a thick spec describing conventions, authority, approval gates, escalation, and named behaviors. Programs are read at session bootstrap via `AGENTS.md` so any agent in the workspace follows the same domain rules whether invoked in-session or via cron.
 - `memory/heartbeat-trace.md` append-only tick log as the forensic record that proves heartbeat fired.
 - Executive summary to logs channel on every heartbeat tick (including healthy no-change ticks).
 - Per-routine announcements to the logs channel via `--announce --channel --to` on every cron.
 - Install smoke test in `INSTALL_FOR_AGENTS.md` that verifies markers, symlinks, templates, and cron registrations in under ten seconds.
 - `para_status` field documented in `templates/daily-note-structure.md` as the PARA extraction queue marker (`pending -> done`).
+- `docs/writing-a-program.md` (new) for adding a domain authority.
+- `docs/writing-a-routine.md` (rewritten) for adding a scheduled dispatcher.
 - `docs/briefs/2026-04-18-v0.4-observability-brief.md`.
 
 Changed:
-- Directory renamed: `programs/` -> `routines/`. Symlink target updated to `clawstodian/routines`.
-- Six-routine catalog (down from nine):
-  - `daily-notes-tend` folded into `daily-note`.
-  - `close-of-day` renamed `seal-past-days`.
-  - `para-backfill` renamed `para-extract` and consolidated with PARA responsibilities from `para-tend` and `durable-insight`.
-  - `workspace-tidiness` renamed `workspace-tidy`, scope expanded to active filing.
-  - `weekly-para-align` renamed `para-align`, scope expanded (cross-references, naming conventions, MEMORY.md currency).
-  - `git-hygiene` retained, unchanged in function.
+- `routines/` now holds thin cron dispatchers (6 files, ~30-50 lines each). Each routine references a program and a named behavior, defines a target, run report, worker discipline, and install command. Behavioral detail lives in the program it dispatches, not in the routine.
+- Six-routine catalog (four programs):
+  - `daily-note` (always-on) -> `daily-notes` program, tend today's note.
+  - `seal-past-days` (burst) -> `daily-notes` program, seal a past-day note.
+  - `para-extract` (burst) -> `para` program, extract PARA from a sealed note.
+  - `para-align` (fixed cron, Sunday 06:00 UTC) -> `para` program, align PARA structure.
+  - `workspace-tidy` (always-on, every 2h) -> `workspace-tidy` program, walk and tidy.
+  - `git-hygiene` (always-on, every 30m) -> `git-hygiene` program, commit drift.
 - Every routine is now a cron job. Execution classes simplified to two: **Always-on cron** and **Heartbeat-toggled burst**. The `heartbeat-direct`, `heartbeat-inline`, and `ambient` classes are retired.
-- `HEARTBEAT-SECTION.md` is now a pure orchestrator: reads state, toggles burst workers, spot-checks health, appends tick trace, posts executive summary. Does not execute routines.
-- `AGENTS-SECTION.md` catalog reflects the six-routine shape and two execution classes.
-- `templates/crons.md` reflects all six routines with schedules and enable logic.
-- `docs/writing-a-program.md` renamed `docs/writing-a-routine.md` and rewritten for v0.4 model.
+- Workspace install produces two symlinks: `clawstodian/programs` -> `~/clawstodian/programs` and `clawstodian/routines` -> `~/clawstodian/routines`.
+- `HEARTBEAT-SECTION.md` is now a pure orchestrator: reads state, toggles burst workers, spot-checks health, appends tick trace, posts executive summary. Does not execute programs.
+- `AGENTS-SECTION.md` now has two catalogs: four programs (primary, domain authorities) and six routines (scheduled invocations appendix).
+- `templates/crons.md` lists all six routines with the program/behavior each invokes.
 - Template markers bumped from `2026-04-17` to `2026-04-18`.
 
-Removed:
-- `programs/para-tend.md` - subsumed by `para-extract`.
-- `programs/durable-insight.md` - inline-capture folded into `daily-note`; PARA filing folded into `para-extract`; unreliable ambient trigger dropped.
+Removed (from the v0.3 set; their responsibilities moved):
+- `programs/para-tend.md` - subsumed by the `para` program's extract behavior, invoked via the `para-extract` routine.
+- `programs/durable-insight.md` - inline-capture folded into the `daily-notes` program's tend behavior; filing folded into the `para` program's extract behavior; unreliable ambient trigger dropped.
 - `programs/health-sweep.md` - runtime observability is now a byproduct of the heartbeat orchestrator's executive summary.
+- `daily-notes-tend`, `close-of-day`, `para-backfill`, `weekly-para-align`, `workspace-tidiness` names - replaced by the routine names above.
 
-Motivating evidence: on 2026-04-18 morning, the wellgent install showed `heartbeat: started` at 22:48:50 UTC the previous night followed by zero tick events all day, while cron jobs (Dreaming promotion at 09:04 UTC) fired cleanly. Heartbeat passes every potential tick through roughly seven silent-skip gates (`areHeartbeatsEnabled`, per-agent enablement, `isWithinActiveHours`, lane queues, delivery resolution, visibility); any one can short-circuit without emitting. Cron has one observable delivery path per job. The structural lesson: put observable, resilient execution on cron; keep heartbeat light and never silent.
+Motivating evidence: on 2026-04-18 morning, the wellgent install showed `heartbeat: started` at 22:48:50 UTC the previous night followed by zero tick events all day, while cron jobs (Dreaming promotion at 09:04 UTC) fired cleanly. Heartbeat passes every potential tick through roughly seven silent-skip gates (`areHeartbeatsEnabled`, per-agent enablement, `isWithinActiveHours`, lane queues, delivery resolution, visibility); any one can short-circuit without emitting. Cron has one observable delivery path per job. The structural lesson: put observable, resilient execution on cron; keep heartbeat light and never silent. The program/routine split then surfaced as the cleaner axis to reconcile "agents do this during sessions" with "cron catches what agents missed" without conflating behavior and scheduling.
 
 ## 0.3.0-draft - 2026-04-17
 

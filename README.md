@@ -1,8 +1,16 @@
 # clawstodian
 
-A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. Daily notes, PARA knowledge graph, workspace tidiness, and git hygiene - all handled by six focused routines that each run on their own cron, each announcing their own completion to the operator's logs channel.
+A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. The package ships **four programs** (domain authorities for daily notes, PARA knowledge graph, workspace tidiness, git hygiene) and **six routines** (scheduled cron invocations of specific program behaviors) so the workspace stays in good shape whether the operator is actively working or not.
 
 Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenClaw primitives, and the observable-by-design execution pattern those packages got right.
+
+## Programs and routines
+
+**Programs** are the authorities for how the workspace is operated in a domain. Each program spec describes conventions, authority, approval gates, escalation rules, and the behaviors the agent can perform. Programs are read at session bootstrap via `AGENTS.md` so any agent in the workspace knows how the domain is governed. Routines (below) and agents in normal sessions both follow the same programs.
+
+**Routines** are thin scheduled invocations. Each routine references a program, picks a specific behavior to run, defines a target and a run report, and registers a cron job. Routines are the catch-up safety net for what agents did not do in-session.
+
+The split is **what** (programs) vs **when** (routines). Multiple routines can invoke the same program - for example, `daily-note` (every 30m, tend today's note) and `seal-past-days` (burst, seal a past-day note) both reference behaviors from the `daily-notes` program.
 
 ## Install into any workspace
 
@@ -18,35 +26,42 @@ The agent reads `INSTALL_FOR_AGENTS.md`, surveys your workspace, proposes a merg
 
 ## What it installs
 
-Six routines under `routines/`, each its own cron job:
+**Four programs** (`programs/`): the domain authorities.
 
-**Always-on crons**
-- `daily-note` - keep today's canonical note current; merge slug siblings; file obvious durable insights
-- `workspace-tidy` - remove trash, move misplaced files to intuitive homes
-- `git-hygiene` - commit meaningful drift, maintain `.gitignore`
-- `para-align` - weekly PARA structural and semantic health (cross-references, naming, MEMORY.md currency)
+- `daily-notes` - canonical daily notes at `memory/YYYY-MM-DD.md`. Covers tending today's note and sealing past-day notes.
+- `para` - the PARA knowledge graph (projects/areas/resources/archives). Covers extracting entities from sealed notes and aligning structural + semantic health.
+- `workspace-tidy` - workspace cleanliness. Trash removal, misplaced-file relocation, `.gitignore` upkeep.
+- `git-hygiene` - commit discipline. Stage-by-path commits, clear messages, immediate push.
 
-**Heartbeat-toggled bursts** (start disabled; orchestrator enables on demand)
-- `seal-past-days` - seal one unsealed past-day daily note per run
-- `para-extract` - propagate one sealed note into PARA entities per run
+**Six routines** (`routines/`): the scheduled invocations.
 
-Each spec follows the same anatomy: authority, trigger, approval gates, escalation, execution steps, reply format, install, verify. `AGENTS.md` holds the catalog; `HEARTBEAT.md` runs the orchestrator; individual specs are read on demand.
+Always-on crons:
+- `daily-note` (every 30m) - daily-notes: tend today's note.
+- `workspace-tidy` (every 2h) - workspace-tidy: walk and tidy.
+- `git-hygiene` (every 30m) - git-hygiene: commit drift.
+- `para-align` (Sunday 06:00 UTC) - para: align PARA structure. Heartbeat may also `--wake now` on mid-week drift.
+
+Heartbeat-toggled bursts (start disabled; orchestrator enables on demand):
+- `seal-past-days` - daily-notes: seal a past-day note.
+- `para-extract` - para: extract PARA from a sealed note.
+
+`AGENTS.md` holds the programs catalog; `HEARTBEAT.md` runs the orchestrator; `memory/crons.md` is the routine dashboard. All specs are read on demand from the workspace symlinks.
 
 ## How it runs
 
-- **Every routine runs as its own cron job.** Isolated session, light context, per-routine announcement to the logs channel. A quiet run replies `NO_REPLY` and stays silent.
-- **Heartbeat is the orchestrator, not an executor.** On its cadence it reads workspace state, toggles burst workers based on queues (sealed-notes pending, past-day notes unsealed), spot-checks configuration health, appends a trace line to `memory/heartbeat-trace.md`, and posts a one-line executive summary to the logs channel. It never goes silent: even a healthy no-change tick posts.
-- **Three-layer observability.** Per-routine announcements (detail on demand), heartbeat executive summary (ambient awareness), `memory/heartbeat-trace.md` (forensic record). If any of the three goes silent, that silence is itself informative.
+- **Each routine runs as its own cron job.** Isolated session, light context, per-routine announcement to the logs channel. A quiet run returns `NO_REPLY` and stays silent.
+- **Heartbeat is the orchestrator, not an executor.** On its cadence it reads workspace state, toggles burst workers based on queues (sealed-notes pending, past-day notes unsealed), spot-checks configuration health, appends a trace line to `memory/heartbeat-trace.md`, and posts a one-line executive summary. It never goes silent: even a healthy no-change tick posts.
+- **Three-layer observability.** Per-routine run reports (detail on demand), heartbeat executive summary (ambient awareness), `memory/heartbeat-trace.md` (forensic record). Silence in any of the three is itself informative.
 - **No package-owned state files.** Git, daily notes, PARA entities, session transcripts, and `memory/heartbeat-trace.md` are the ledger.
-- **Isolated sessions for every routine and every heartbeat tick.** Cross-tick memory lives in the workspace, not in session history.
+- **In-session agents and cron dispatch share the same programs.** An agent finishing a work session can follow the `git-hygiene` program to commit drift; the `git-hygiene` routine fires every 30m to catch anything missed. Both read the same program spec.
 
 ## Co-creation, not automation
 
 The maintainer is a scribe, not an architect. Four rules:
 
 1. When placement is obvious, just act.
-2. When placement is ambiguous, surface it in the routine's reply and wait.
-3. Announce per routine: each cron posts its own single-line summary.
+2. When placement is ambiguous, surface (in-session: ask the user; via cron: include in run report).
+3. Each routine announces its own run: one single-line report per cron firing.
 4. Surface problems with likely causes and one or two resolution paths. Do not just alert; collaborate.
 
 ## Manual install (without an agent)
@@ -60,16 +75,22 @@ clawstodian/
   README.md                          this file
   INSTALL_FOR_AGENTS.md              agent-driven install entry point
 
-  AGENTS-SECTION.md                  workspace charter + catalog of routines
+  AGENTS-SECTION.md                  workspace charter + programs catalog + routines catalog
   HEARTBEAT-SECTION.md               pure-orchestrator heartbeat
 
+  programs/
+    daily-notes.md                   domain: canonical daily notes
+    para.md                          domain: PARA knowledge graph
+    workspace-tidy.md                domain: workspace cleanliness
+    git-hygiene.md                   domain: commit discipline
+
   routines/
-    daily-note.md                    always-on cron
-    workspace-tidy.md                always-on cron
-    git-hygiene.md                   always-on cron
-    para-align.md                    fixed cron (weekly) + heartbeat-wakeable
-    seal-past-days.md                heartbeat-toggled burst
-    para-extract.md                  heartbeat-toggled burst
+    daily-note.md                    always-on; invokes daily-notes/tend
+    workspace-tidy.md                always-on; invokes workspace-tidy/walk-and-tidy
+    git-hygiene.md                   always-on; invokes git-hygiene/commit-drift
+    para-align.md                    fixed cron; invokes para/align
+    seal-past-days.md                burst; invokes daily-notes/seal
+    para-extract.md                  burst; invokes para/extract
 
   templates/
     para-structure.md                installable to memory/para-structure.md
@@ -79,10 +100,11 @@ clawstodian/
 
   docs/
     architecture.md                  first-principles design
-    writing-a-routine.md             guide for adding new routines
+    writing-a-program.md             guide for adding new programs (domain authorities)
+    writing-a-routine.md             guide for adding new routines (scheduled invocations)
     briefs/
-      2026-04-16-realignment-brief.md        v0.2 scope brief
-      2026-04-18-v0.4-observability-brief.md v0.4 scope brief
+      2026-04-16-realignment-brief.md         v0.2 scope brief
+      2026-04-18-v0.4-observability-brief.md  v0.4 scope brief
 
   AGENTS.md                          this repo's own agent instructions
   CLAUDE.md                          symlink to AGENTS.md
@@ -127,13 +149,13 @@ clawstodian/
 
 ## Bootstrap sizing
 
-OpenClaw injects `AGENTS.md` into the system prompt each turn. Provider ceilings vary (e.g. the OpenAI Codex responses endpoint silently 400s when `instructions` exceeds ~32 KiB). clawstodian's catalog model keeps `AGENTS.md` lean - routine specs live in `clawstodian/routines/` and are read on demand by the cron runner, not injected every turn.
+OpenClaw injects `AGENTS.md` into the system prompt each turn. Provider ceilings vary (e.g. the OpenAI Codex responses endpoint silently 400s when `instructions` exceeds ~32 KiB). clawstodian's catalog model keeps `AGENTS.md` lean - program and routine specs live in `clawstodian/programs/` and `clawstodian/routines/` and are read on demand, not injected every turn.
 
 If your workspace's `AGENTS.md` is pushing the per-file cap (`agents.defaults.bootstrapMaxChars`, default 12,000), the catalog model alone usually resolves it.
 
 ## Status
 
-Draft. See `VERSION` and `CHANGELOG.md`. v0.4 introduces the cron-per-routine model and three-layer observability; v0.4 drafts land alongside workspace evolution before stabilizing.
+Draft. See `VERSION` and `CHANGELOG.md`. v0.4 introduces the program/routine split, the cron-per-routine execution model, and three-layer observability; v0.4 drafts land alongside workspace evolution before stabilizing.
 
 ## License
 
