@@ -81,11 +81,7 @@ Produce a short, explicit plan for the operator. Items in the order the install 
   mkdir -p clawstodian && ln -s ~/clawstodian/routines clawstodian/routines
   ```
   One-time setup. All routine specs become reachable at `clawstodian/routines/<name>.md` relative to workspace root. If a legacy `clawstodian/programs` symlink exists from a v0.3 install, remove it after adding the new `clawstodian/routines` symlink: `rm clawstodian/programs`.
-- **Cron routines** - install all six routines:
-  - Always-on: `daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`.
-  - Heartbeat-toggled bursts (start disabled): `seal-past-days`, `para-extract`.
-  
-  Each routine spec under `~/clawstodian/routines/` carries its own Install block with the exact `openclaw cron add` invocation. Ask the operator which logs channel to deliver announcements to (Discord/Slack/Telegram channel id). Offer `--no-deliver` as alternative for workspaces that prefer silent runs.
+- **Cron routines** - install all six routines (exact commands in the **Cron install commands** section below). Always-on: `daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`. Heartbeat-toggled bursts (start disabled): `seal-past-days`, `para-extract`. Ask the operator which logs channel to deliver announcements to (Discord/Slack/Telegram channel id). Offer `--no-deliver` as alternative for workspaces that prefer silent runs.
 - **Heartbeat config** - show the recommended snippet from `~/clawstodian/README.md` ("Recommended heartbeat config") and propose merging it into the operator's OpenClaw config. Key stance: `every: 2h`, `isolatedSession: true`, `lightContext: true`, `target` pointing at the logs channel, `activeHours` set, `showAlerts: true`. The orchestrator now posts a summary every tick, so `showOk` is irrelevant (the heartbeat never replies with just `HEARTBEAT_OK`). Apply this last.
 
 **If Step 3 detected legacy v0.3 routines** (programs not renamed), prepend this advisory to the plan:
@@ -106,13 +102,74 @@ When the operator approves a specific item, apply it:
 - **Installing reference templates**: copy from `~/clawstodian/templates/<file>` to the workspace path. Preserve the template marker.
 - **Creating PARA folders**: create the folders and add an empty `INDEX.md` in each with just `# <folder name> INDEX` as the header.
 - **Creating `clawstodian/` workspace directory**: run the single-symlink command above. Verify with `readlink clawstodian/routines`.
-- **Adding cron routines**: run each routine's install command verbatim (substituting `<your-logs-channel-id>`). Example:
-  ```
-  openclaw cron add --name daily-note --every 30m --session isolated --light-context --announce --channel discord --to "channel:<id>" --message "Read clawstodian/routines/daily-note.md and execute."
-  ```
+- **Adding cron routines**: run the commands from the **Cron install commands** section below, substituting `<your-logs-channel-id>`. Install in the listed order; there are no dependencies between routines.
 - **Applying heartbeat config**: show the exact diff the operator would apply to their OpenClaw config. For `target`: ask the operator for a dedicated channel ID. If they do not have one handy, default to `target: "last"` with a note that they can switch to an explicit channel later. Let them apply the diff themselves, or, with explicit confirmation, apply it for them.
 
 Apply one item at a time. After each, verify by reading the resulting file or running the status command.
+
+## Cron install commands
+
+Every routine runs as its own isolated-session cron job. Commands substitute `<your-logs-channel-id>` with the operator's logs channel id. Substitute `--no-deliver` for `--announce --channel --to ...` if the operator prefers silent runs.
+
+All six routines share these flags: `--session isolated`, `--light-context`, and `--message "Read clawstodian/routines/<name>.md and execute."` The routine spec is the authority; the cron payload is just dispatch.
+
+**Always-on crons** (enabled at install time):
+
+```bash
+openclaw cron add \
+  --name daily-note \
+  --every 30m \
+  --session isolated --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/daily-note.md and execute."
+
+openclaw cron add \
+  --name workspace-tidy \
+  --every 2h \
+  --session isolated --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/workspace-tidy.md and execute."
+
+openclaw cron add \
+  --name git-hygiene \
+  --every 30m \
+  --session isolated --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/git-hygiene.md and execute."
+
+openclaw cron add \
+  --name para-align \
+  --cron "0 6 * * 0" \
+  --session isolated --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/para-align.md and execute."
+```
+
+**Heartbeat-toggled bursts** (start disabled; heartbeat enables on demand):
+
+```bash
+openclaw cron add \
+  --name seal-past-days \
+  --every 30m --disabled \
+  --session isolated --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/seal-past-days.md and execute."
+
+openclaw cron add \
+  --name para-extract \
+  --every 30m --disabled \
+  --session isolated --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/para-extract.md and execute."
+```
+
+After install, verify each with:
+
+```bash
+openclaw cron list --all | grep <routine-name>
+```
+
+The smoke test in Step 6 verifies all six at once.
 
 ## Step 6 - Smoke test
 

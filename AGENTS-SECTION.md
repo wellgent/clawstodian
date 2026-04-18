@@ -52,7 +52,9 @@ Three layers give continuity across sessions:
 
 ### Routines
 
-Routines are the standing orders the agent owns. Each has a canonical spec under `clawstodian/routines/<name>.md`; this section is the catalog, not the spec. **Before executing any routine, read its spec first.** Do not work from memory of older versions.
+Routines are the standing orders the agent owns. Each is a context-agnostic behavioral spec under `clawstodian/routines/<name>.md`. Each routine runs primarily as its own cron job, but any agent in this workspace can also follow a routine during a normal session when the situation calls for it (e.g. doing a `daily-note` pass after a long working session, or a `git-hygiene` pass after committing work). **Before executing any routine, read its spec first.** Do not work from memory of older versions.
+
+This section is the catalog. Scheduling, enable logic, and cron wiring live in `memory/crons.md`.
 
 #### Execution classes
 
