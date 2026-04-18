@@ -1,29 +1,40 @@
 # git-clean (routine)
 
-Runs one commit-drift pass per the repo program.
+Runs one commit-drift pass per firing - stages and commits unpushed changes to the working tree per the repo program's conventions. Backstop for in-session agents and other routines that produced file changes but did not commit.
 
 ## Program
 
-`clawstodian/programs/repo.md` - follow the "Commit drift" behavior.
+`clawstodian/programs/repo.md` - conventions, authority, approval gates, and escalation.
 
 ## Target
 
 The current workspace working tree and its remote-tracking branch.
 
+## Steps
+
+1. **Run `git status`.** If the tree is clean and no commits are waiting to be pushed, emit the quiet-firing channel post and stop.
+2. **Push first if the only work is unpushed commits.** `git status` reports a clean tree but `git log @{u}..HEAD` shows commits: push them, then stop.
+3. **Group dirty files into logical commits.** Walk `git status --porcelain` and `git diff` output; cluster files by concern (e.g. daily-note edits, PARA entity changes, config changes). One concern per commit.
+4. **For each group, in order:**
+   - Stage files by exact path. Never `git add -A` or `git add .`.
+   - Compose a commit message per the `<topic>: <short description>` convention in `programs/repo.md`.
+   - Commit and push immediately. If push fails, surface the error and stop (do not keep committing behind a failed push).
+5. **Handle new untracked files.** For each:
+   - **Clearly ephemeral** (cache, build output, log, editor swapfile): add to `.gitignore`, commit the `.gitignore` change with a `config:` or `ops:` topic, push.
+   - **Looks like a secret** (`.env*`, `*.key`, `credentials*`, tokens): surface. Never commit, never add to `.gitignore` without operator direction.
+   - **Nature not obvious**: surface rather than committing or ignoring. Let the operator decide.
+
 ## Exec safety
 
-- Never `git add -A` or `git add .`. Stage by exact path.
-- Never `--no-verify`. If a pre-commit hook fails, fix the underlying issue and commit again.
-- Never `git reset --hard`, `git clean -f`, or force-push without explicit operator confirmation.
 - Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
 - For multi-line script logic, write the script to `/tmp/clawstodian-git-clean-<context>.sh` (or `.py`) and invoke it by path. Do not inline code via heredoc to an interpreter (`bash <<EOF ... EOF`); the safety layer blocks that as obfuscation.
 - `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
 
 ## Worker discipline
 
-- One pass per firing. No internal loops.
-- Group dirty files into logical commits; one concern per commit.
-- If the program's approval gates or escalation rules say "surface", do not commit; include in the run report.
+- One pass per firing. No internal loops after the initial grouping.
+- If approval gates or escalation rules in `programs/repo.md` say "surface", do not commit; include in the run report.
+- Do not accumulate commits behind a failed push. Stop at the first push failure and surface.
 
 ## Run report
 
@@ -55,7 +66,7 @@ Write to `memory/runs/git-clean/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 ## Surfaced for operator
 
 - 1
-  - .env.new at workspace root - looks like secrets; ignored rather than committed. Operator to confirm.
+  - .env.new at workspace root - looks like secrets; left untouched (not committed, not added to .gitignore). Operator to decide whether to keep, rename, or gitignore.
 
 ## Channel summary
 
