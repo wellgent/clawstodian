@@ -1,68 +1,59 @@
-# workspace-tidy
+# workspace-tidy (routine)
 
-Keep the working tree navigable. Remove trash, move misplaced files to their intuitive home, leave signal.
+Every 2 hours, always enabled. Runs one tidy pass across the workspace per the workspace-tidy program.
 
-## References
+## Program
 
-- Related routines -> `clawstodian/routines/git-hygiene.md`, `clawstodian/routines/para-extract.md`, `clawstodian/routines/para-align.md`
-- PARA conventions -> `memory/para-structure.md`
-- Dashboard -> `MEMORY.md`
+`clawstodian/programs/workspace-tidy.md` - follow the "Walk and tidy" behavior.
 
-## Authority
+## Target
 
-- Delete empty directories unless `.gitkeep` marks them intentional.
-- Prune run-logs older than 30 days.
-- Remove scratch files the agent itself created and no longer references.
-- Move misplaced files to their intuitive location when the right home is obvious per `memory/para-structure.md`.
-- Edit `.gitignore`.
-
-## Approval gates
-
-- Obvious removal (empty dir, stale run-log, own scratch file): just do it.
-- Obvious move (misplaced file with a clearly intuitive home per PARA conventions): just do it.
-- Ask before removing anything the agent did not create or cannot trace the origin of.
-- Ask before deleting files larger than 1 MB or any binary.
-- Ask before touching a top-level directory not listed in `MEMORY.md` or the PARA folders.
-- Ask before moving a file whose intended location is genuinely ambiguous (fits two PARA buckets, could be entity-owned or workspace-owned).
-
-## Escalation
-
-- Orphaned symlink pointing outside the workspace.
-- Permission anomaly or a file mode that looks wrong.
-- A file whose presence suggests a separate concern (a stray dataset, a possibly sensitive artifact).
-
-Surface with filename and observed state; do not auto-repair.
+The workspace tree, excluding `.git/`, `.openclaw/`, and operator-configured dotfiles.
 
 ## Exec safety
 
 Run commands by exact path. Never inline code through heredocs piped into shell interpreters.
 
-## What to do
+## Worker discipline
 
-1. Walk the workspace. Collect candidates in four buckets:
-   - **Empty directories** (no `.gitkeep` sentinel).
-   - **Stale artifacts** (run-logs older than 30 days, scratch files the agent created).
-   - **Misplaced files** (files at workspace root that clearly belong under `resources/`, `projects/<n>/`, or another PARA bucket per `memory/para-structure.md`).
-   - **Anomalies** (broken symlinks, oversized files, unknown-origin files).
-2. For each candidate:
-   - Obvious action (per authority and approval gates): apply.
-   - Ambiguous: surface in the summary and leave alone.
-3. Keep the tree clean: `.gitignore` patterns for any ephemeral files that slipped in.
+- One pass per firing. No internal loops.
+- Apply only the obvious actions the program authorizes. Everything ambiguous surfaces in the run report.
+- Do not commit. Commits belong to the `git-hygiene` routine.
 
-## What NOT to do
+## Run report
 
-- Do not reorganize operator-authored directory structure.
-- Do not rename files.
-- Do not touch `.git/`, `.openclaw/`, or any dotfile the operator configured.
-- Do not trash anything produced by another routine without tracing origin first.
-- Do not auto-archive inactive projects (archive lifecycle is user-managed).
-
-## Summary
-
-When something changed, report one line:
+Single line delivered to the logs channel by the cron runner:
 
 ```
 workspace-tidy: removed <N>, moved <M>, awaiting decision on <K>
 ```
 
-When nothing changed, produce no summary. Under cron dispatch, return `NO_REPLY`.
+Return `NO_REPLY` when nothing changed, so no-change runs stay silent.
+
+## Install
+
+Prerequisite: `clawstodian/routines` and `clawstodian/programs` symlinks.
+
+```bash
+openclaw cron add \
+  --name workspace-tidy \
+  --every 2h \
+  --session isolated \
+  --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/workspace-tidy.md and execute."
+```
+
+Substitute `--no-deliver` for silent runs.
+
+## Verify
+
+```bash
+openclaw cron list | grep workspace-tidy
+```
+
+## Uninstall
+
+```bash
+openclaw cron remove workspace-tidy
+```
