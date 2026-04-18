@@ -80,17 +80,19 @@ Routines are scheduled cron invocations that execute program behaviors on a cade
 
 Two execution classes:
 
-- **Always-on cron** - runs on its schedule regardless of state. Every firing produces a run-report file and channel post.
-- **Heartbeat-toggled burst** - starts disabled. The heartbeat orchestrator enables when a queue exists and disables when empty.
+- **Scheduled** - enabled at install, fires on its wall-clock schedule. No self-disable.
+- **Heartbeat-toggled burst** - starts disabled, heartbeat enables when a queue exists, self-disables when drained.
+
+Every firing in both classes produces a run-report file under `memory/runs/<routine>/<ts>.md` and a channel post. No silent firings.
 
 Current routines:
 
 - **capture-sessions** (burst, every 30m while enabled) - invokes daily-notes: capture one session's unread JSONL into the appropriate daily notes. Heartbeat enables when the ledger has un-admitted sessions or stale cursors. Agents in-session remain the primary writers; this cron is the backstop.
-- **seal-past-days** (burst, every 30m while enabled) - invokes daily-notes: seal one past-day note per firing.
-- **para-extract** (burst, every 30m while enabled) - invokes para: extract PARA from one sealed note per firing.
-- **para-align** (fixed cron, Sunday 06:00 UTC) - invokes para: align PARA structure.
-- **workspace-tidy** (always-on, every 2h) - invokes workspace-tidy: walk and tidy.
-- **git-hygiene** (always-on, every 30m) - invokes git-hygiene: commit drift.
+- **seal-past-days** (burst, every 30m while enabled) - invokes daily-notes: seal one past-day note per firing. Heartbeat enables when past-active notes with `capture_status: done` exist.
+- **para-extract** (burst, every 30m while enabled) - invokes para: extract PARA from one sealed note per firing. Heartbeat enables when sealed notes with `para_status: pending` exist.
+- **para-align** (scheduled, Sunday 06:00 UTC) - invokes para: align PARA structure across the full graph.
+- **workspace-tidy** (scheduled, Sunday 07:00 UTC) - invokes workspace-tidy: walk and tidy.
+- **git-hygiene** (scheduled, 01:00 and 11:00 UTC daily) - invokes git-hygiene: commit drift as a backstop for agents who commit themselves in-session.
 
 See `memory/crons.md` for schedules and current enable state.
 

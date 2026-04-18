@@ -3,7 +3,9 @@
 
 Dashboard for this workspace's cron jobs. Authoritative state: `openclaw cron list --all`.
 
-Every clawstodian routine runs as its own cron job. Each routine invokes a behavior from a program in `clawstodian/programs/`. The heartbeat orchestrator does not execute routines; it only toggles burst workers based on workspace state and posts an executive summary each tick.
+Every clawstodian routine runs as its own cron job. Each routine invokes a behavior from a program in `clawstodian/programs/`. Two execution classes: **scheduled** routines fire on a wall-clock schedule (stay enabled, no self-disable); **heartbeat-toggled bursts** start disabled and the heartbeat turns them on when a gap is detected, off when drained.
+
+Every firing in either class produces a run-report file at `memory/runs/<routine>/<ts>.md` and a channel post. The heartbeat is the orchestrator: it toggles bursts based on workspace state, watches run reports for items the routines surfaced to the operator, and posts an executive summary each tick.
 
 Install commands live in `~/clawstodian/INSTALL.md` under "Cron install commands". Verification is in `~/clawstodian/VERIFY.md`. Removal is in `~/clawstodian/UNINSTALL.md`. Routine specs under `~/clawstodian/routines/` are thin dispatchers; program specs under `~/clawstodian/programs/` are the domain authorities.
 
@@ -17,17 +19,17 @@ Invokes `daily-notes` program: capture one session's unread JSONL into the appro
 
 ## workspace-tidy
 
-Invokes `workspace-tidy` program: walk and tidy. Removes trash, moves misplaced files to intuitive homes, maintains `.gitignore` for ephemeral files.
+Invokes `workspace-tidy` program: walk and tidy. Removes trash, moves misplaced files to intuitive homes, maintains `.gitignore` for ephemeral files, prunes run-report files older than 30 days.
 
-- Schedule: `every 2h`
-- Always enabled. Every firing produces a run-report file + channel post (quiet firings post `outcome: clean`).
+- Schedule: `0 7 * * 0` (Sunday 07:00 UTC, right after `para-align`)
+- Scheduled (always enabled, no self-disable). Every firing produces a run-report file + channel post (quiet firings post `outcome: clean`).
 
 ## git-hygiene
 
-Invokes `git-hygiene` program: commit drift. Commits meaningful changes stage-by-path, pushes, maintains `.gitignore`.
+Invokes `git-hygiene` program: commit drift. Backstop for agents who commit themselves per the program's convention. Commits meaningful changes stage-by-path, pushes, maintains `.gitignore`.
 
-- Schedule: `every 30m`
-- Always enabled. Every firing produces a run-report file + channel post (quiet firings post `outcome: clean`).
+- Schedule: `0 1,11 * * *` (01:00 and 11:00 UTC daily)
+- Scheduled (always enabled, no self-disable). Twice-daily cadence is the safety net; agents commit their own work in-session. Operators with specific preferences can adjust the cron expression.
 
 ## seal-past-days
 
@@ -48,22 +50,20 @@ Invokes `para` program: extract PARA from a sealed note. Propagates one sealed d
 Invokes `para` program: align PARA structure. Verifies structural and semantic health (cross-references, naming, MEMORY.md currency). Applies trivial fixes; surfaces the rest.
 
 - Schedule: `0 6 * * 0` (Sunday 06:00 UTC)
-- Always enabled. Heartbeat may also `--wake now` mid-week on drift.
+- Scheduled (always enabled). Heartbeat may also `--wake now` mid-week on drift reported by `para-extract`.
 
 ## Schedule overview
 
 ```
-ALWAYS-ON CRONS
-every 30m     git-hygiene
-every 2h      workspace-tidy
+SCHEDULED (always enabled)
+Sunday 06:00       para-align        (UTC, weekly)
+Sunday 07:00       workspace-tidy    (UTC, weekly)
+Daily 01:00 + 11:00 git-hygiene      (UTC, twice daily)
 
-HEARTBEAT-TOGGLED BURSTS (start disabled)
-every 30m     capture-sessions
-every 30m     seal-past-days
-every 30m     para-extract
-
-FIXED CRON
-Sunday 06:00  para-align (UTC)
+HEARTBEAT-TOGGLED BURSTS (start disabled; heartbeat enables on gap)
+every 30m          capture-sessions
+every 30m          seal-past-days
+every 30m          para-extract
 ```
 
 ## System cron

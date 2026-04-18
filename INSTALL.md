@@ -97,7 +97,7 @@ Produce a short, explicit plan for the operator. Items in the order the install 
   ln -s ~/clawstodian/routines clawstodian/routines
   ```
   One-time setup. Program specs become reachable at `clawstodian/programs/<name>.md` and routine specs at `clawstodian/routines/<name>.md` relative to workspace root. If a legacy single symlink from an earlier draft exists (either name), remove it before adding the pair.
-- **Cron routines** - install all six routines (exact commands in the **Cron install commands** section below). Always-on: `workspace-tidy`, `git-hygiene`. Fixed cron: `para-align`. Heartbeat-toggled bursts (start disabled): `capture-sessions`, `seal-past-days`, `para-extract`. Ask the operator which logs channel to deliver announcements to (Discord/Slack/Telegram channel id). Offer `--no-deliver` as alternative for workspaces that prefer silent runs.
+- **Cron routines** - install all six routines (exact commands in the **Cron install commands** section below). Scheduled (wall-clock): `para-align` (Sun 06:00 UTC), `workspace-tidy` (Sun 07:00 UTC), `git-hygiene` (01:00 and 11:00 UTC daily). Heartbeat-toggled bursts (start disabled): `capture-sessions`, `seal-past-days`, `para-extract`. Ask the operator which logs channel to deliver announcements to (Discord/Slack/Telegram channel id). Offer `--no-deliver` as alternative for workspaces that prefer silent runs.
 - **Session visibility config** - set `tools.sessions.visibility: "all"` in `~/.openclaw/openclaw.json`. This is a **required prerequisite**, not optional: without it, the `capture-sessions` routine cannot see any session other than its own spawned children, so captured content is always zero. If the operator has an existing value (`"tree"`, `"agent"`, etc.), explain the trade-off before overwriting: `"all"` lets any isolated cron session in this agent see any session's transcripts. For single-operator workspaces this is the correct setting; shared-agent installs may want to scope differently and accept that clawstodian will not work out of the box.
 - **Heartbeat config** - the authoritative reference is `~/clawstodian/docs/heartbeat-config.md`. Recommended stance: `every: "2h"`, `target` set to a channel plugin (`discord`, `slack`, etc.) and `to` set to the channel-specific recipient (e.g. `"channel:<id>"`) pointing at the notifications channel, `activeHours` set. Leave `session`, `isolatedSession`, and `lightContext` at their defaults so heartbeat runs in the main session with full workspace bootstrap. Do NOT add `session.maintenance`, `agents.defaults.contextPruning`, or other host-wide policy fields - those are the operator's sessions-baseline choices. Show the operator the snippet from `~/clawstodian/docs/heartbeat-config.md` and propose merging it into their OpenClaw config. Apply this last.
 
@@ -130,25 +130,7 @@ Every routine runs as its own isolated-session cron job. Commands substitute `<y
 
 All six routines share these flags: `--session isolated`, `--light-context`, and `--message "Read clawstodian/routines/<name>.md and execute."` The routine spec is the authority; the cron payload is just dispatch.
 
-**Always-on crons** (enabled at install time):
-
-```bash
-openclaw cron add \
-  --name workspace-tidy \
-  --every 2h \
-  --session isolated --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/workspace-tidy.md and execute."
-
-openclaw cron add \
-  --name git-hygiene \
-  --every 30m \
-  --session isolated --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/git-hygiene.md and execute."
-```
-
-**Fixed cron** (enabled at install time, wall-clock schedule):
+**Scheduled crons** (enabled at install time, wall-clock schedules):
 
 ```bash
 openclaw cron add \
@@ -157,7 +139,26 @@ openclaw cron add \
   --session isolated --light-context \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
   --message "Read clawstodian/routines/para-align.md and execute."
+
+openclaw cron add \
+  --name workspace-tidy \
+  --cron "0 7 * * 0" \
+  --session isolated --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/workspace-tidy.md and execute."
+
+openclaw cron add \
+  --name git-hygiene \
+  --cron "0 1,11 * * *" \
+  --session isolated --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/git-hygiene.md and execute."
 ```
+
+Schedule rationale:
+- `para-align`: Sundays 06:00 UTC - weekly graph walk + MEMORY.md reconciliation at a quiet hour.
+- `workspace-tidy`: Sundays 07:00 UTC - weekly tree sweep right after PARA align so tidying sees the reconciled structure.
+- `git-hygiene`: twice daily at 01:00 and 11:00 UTC - backstop for agents who commit themselves per the program's convention. Twice-daily catches anything they missed without the 30-minute always-on noise. Operators wanting different cadence (e.g. four times a day in their active hours) can adjust the cron expression.
 
 **Heartbeat-toggled bursts** (start disabled; heartbeat enables on demand):
 

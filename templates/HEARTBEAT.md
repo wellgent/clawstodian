@@ -59,6 +59,7 @@ The status task fires every tick. Keep it fast and focused.
 - `memory/YYYY-MM-DD-*.md` siblings for today (count only; `capture-sessions` handles the merge).
 - `git status` - tree state overview.
 - `openclaw cron list --all` - which crons exist, which are enabled, last-run timestamps.
+- `memory/runs/<routine>/` for each routine - last 1-3 report files (sorted chronologically by filename) - to extract `Surfaced for operator` items and flag anything routines are waiting on.
 
 ### 1. Sweep capture-completeness on past-active notes
 
@@ -86,7 +87,25 @@ This is the trigger that gates `seal-past-days`. If the heartbeat is not running
 
 Toggle with `openclaw cron enable <name>` / `openclaw cron disable <name>`. Do not delete. The routines self-disable on empty queue too; re-disabling a disabled cron is a no-op and safe.
 
-### 3. Nudge `para-align` on mid-week drift
+### 3. Aggregate operator-surfaced items
+
+Scan `memory/runs/<routine>/` for each routine. Read the last 1-3 reports per routine (most recent by filename). Extract each report's `## Surfaced for operator` section (ignore `(none)` entries).
+
+Produce a flat list: `{routine, firing timestamp, surfaced item}`. Count by routine. Include in the status post as a dedicated line when the count is non-zero:
+
+```
+Awaiting decision: <total> (<routine>: <n>, ...)
+```
+
+Escalation rules:
+
+- If the **same** surfaced item appears across 2+ consecutive firings of the same routine (the operator has not acted on it between crons), mark it **stale** in the status summary: `Awaiting decision: 2 stale + 1 fresh`.
+- If the count grows across consecutive heartbeat ticks without any resolution, include short descriptions of the top 3 stale items in the daily retrospective.
+- Never act on these items from the heartbeat. Surfacing is the point - the operator decides.
+
+This closes the loop between routines (which identify items but cannot resolve them) and the operator (who makes the judgment call). The heartbeat is the channel through which that backlog stays visible.
+
+### 4. Nudge `para-align` on mid-week drift
 
 If the most recent `para-extract` reply reports structural drift it could not safely resolve (frontmatter violations, orphaned pointers, renames needing cross-reference updates) and the current day is not Sunday:
 
@@ -96,7 +115,7 @@ openclaw cron wake para-align --now
 
 The weekly schedule still fires on Sunday regardless.
 
-### 4. Append tick trace
+### 5. Append tick trace
 
 Append one line to `memory/heartbeat-trace.md` (create the file if missing):
 
@@ -106,7 +125,7 @@ YYYY-MM-DDTHH:MM:SSZ | capture=<0|1> seal=<0|1> extract=<0|1> | enabled: <routin
 
 Append-only. Never rewrite prior lines. The file is the forensic record that proves heartbeat fired this tick, independent of session history (which can be compacted).
 
-### 5. Post a channel summary
+### 6. Post a channel summary
 
 One message per tick. Never silent - even "nothing changed" gets a one-liner. Two shapes:
 
@@ -151,10 +170,10 @@ Read the last 24 hours of context: today's and yesterday's daily notes, the last
 Reflect briefly on:
 
 - **What happened.** Did the operator and the routines get meaningful work done? Are today's sessions already captured in the daily note?
-- **What's in flight.** Items you flagged that the operator has not yet responded to, or has responded to but you have not yet resolved.
+- **What's in flight.** Items you flagged that the operator has not yet responded to. Pay special attention to any `Awaiting decision` items from the status task's aggregation that have been stale for more than a day - list the top 3 here with one-line descriptions so the operator sees them in narrative form, not just a count.
 - **What surprised you.** Unexpected patterns, routine failures, operator behavior that suggests a convention gap.
 
-Write the reflection as 2-4 sentences appended to the tick's channel post, below the status line and any health anomalies. Address the operator directly.
+Write the reflection as 2-4 sentences (plus the stale-items list if present) appended to the tick's channel post, below the status block and any health anomalies. Address the operator directly.
 
 ## Weekly review task
 

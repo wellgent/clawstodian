@@ -112,15 +112,14 @@ Routines (scheduled invocations):
 - **`capture-sessions`** - daily-notes / Capture one session's new content - heartbeat-toggled burst, every 30m while enabled.
 - **`seal-past-days`** - daily-notes / Seal a past-day note - heartbeat-toggled burst, every 30m while enabled.
 - **`para-extract`** - para / Extract PARA from a sealed note - heartbeat-toggled burst, every 30m while enabled.
-- **`para-align`** - para / Align PARA structure - fixed cron, Sunday 06:00 UTC.
-- **`workspace-tidy`** - workspace-tidy / Walk and tidy - always-on cron, every 2h.
-- **`git-hygiene`** - git-hygiene / Commit drift - always-on cron, every 30m.
+- **`para-align`** - para / Align PARA structure - scheduled, Sunday 06:00 UTC.
+- **`workspace-tidy`** - workspace-tidy / Walk and tidy - scheduled, Sunday 07:00 UTC.
+- **`git-hygiene`** - git-hygiene / Commit drift - scheduled, 01:00 and 11:00 UTC daily.
 
-Three execution classes for routines:
+Two execution classes for routines:
 
-- **Always-on cron** - enabled at install time; fires on its schedule; every firing produces a run-report file and channel post (including quiet firings with `outcome: clean` or similar).
-- **Fixed cron** - enabled at install time; wall-clock schedule (e.g. Sunday 06:00 UTC).
-- **Heartbeat-toggled burst** - starts disabled; heartbeat enables when a queue exists and disables when empty.
+- **Scheduled** - enabled at install time; fires on its wall-clock schedule; stays enabled; no self-disable. Every firing produces a run-report file and channel post (including quiet firings with `outcome: clean` or `no-op`).
+- **Heartbeat-toggled burst** - starts disabled; heartbeat enables when a queue exists and disables when empty; routine self-disables when it drains the queue.
 
 Three heartbeat-toggled bursts (`capture-sessions`, `seal-past-days`, `para-extract`) form a pipeline: `capture-sessions` populates daily notes from session transcripts that the agents did not write up in-session; `seal-past-days` closes past-day notes with `para_status: pending`; `para-extract` propagates those sealed notes into PARA entities. Each stage signals readiness via workspace state (ledger entries, frontmatter flags), not in-memory queues. The heartbeat reads those signals once per tick and flips the corresponding crons on or off.
 

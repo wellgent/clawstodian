@@ -17,8 +17,7 @@ Before writing a routine, confirm the behavior you want to schedule already exis
 
 Three classes, distinguished by how the cron's enabled state is managed. The class is a property of the cron configuration, not the routine spec - but the routine's `Self-disable` section (if any) depends on the class, so the spec has to know which one it is.
 
-- **Always-on cron** - enabled at install. Fires on its schedule regardless of workspace state. Every firing produces a run-report file and channel post (quiet firings still speak). No self-disable section in the routine.
-- **Fixed cron** - enabled at install, wall-clock schedule. Usually carries meaningful state on every run. Every firing produces both artifacts. No self-disable section.
+- **Scheduled** - enabled at install, fires on its wall-clock schedule (interval-based `--every` or cron-expression `--cron`), stays enabled. No self-disable. Every firing produces a run-report file and channel post (quiet firings still speak with `outcome: clean` or `no-op`).
 - **Heartbeat-toggled burst** - starts disabled. The heartbeat orchestrator enables the cron when a queue exists and disables it when empty. The routine self-disables when it drains the queue. Every firing produces both artifacts, including the drain-and-disable firing.
 
 ## Anatomy
