@@ -56,14 +56,14 @@ The status task fires every tick. Keep it fast and focused.
 - `memory/session-ledger.md` - existing entries (grep `^## ` count).
 - `sessions_list({limit: 500})` - current session rows.
 - `memory/YYYY-MM-DD.md` for today and recent past days - frontmatter `status`, `para_status`.
-- `memory/YYYY-MM-DD-*.md` siblings for today (count only; `capture-sessions` handles the merge).
+- `memory/YYYY-MM-DD-*.md` siblings for today (count only; `sessions-capture` handles the merge).
 - `git status` - tree state overview.
 - `openclaw cron list --all` - which crons exist, which are enabled, last-run timestamps.
 - `memory/runs/<routine>/` for each routine - last 1-3 report files (sorted chronologically by filename) - to extract `Surfaced for operator` items and flag anything routines are waiting on.
 
 ### 1. Sweep capture-completeness on past-active notes
 
-Before accounting for the `seal-past-days` queue, evaluate which past-active notes are now capture-complete and write `capture_status: done` on them.
+Before accounting for the `daily-seal` queue, evaluate which past-active notes are now capture-complete and write `capture_status: done` on them.
 
 For each `memory/YYYY-MM-DD.md` with frontmatter `status: active` AND date strictly before today (workspace-local), AND where `capture_status` is not already `done`:
 
@@ -75,14 +75,14 @@ Check all three conditions. Set `capture_status: done` only when ALL hold:
 
 Write the flag via a narrow `Edit` on the frontmatter block - do not rewrite the whole note. Never remove `capture_status` once set; transitions are one-way.
 
-This is the trigger that gates `seal-past-days`. If the heartbeat is not running, `capture_status` does not get set, `seal-past-days` does not fire - which is the correct behavior when the orchestrator is not there to supervise.
+This is the trigger that gates `daily-seal`. If the heartbeat is not running, `capture_status` does not get set, `daily-seal` does not fire - which is the correct behavior when the orchestrator is not there to supervise.
 
 ### 2. Assess burst worker queues
 
-- **`capture-sessions`** - enable if EITHER is true, disable only when BOTH are false:
+- **`sessions-capture`** - enable if EITHER is true, disable only when BOTH are false:
   - **admission gap**: `sessions_list` rows without a matching `^## ` entry in `memory/session-ledger.md`.
   - **stale cursor**: ledger entries whose `last_activity` is more than 6h behind the matching `sessions_list` row's `updatedAt`. (6h threshold is noise damping; small live-session lag does not count.)
-- **`seal-past-days`** - enable if any `memory/YYYY-MM-DD.md` has `status: active` AND `capture_status: done`. Disable when none exist.
+- **`daily-seal`** - enable if any `memory/YYYY-MM-DD.md` has `status: active` AND `capture_status: done`. Disable when none exist.
 - **`para-extract`** - enable if any `memory/YYYY-MM-DD.md` has `status: sealed` and `para_status: pending`. Disable when none exist.
 
 Toggle with `openclaw cron enable <name>` / `openclaw cron disable <name>`. Do not delete. The routines self-disable on empty queue too; re-disabling a disabled cron is a no-op and safe.
@@ -162,10 +162,10 @@ Fires once per 24 hours. Heavier sanity checks that do not need per-tick attenti
 Inspect and report any anomaly. Do not repair from here:
 
 - **Heartbeat config** matches recommended stance: `every` set, `target` is a channel plugin (`discord`, `slack`, ...) and `to` is the channel-specific recipient, `activeHours` set, `showAlerts: true`. `session`, `isolatedSession`, and `lightContext` are either omitted or at defaults (main session, non-isolated, full bootstrap).
-- **Session visibility config**: `tools.sessions.visibility` in `~/.openclaw/openclaw.json` is `"all"`. If it is `"tree"` (the default) or unset, the `capture-sessions` routine silently captures nothing. This is the single most load-bearing config for the daily-notes program; surface immediately if wrong.
-- **All clawstodian cron entries exist**: `capture-sessions`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`.
-- **Stalled routines**: any routine that has not reported in the last 2 expected intervals (e.g. `git-hygiene` at 30m cadence should have reported in the last hour), or has failed-status replies in a row.
-- **Long-running bursts**: any heartbeat-toggled burst that has been enabled for longer than expected (`capture-sessions` enabled for >12h despite a small-looking queue suggests a processing bug; `seal-past-days` enabled for >24h with a non-shrinking queue suggests the routine is stuck).
+- **Session visibility config**: `tools.sessions.visibility` in `~/.openclaw/openclaw.json` is `"all"`. If it is `"tree"` (the default) or unset, the `sessions-capture` routine silently captures nothing. This is the single most load-bearing config for the daily-notes program; surface immediately if wrong.
+- **All clawstodian cron entries exist**: `sessions-capture`, `workspace-clean`, `git-clean`, `para-align`, `daily-seal`, `para-extract`.
+- **Stalled routines**: any routine that has not reported in the last 2 expected intervals (e.g. `git-clean` at 30m cadence should have reported in the last hour), or has failed-status replies in a row.
+- **Long-running bursts**: any heartbeat-toggled burst that has been enabled for longer than expected (`sessions-capture` enabled for >12h despite a small-looking queue suggests a processing bug; `daily-seal` enabled for >24h with a non-shrinking queue suggests the routine is stuck).
 - **Installed reference docs** (`memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`) match package template markers. Check only the marker line; the session ledger starts empty and grows.
 - **Workspace symlinks resolve**: `clawstodian/programs` -> `~/clawstodian/programs` and `clawstodian/routines` -> `~/clawstodian/routines`.
 
@@ -191,10 +191,10 @@ Fires once per 168 hours (seven days) alongside status and health.
 
 Scan the last seven days:
 
-- **Cron patterns.** Any routine that has failed repeatedly, or has reported the same anomaly for multiple days. Any routine that should be failing and isn't (e.g. `git-hygiene` on a noisy-tree week reporting clean).
+- **Cron patterns.** Any routine that has failed repeatedly, or has reported the same anomaly for multiple days. Any routine that should be failing and isn't (e.g. `git-clean` on a noisy-tree week reporting clean).
 - **PARA drift.** Entities with frontmatter violations that persist across `para-align` runs. Cross-references that break. MEMORY.md drifting from reality.
-- **Queue accumulations.** `capture-sessions`, `seal-past-days`, or `para-extract` that have been enabled for longer than expected across the week.
-- **Bleed aggregation.** Scan the last seven days of `capture-sessions` run reports (and `memory/heartbeat-trace.md` summaries) for `bleed: N sealed` counts. If the total across the week is meaningful (more than 3-5 bleed events, or any single sealed date received bleed more than once), propose one of: reopen the affected seal(s) so the late-arriving content can land; or surface the pattern to the operator so they can decide. Do not reopen seals unilaterally; it is material note-rewrite and requires operator approval. Include the affected dates and session ids in the proposal.
+- **Queue accumulations.** `sessions-capture`, `daily-seal`, or `para-extract` that have been enabled for longer than expected across the week.
+- **Bleed aggregation.** Scan the last seven days of `sessions-capture` run reports (and `memory/heartbeat-trace.md` summaries) for `bleed: N sealed` counts. If the total across the week is meaningful (more than 3-5 bleed events, or any single sealed date received bleed more than once), propose one of: reopen the affected seal(s) so the late-arriving content can land; or surface the pattern to the operator so they can decide. Do not reopen seals unilaterally; it is material note-rewrite and requires operator approval. Include the affected dates and session ids in the proposal.
 - **Emerging workstreams.** Themes in daily notes that look like they deserve their own PARA project but have not been promoted.
 
 Propose one or two concrete improvements. Append them to the tick's channel post as a short review, below status + health + retrospective. You are a chief of staff here: terse, specific, actionable.

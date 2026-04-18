@@ -101,9 +101,9 @@ No `sessions_send` bridge. No channel-to-session binding. The main session is al
 The channel resolved by `target` + `to` receives:
 
 - Heartbeat posts: status (every tick), daily retrospective (once/day), weekly review (once/week).
-- Per-routine announcements from the six cron routines (`capture-sessions`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`). Each routine runs in its own isolated cron session and posts a single-line run report via `--announce --channel --to`.
+- Per-routine announcements from the six cron routines (`sessions-capture`, `workspace-clean`, `git-clean`, `para-align`, `daily-seal`, `para-extract`). Each routine runs in its own isolated cron session and posts a multi-line scannable run report via `--announce --channel --to`.
 
-This gives one unified pane of maintenance activity. An operator glancing at the channel sees: "heartbeat status at 10:00, git-hygiene committed 3 things at 10:15, capture-sessions advanced cursor on one session at 11:00, heartbeat daily retrospective at noon, etc."
+This gives one unified pane of maintenance activity. An operator glancing at the channel sees: "heartbeat status at 10:00, git-clean committed 3 things at 10:15, sessions-capture advanced cursor on one session at 11:00, heartbeat daily retrospective at noon, etc."
 
 Channel replies in this channel do NOT route back to the main session. OpenClaw routes channel messages to the channel's auto-derived session (e.g. `agent:<id>:discord:channel:<id>`), not the agent's main DM session. So the notifications channel is effectively read-only for the maintenance conversation. If the operator wants to discuss something they see there, they do so in DM with the agent.
 
@@ -115,7 +115,7 @@ Per-tick cost with the recommended config (main session, `lightContext: false`, 
 - Steady state: grows with main session history. Typical workspaces in active use: ~40-80K tokens per heartbeat tick.
 - Without any session maintenance enforcement, growth is linear; the operator's host-wide `session.maintenance` policy (or the OpenClaw defaults) caps it eventually.
 
-At 8-12 ticks/day in active hours, steady-state cost is ~300-1000K tokens/day for the heartbeat alone. Combined with the six routine crons (~5K each for the always-on / fixed workers in isolated sessions; `capture-sessions` can cost 10-30K per firing when session activity is high, and only fires when gaps exist), total maintenance cost is ~400K-1.2M tokens/day in active workspaces. Roughly $1-8/day depending on model pricing. On disciplined workspaces where agents write daily notes in-session, `capture-sessions` may go days between firings and overall cost drops further.
+At 8-12 ticks/day in active hours, steady-state cost is ~300-1000K tokens/day for the heartbeat alone. Combined with the six routine crons (~5K each for the always-on / fixed workers in isolated sessions; `sessions-capture` can cost 10-30K per firing when session activity is high, and only fires when gaps exist), total maintenance cost is ~400K-1.2M tokens/day in active workspaces. Roughly $1-8/day depending on model pricing. On disciplined workspaces where agents write daily notes in-session, `sessions-capture` may go days between firings and overall cost drops further.
 
 If cost becomes a concern:
 

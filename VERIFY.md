@@ -39,12 +39,12 @@ readlink -e clawstodian/programs >/dev/null 2>&1 && echo "OK  programs symlink" 
 readlink -e clawstodian/routines >/dev/null 2>&1 && echo "OK  routines symlink" || echo "FAIL routines symlink"
 
 # Program specs reachable (four domain authorities)
-for name in daily-notes para workspace-tidy git-hygiene; do
+for name in daily-notes para workspace repo; do
   [ -f "clawstodian/programs/${name}.md" ] && echo "OK  program ${name}" || echo "FAIL program ${name}"
 done
 
 # Routine specs reachable (six scheduled dispatchers)
-for name in capture-sessions seal-past-days para-extract para-align workspace-tidy git-hygiene; do
+for name in sessions-capture daily-seal para-extract para-align workspace-clean git-clean; do
   [ -f "clawstodian/routines/${name}.md" ] && echo "OK  routine ${name}" || echo "FAIL routine ${name}"
 done
 
@@ -54,7 +54,7 @@ for f in memory/para-structure.md memory/daily-note-structure.md MEMORY.md memor
 done
 
 # Cron jobs registered
-for name in capture-sessions workspace-tidy git-hygiene para-align seal-past-days para-extract; do
+for name in sessions-capture workspace-clean git-clean para-align daily-seal para-extract; do
   openclaw cron list --all 2>/dev/null | grep -q " ${name} " && echo "OK  cron ${name}" || echo "FAIL cron ${name}"
 done
 
@@ -66,7 +66,7 @@ Any `FAIL` should be investigated before relying on the install.
 
 ## Session visibility config
 
-The `capture-sessions` routine runs in an isolated cron session. By default, isolated sessions can only see their own spawned children - which means zero session transcripts to capture from. clawstodian requires `tools.sessions.visibility: "all"` in `~/.openclaw/openclaw.json`:
+The `sessions-capture` routine runs in an isolated cron session. By default, isolated sessions can only see their own spawned children - which means zero session transcripts to capture from. clawstodian requires `tools.sessions.visibility: "all"` in `~/.openclaw/openclaw.json`:
 
 ```bash
 openclaw config show 2>/dev/null | grep -A1 '"sessions"' | grep -q '"visibility": *"all"' && echo "OK  sessions visibility = all" || echo "FAIL sessions visibility != all (capture will be silent)"
@@ -92,13 +92,13 @@ A config that passes every other check but has an unregistered `target` plugin, 
 
 ## Burst-worker enable state
 
-Burst workers (`capture-sessions`, `seal-past-days`, `para-extract`) are expected to be **disabled at install time**. The heartbeat enables them on demand when a queue appears.
+Burst workers (`sessions-capture`, `daily-seal`, `para-extract`) are expected to be **disabled at install time**. The heartbeat enables them on demand when a queue appears.
 
 ```bash
-openclaw cron list --all | grep -E " (capture-sessions|seal-past-days|para-extract) "
+openclaw cron list --all | grep -E " (sessions-capture|daily-seal|para-extract) "
 ```
 
-All three should show as disabled right after install. On a workspace with existing session history, `capture-sessions` will be enabled by the heartbeat's first tick and stay enabled until the ledger catches up; that is expected, not a failure. If any burst is enabled with an empty queue, the heartbeat's first tick will disable it automatically (safe but noisy).
+All three should show as disabled right after install. On a workspace with existing session history, `sessions-capture` will be enabled by the heartbeat's first tick and stay enabled until the ledger catches up; that is expected, not a failure. If any burst is enabled with an empty queue, the heartbeat's first tick will disable it automatically (safe but noisy).
 
 ## Session ledger sanity check
 
@@ -112,7 +112,7 @@ sessions_count=$(openclaw sessions list --json 2>/dev/null | jq 'length' 2>/dev/
 echo "INFO ledger has $ledger_count entries; sessions_list reports $sessions_count rows"
 ```
 
-If `sessions_count > ledger_count` by a meaningful margin, the heartbeat should enable `capture-sessions` on its next tick. If `ledger_count > sessions_count`, some session transcripts have been pruned from disk; that's usually fine (ledger entries persist beyond their transcripts).
+If `sessions_count > ledger_count` by a meaningful margin, the heartbeat should enable `sessions-capture` on its next tick. If `ledger_count > sessions_count`, some session transcripts have been pruned from disk; that's usually fine (ledger entries persist beyond their transcripts).
 
 ## Recent heartbeat evidence (optional, after first tick)
 

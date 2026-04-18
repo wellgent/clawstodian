@@ -3,7 +3,7 @@
 
 <!-- Authoritative capture-state file for the daily-notes program.
      One H2 section per session, one "- key: value" per attribute.
-     Written exclusively by the capture-sessions routine. Git-tracked.
+     Written exclusively by the sessions-capture routine. Git-tracked.
 
      Format spec, field definitions, and update rules live in
      memory/daily-note-structure.md under "Session Ledger"; read

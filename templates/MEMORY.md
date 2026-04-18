@@ -20,4 +20,4 @@ Curated dashboard. `INDEX.md` files have complete listings. All PARA directories
 - PARA conventions: `memory/para-structure.md`
 - Daily note format: `memory/daily-note-structure.md`
 - Cron routines and on/off state: `memory/crons.md`
-- Daily notes: exactly one file per day in `memory/`, named `YYYY-MM-DD.md`. The `capture-sessions` routine merges any `YYYY-MM-DD-<slug>.md` siblings into the canonical note when it next processes a session touching that date.
+- Daily notes: exactly one file per day in `memory/`, named `YYYY-MM-DD.md`. The `sessions-capture` routine merges any `YYYY-MM-DD-<slug>.md` siblings into the canonical note when it next processes a session touching that date.

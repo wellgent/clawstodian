@@ -1,10 +1,10 @@
-# git-hygiene (routine)
+# git-clean (routine)
 
-Runs one commit-drift pass per the git-hygiene program.
+Runs one commit-drift pass per the repo program.
 
 ## Program
 
-`clawstodian/programs/git-hygiene.md` - follow the "Commit drift" behavior.
+`clawstodian/programs/repo.md` - follow the "Commit drift" behavior.
 
 ## Target
 
@@ -16,7 +16,7 @@ The current workspace working tree and its remote-tracking branch.
 - Never `--no-verify`. If a pre-commit hook fails, fix the underlying issue and commit again.
 - Never `git reset --hard`, `git clean -f`, or force-push without explicit operator confirmation.
 - Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
-- For multi-line script logic, write the script to `/tmp/clawstodian-git-<context>.sh` (or `.py`) and invoke it by path. Do not inline code via heredoc to an interpreter (`bash <<EOF ... EOF`); the safety layer blocks that as obfuscation.
+- For multi-line script logic, write the script to `/tmp/clawstodian-git-clean-<context>.sh` (or `.py`) and invoke it by path. Do not inline code via heredoc to an interpreter (`bash <<EOF ... EOF`); the safety layer blocks that as obfuscation.
 - `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
 
 ## Worker discipline
@@ -31,10 +31,10 @@ Two artifacts every firing: a full report on disk following the shared run-repor
 
 ### File on disk
 
-Write to `memory/runs/git-hygiene/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
+Write to `memory/runs/git-clean/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ```markdown
-# git-hygiene run report
+# git-clean run report
 
 - timestamp: 2026-04-18T14:00:00Z
 - context: 2026-04-18T14:00Z firing
@@ -59,10 +59,10 @@ Write to `memory/runs/git-hygiene/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ## Channel summary
 
-git-hygiene · 2026-04-18T14:00Z · committed
+git-clean · 2026-04-18T14:00Z · committed
 Commits: 2 pushed
 Awaiting decision: 1
-Report: memory/runs/git-hygiene/2026-04-18T14-00-00Z.md
+Report: memory/runs/git-clean/2026-04-18T14-00-00Z.md
 ```
 
 ### Channel summary
@@ -72,10 +72,10 @@ Multi-line. One insight per line:
 **Meaningful firing:**
 
 ```
-git-hygiene · <ISO timestamp UTC> · <outcome>
+git-clean · <ISO timestamp UTC> · <outcome>
 Commits: <N> pushed
 Awaiting decision: <M>
-Report: memory/runs/git-hygiene/<ts>.md
+Report: memory/runs/git-clean/<ts>.md
 ```
 
 `outcome` is `committed | surfaced-only | failed`. Omit the "Awaiting decision" line when M is 0.
@@ -83,11 +83,11 @@ Report: memory/runs/git-hygiene/<ts>.md
 **Quiet firing** (tree already clean):
 
 ```
-git-hygiene · <ISO timestamp UTC> · clean
+git-clean · <ISO timestamp UTC> · clean
 Working tree clean · nothing to commit
-Report: memory/runs/git-hygiene/<ts>.md
+Report: memory/runs/git-clean/<ts>.md
 ```
 
 ### Every firing speaks
 
-Every firing produces both a run-report file and a channel post - including clean-tree firings where there was nothing to commit. The post confirms the cron is alive and the check actually ran. A three-line "clean" post is the minimum; removing NO_REPLY closes the "silent cron looks the same as broken cron" ambiguity.
+Every firing produces both a run-report file and a channel post - including clean-tree firings where there was nothing to commit. The post confirms the cron is alive and the check actually ran. A three-line "clean" post is the minimum.

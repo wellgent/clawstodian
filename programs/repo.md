@@ -1,10 +1,10 @@
-# git-hygiene
+# repo
 
-The workspace's git history tells a coherent story: meaningful drift is committed promptly with clear messages, `.gitignore` keeps ephemeral noise out, secrets never land in the tree, and the working tree is never left in a surprising state.
+Governs the workspace's git repository: commit discipline, push policy, `.gitignore` maintenance, branch hygiene. The history tells a coherent story - meaningful drift is committed promptly with clear messages, ephemeral noise stays out via `.gitignore`, secrets never land in the tree, and the working tree is never left in a surprising state.
 
 ## References
 
-- Related programs -> `clawstodian/programs/workspace-tidy.md`, `clawstodian/programs/daily-notes.md` (both produce changes this program commits)
+- Related programs -> `clawstodian/programs/workspace.md`, `clawstodian/programs/daily-notes.md` (both produce changes this program commits)
 
 ## Conventions
 

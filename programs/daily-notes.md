@@ -6,7 +6,7 @@ The workspace maintains one canonical daily note per calendar day at `memory/YYY
 
 **The primary writer of daily notes is the agent working in session with the operator.** Per `AGENTS.md` memory-maintenance rules, any agent doing notable work appends to today's note as the work happens, commits, and pushes. This is the default path.
 
-Under cron, `capture-sessions`, `seal-past-days`, and `para-extract` operate on the same notes - catching what in-session agents missed, closing past days, and propagating sealed notes into PARA. Each routine has its own spec; this program defines the conventions all of them (and in-session agents) follow.
+Under cron, `sessions-capture`, `daily-seal`, and `para-extract` operate on the same notes - catching what in-session agents missed, closing past days, and propagating sealed notes into PARA. Each routine has its own spec; this program defines the conventions all of them (and in-session agents) follow.
 
 ## References
 
@@ -23,7 +23,7 @@ Read `memory/daily-note-structure.md` before writing.
   - `status: active` while the day is current and content is still arriving (today plus any past date not yet sealed).
   - `status: sealed` after the editorial pass has finalized the day.
 - **Capture readiness:**
-  - `capture_status: done` set by the heartbeat when no more session content can land in this note (past-day, no pending sessions, all contributing sessions demonstrably past the date). `seal-past-days` reads `status: active` + `capture_status: done` as its queue.
+  - `capture_status: done` set by the heartbeat when no more session content can land in this note (past-day, no pending sessions, all contributing sessions demonstrably past the date). `daily-seal` reads `status: active` + `capture_status: done` as its queue.
   - Unset while capture may still land content.
 - **PARA handoff:**
   - `para_status: pending` set at seal time; queues the note for PARA extraction.

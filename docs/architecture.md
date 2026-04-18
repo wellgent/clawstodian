@@ -15,7 +15,7 @@ The package splits behavior from scheduling at the file level.
 - A **program** (`programs/<name>.md`) is a durable statement of how the workspace operates in one domain: conventions, authority, approval gates, escalation rules, and the full set of behaviors the agent can perform. Programs are read at session bootstrap via `AGENTS.md` so every agent in the workspace knows how the domain is governed. They change only when the domain's convention changes.
 - A **routine** (`routines/<name>.md`) is a thin scheduled invocation: a reference to a program plus the behavior to invoke, a target, a run-report format, worker discipline, and a cron install command. Routines are read only inside cron dispatch. Cadences and report formats change freely without touching programs.
 
-Programs answer *what is true about this domain, always?* Routines answer *what do we run, when, and how do we report it?* Multiple routines can reference the same program, which is the expected shape (for example, both `capture-sessions` and `seal-past-days` routines reference behaviors from the `daily-notes` program).
+Programs answer *what is true about this domain, always?* Routines answer *what do we run, when, and how do we report it?* Multiple routines can reference the same program, which is the expected shape (for example, both `sessions-capture` and `daily-seal` routines reference behaviors from the `daily-notes` program).
 
 ### 2. Native primitives over invented machinery
 
@@ -36,7 +36,7 @@ Every routine runs as its own cron job with `--session isolated --light-context`
 The heartbeat does not execute programs or routines. It is the collaborative maintenance thread between the operator and the agent. Each tick it:
 
 1. Reads workspace state fresh (daily notes, PARA, git status, cron last-run times, recent cron replies).
-2. Toggles heartbeat-managed burst workers (`seal-past-days`, `para-extract`) based on their queue state.
+2. Toggles heartbeat-managed burst workers (`sessions-capture`, `daily-seal`, `para-extract`) based on their queue state.
 3. May `--wake now` `para-align` if mid-week structural drift was reported.
 4. Spot-checks health (config drift, missing crons, broken symlinks).
 5. Appends a trace line to `memory/heartbeat-trace.md`.
@@ -70,7 +70,7 @@ This is why `isolatedSession: true` and `lightContext: true` are correct for rou
 
 Note the interaction: `lightContext: true` skips the full workspace bootstrap except `HEARTBEAT.md`. Routines that need `MEMORY.md`, `AGENTS.md`, or PARA reference docs must explicitly read them. Specs in this package do so where needed.
 
-Note also the one OpenClaw config prerequisite: `tools.sessions.visibility: "all"`. Without it, isolated cron sessions cannot see sibling sessions' transcripts, so the `capture-sessions` routine silently captures zero content. This is the sharpest edge in the install and VERIFY explicitly checks it.
+Note also the one OpenClaw config prerequisite: `tools.sessions.visibility: "all"`. Without it, isolated cron sessions cannot see sibling sessions' transcripts, so the `sessions-capture` routine silently captures zero content. This is the sharpest edge in the install and VERIFY explicitly checks it.
 
 ### 6. Co-create, do not guess
 
@@ -91,7 +91,7 @@ maintainer cadence           heartbeat                 (2h, main session, active
 maintainer continuity        main session history      (conversation with the operator, host-wide compaction)
 scheduled invocations        routines/ + cron          (six routines; each a cron job in its own isolated session)
 capture state                memory/session-ledger.md  (per-session classification + read cursor)
-run reports                  memory/runs/<routine>/    (per-firing detail files; pruned by workspace-tidy after 30d)
+run reports                  memory/runs/<routine>/    (per-firing detail files; pruned by workspace-clean after 30d)
 audit trail                  notifications channel + session transcripts + git + heartbeat-trace.md
 workspace memory             memory/, projects/, areas/, resources/, archives/
 ```
@@ -104,33 +104,33 @@ Programs (authorities):
 
 - **`daily-notes`** - canonical daily notes: `memory/YYYY-MM-DD.md` per day. Behaviors: Capture one session's new content; Seal a past-day note.
 - **`para`** - PARA knowledge graph: `projects/` / `areas/` / `resources/` / `archives/`. Behaviors: Extract PARA from a sealed note; Align PARA structure.
-- **`workspace-tidy`** - workspace cleanliness. Behavior: Walk and tidy.
-- **`git-hygiene`** - commit discipline. Behavior: Commit drift.
+- **`workspace`** - workspace tree outside PARA. Behavior: Walk and tidy.
+- **`repo`** - git repository discipline. Behavior: Commit drift.
 
 Routines (scheduled invocations):
 
-- **`capture-sessions`** - daily-notes / Capture one session's new content - heartbeat-toggled burst, every 30m while enabled.
-- **`seal-past-days`** - daily-notes / Seal a past-day note - heartbeat-toggled burst, every 30m while enabled.
+- **`sessions-capture`** - daily-notes / Capture one session's new content - heartbeat-toggled burst, every 30m while enabled.
+- **`daily-seal`** - daily-notes / Seal a past-day note - heartbeat-toggled burst, every 30m while enabled.
 - **`para-extract`** - para / Extract PARA from a sealed note - heartbeat-toggled burst, every 30m while enabled.
 - **`para-align`** - para / Align PARA structure - scheduled, Sunday 06:00 UTC.
-- **`workspace-tidy`** - workspace-tidy / Walk and tidy - scheduled, Sunday 07:00 UTC.
-- **`git-hygiene`** - git-hygiene / Commit drift - scheduled, 01:00 and 11:00 UTC daily.
+- **`workspace-clean`** - workspace / Walk and tidy - scheduled, Sunday 07:00 UTC.
+- **`git-clean`** - repo / Commit drift - scheduled, 01:00 and 11:00 UTC daily.
 
 Two execution classes for routines:
 
 - **Scheduled** - enabled at install time; fires on its wall-clock schedule; stays enabled; no self-disable. Every firing produces a run-report file and channel post (including quiet firings with `outcome: clean` or `no-op`).
 - **Heartbeat-toggled burst** - starts disabled; heartbeat enables when a queue exists and disables when empty; routine self-disables when it drains the queue.
 
-Three heartbeat-toggled bursts (`capture-sessions`, `seal-past-days`, `para-extract`) form a pipeline: `capture-sessions` populates daily notes from session transcripts that the agents did not write up in-session; `seal-past-days` closes past-day notes with `para_status: pending`; `para-extract` propagates those sealed notes into PARA entities. Each stage signals readiness via workspace state (ledger entries, frontmatter flags), not in-memory queues. The heartbeat reads those signals once per tick and flips the corresponding crons on or off.
+Three heartbeat-toggled bursts (`sessions-capture`, `daily-seal`, `para-extract`) form a pipeline: `sessions-capture` populates daily notes from session transcripts that the agents did not write up in-session; `daily-seal` closes past-day notes with `para_status: pending`; `para-extract` propagates those sealed notes into PARA entities. Each stage signals readiness via workspace state (ledger entries, frontmatter flags), not in-memory queues. The heartbeat reads those signals once per tick and flips the corresponding crons on or off.
 
-Agents in live sessions remain the primary writers of daily notes per `AGENTS.md` memory-maintenance rules; `capture-sessions` is the backstop. The cron fires whenever new sessions appear or existing sessions have unread activity, but each firing does minimal work when the agent was disciplined: Phase 1 admits the session cheaply, Phase 2 reads the transcript and finds most content already in the daily note (the per-date merge rule absorbs matches rather than duplicating).
+Agents in live sessions remain the primary writers of daily notes per `AGENTS.md` memory-maintenance rules; `sessions-capture` is the backstop. The cron fires whenever new sessions appear or existing sessions have unread activity, but each firing does minimal work when the agent was disciplined: Phase 1 admits the session cheaply, Phase 2 reads the transcript and finds most content already in the daily note (the per-date merge rule absorbs matches rather than duplicating).
 
 ## Observability and troubleshooting
 
 A working clawstodian install is debuggable from a small set of surfaces:
 
 1. **Logs channel** - per-routine run-report summaries and heartbeat executive summaries arrive here. Each summary points to the corresponding file on disk for drill-down.
-2. **`memory/runs/<routine>/`** - per-firing detailed run reports. Files named `<YYYY-MM-DD>T<HH-MM-SS>Z.md`, sorted chronologically. Pruned by `workspace-tidy` after 30 days.
+2. **`memory/runs/<routine>/`** - per-firing detailed run reports. Files named `<YYYY-MM-DD>T<HH-MM-SS>Z.md`, sorted chronologically. Pruned by `workspace-clean` after 30 days.
 3. **`memory/heartbeat-trace.md`** - append-only tick log, greppable by date.
 4. **`openclaw cron list --all`** - which routines are registered, which are enabled, last-run timestamps.
 5. **`AGENTS.md` (programs catalog)** - domain authorities.

@@ -1,4 +1,4 @@
-# seal-past-days (routine)
+# daily-seal (routine)
 
 Closes and finalizes one unsealed past-day note per firing per the daily-notes program. Editorial pass with disk-fidelity.
 
@@ -19,7 +19,7 @@ No time-based heuristics, no midnight grace. Sealing happens when the orchestrat
 ## Exec safety
 
 - Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
-- For multi-line script logic, write the script to `/tmp/clawstodian-seal-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
+- For multi-line script logic, write the script to `/tmp/clawstodian-daily-seal-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
 - `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
 
 ## Worker discipline
@@ -47,7 +47,7 @@ Skip the merge and full-organize steps. The point of the fast-path is to avoid e
 1. **Merge topic-suffixed variants.** Check for `memory/YYYY-MM-DD-*.md`. Read, merge into canonical, delete the variants. If none, skip.
 2. **Read the full daily note** and understand it before changing anything.
 3. **Gather authoritative inputs:**
-   - Raw session JSONL on disk for that date (the authoritative record; `sessions_history` is a safety-filtered view).
+   - Raw session JSONL on disk for that date (the authoritative record; `sessions_history` is a safety-filtered view). `sessions-capture` should already have landed this content into the note; this read is for editorial verification.
    - `git log --since --until` for that date.
    - `git diff` summaries for touched files.
 4. **Organize the note:**
@@ -74,7 +74,7 @@ Add only the files you changed - never `git add -A` or `git add .`. Commit messa
 After processing, re-run target selection. If the queue is empty, disable the cron:
 
 ```bash
-openclaw cron disable seal-past-days
+openclaw cron disable daily-seal
 ```
 
 **Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron remove`.** Remove deletes the cron permanently.
@@ -85,10 +85,10 @@ Two artifacts per firing: a full report on disk following the shared run-report 
 
 ### File on disk
 
-Write to `memory/runs/seal-past-days/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
+Write to `memory/runs/daily-seal/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ```markdown
-# seal-past-days run report
+# daily-seal run report
 
 - timestamp: 2026-04-18T02:30:00Z
 - context: 2026-04-17
@@ -122,12 +122,12 @@ Write to `memory/runs/seal-past-days/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ## Channel summary
 
-seal-past-days · 2026-04-17 · sealed (full)
+daily-seal · 2026-04-17 · sealed (full)
 Sections: 7 → 5 · noise blocks: 2 · slugs merged: 0
 Frontmatter: topics=5 · people=2 · projects=3
 Commit: abc1234 memory: seal 2026-04-17 - VPS migration
 Queue: 2 notes remaining · cron: enabled
-Report: memory/runs/seal-past-days/2026-04-18T02-30-00Z.md
+Report: memory/runs/daily-seal/2026-04-18T02-30-00Z.md
 ```
 
 ### Channel summary
@@ -135,12 +135,12 @@ Report: memory/runs/seal-past-days/2026-04-18T02-30-00Z.md
 Multi-line. One insight per line:
 
 ```
-seal-past-days · <date> · <outcome> (<path>)
+daily-seal · <date> · <outcome> (<path>)
 Sections: <before> → <after> · noise blocks: <N> · slugs merged: <M>
 Frontmatter: topics=<t> · people=<p> · projects=<pr>
 Commit: <hash short> <subject>
 Queue: <N> notes remaining · cron: <enabled|disabled>
-Report: memory/runs/seal-past-days/<ts>.md
+Report: memory/runs/daily-seal/<ts>.md
 ```
 
 - `outcome` is `sealed | skipped | failed`; `path` is `full | trivial-day-fast-path | no-target`. On a `skipped` outcome (no candidate qualifies), the path line becomes `skipped · no-target` and the Sections/Frontmatter/Commit lines are dropped.

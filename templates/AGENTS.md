@@ -53,13 +53,13 @@ Three layers give continuity across sessions:
 - Known file path -> `read` directly.
 - Complete listings -> `projects/INDEX.md`, `areas/INDEX.md`, `resources/INDEX.md`.
 - Convention deep-dives -> `memory/para-structure.md`, `memory/daily-note-structure.md`, `memory/crons.md`.
-- Capture state (internal; written by `capture-sessions`) -> `memory/session-ledger.md`. Format spec lives in `memory/daily-note-structure.md` under the "Session Ledger" section.
-- Per-routine run reports -> `memory/runs/<routine-name>/<timestamp>.md`. Each cron firing that does meaningful work writes a detail file here; the channel summary always ends with a pointer. Pruned after 30 days by `workspace-tidy`.
+- Capture state (internal; written by `sessions-capture`) -> `memory/session-ledger.md`. Format spec lives in `memory/daily-note-structure.md` under the "Session Ledger" section.
+- Per-routine run reports -> `memory/runs/<routine-name>/<timestamp>.md`. Each cron firing that does meaningful work writes a detail file here; the channel summary always ends with a pointer. Pruned after 30 days by `workspace-clean`.
 
 **Memory maintenance (applies to all agents in this workspace, not just clawstodian-driven runs):**
 
-- **Log your work in the canonical daily note.** Do something notable -> append to `memory/YYYY-MM-DD.md` for that day -> commit -> push. Don't batch, don't defer. Unpushed commits are invisible to other sessions; mental notes don't survive restarts. You are the primary writer of daily notes; `capture-sessions` is only the backstop that catches what you miss.
-- **One file per day.** Avoid creating `memory/YYYY-MM-DD-<topic>.md` unless necessary for a specific handoff. The `capture-sessions` routine will merge any such siblings into the canonical note when it next processes a session touching today.
+- **Log your work in the canonical daily note.** Do something notable -> append to `memory/YYYY-MM-DD.md` for that day -> commit -> push. Don't batch, don't defer. Unpushed commits are invisible to other sessions; mental notes don't survive restarts. You are the primary writer of daily notes; `sessions-capture` is only the backstop that catches what you miss.
+- **One file per day.** Avoid creating `memory/YYYY-MM-DD-<topic>.md` unless necessary for a specific handoff. The `sessions-capture` routine will merge any such siblings into the canonical note when it next processes a session touching today.
 - **Internalize, don't collect.** When a useful pattern is discovered, update the document you would be reading when doing that task again. No standalone "lessons learned" files.
 - **Docs describe the present.** Remove traces of old decisions, retired sections, migration notes, "added on date X" annotations. Git history captures the evolution.
 
@@ -69,8 +69,8 @@ Programs are the domain authorities for this workspace. Each is a canonical spec
 
 - **daily-notes** - canonical daily notes: one `memory/YYYY-MM-DD.md` per calendar day capturing activity, decisions, and context. Covers tending today's note, merging slug siblings, sealing past-day notes, and frontmatter discipline. Spec: `clawstodian/programs/daily-notes.md`.
 - **para** - the PARA knowledge graph: `projects/`, `areas/`, `resources/`, `archives/` extracted from daily activity and aligned against `memory/para-structure.md`. Covers entity extraction from sealed notes, structural and semantic alignment, and MEMORY.md dashboard currency. Spec: `clawstodian/programs/para.md`.
-- **workspace-tidy** - workspace cleanliness: trash removal, misplaced file relocation, `.gitignore` maintenance for ephemeral artifacts. Spec: `clawstodian/programs/workspace-tidy.md`.
-- **git-hygiene** - commit discipline: stage-by-path commits with clear messages, immediate push, `.gitignore` maintenance, and a working tree never left in a surprising state. Spec: `clawstodian/programs/git-hygiene.md`.
+- **workspace** - workspace tree outside PARA: trash removal, misplaced file relocation, `.gitignore` maintenance for ephemeral artifacts, 30-day run-report pruning. Spec: `clawstodian/programs/workspace.md`.
+- **repo** - git repository discipline: stage-by-path commits with clear messages, immediate push, `.gitignore` maintenance, and a working tree never left in a surprising state. Spec: `clawstodian/programs/repo.md`.
 
 Any agent in this workspace follows a program whenever the situation in that domain applies - committing work after a session, tending today's daily note, filing an insight into PARA. Routines (below) schedule the same programs to run as cron-dispatched catch-up.
 
@@ -87,12 +87,12 @@ Every firing in both classes produces a run-report file under `memory/runs/<rout
 
 Current routines:
 
-- **capture-sessions** (burst, every 30m while enabled) - invokes daily-notes: capture one session's unread JSONL into the appropriate daily notes. Heartbeat enables when the ledger has un-admitted sessions or stale cursors. Agents in-session remain the primary writers; this cron is the backstop.
-- **seal-past-days** (burst, every 30m while enabled) - invokes daily-notes: seal one past-day note per firing. Heartbeat enables when past-active notes with `capture_status: done` exist.
+- **sessions-capture** (burst, every 30m while enabled) - invokes daily-notes: capture one session's unread JSONL into the appropriate daily notes. Heartbeat enables when the ledger has un-admitted sessions or stale cursors. Agents in-session remain the primary writers; this cron is the backstop.
+- **daily-seal** (burst, every 30m while enabled) - invokes daily-notes: seal one past-day note per firing. Heartbeat enables when past-active notes with `capture_status: done` exist.
 - **para-extract** (burst, every 30m while enabled) - invokes para: extract PARA from one sealed note per firing. Heartbeat enables when sealed notes with `para_status: pending` exist.
 - **para-align** (scheduled, Sunday 06:00 UTC) - invokes para: align PARA structure across the full graph.
-- **workspace-tidy** (scheduled, Sunday 07:00 UTC) - invokes workspace-tidy: walk and tidy.
-- **git-hygiene** (scheduled, 01:00 and 11:00 UTC daily) - invokes git-hygiene: commit drift as a backstop for agents who commit themselves in-session.
+- **workspace-clean** (scheduled, Sunday 07:00 UTC) - invokes workspace: walk and tidy.
+- **git-clean** (scheduled, 01:00 and 11:00 UTC daily) - invokes repo: commit drift as a backstop for agents who commit themselves in-session.
 
 See `memory/crons.md` for schedules and current enable state.
 

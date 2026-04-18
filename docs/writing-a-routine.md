@@ -40,7 +40,7 @@ Three classes, distinguished by how the cron's enabled state is managed. The cla
 - Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
 - For multi-line script logic, write the script to `/tmp/clawstodian-<routine>-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter; the safety layer blocks that as obfuscation.
 - `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
-- Add any routine-specific bans (e.g. git-hygiene forbids `--no-verify` and `git reset --hard`) above the generic block.
+- Add any routine-specific bans (e.g. `git-clean` forbids `--no-verify` and `git reset --hard`) above the generic block.
 
 ## Worker discipline
 
@@ -115,7 +115,7 @@ Conventions:
 
 - Line 1 is the header: name · context · categorical outcome. Dots (`·`) as field separators so the header reads left-to-right like "what · when · result".
 - Middle lines carry the news. One primary concern per line; group tightly-related secondary counts on the same line separated by `·`.
-- The Queue line appears only for burst workers that track a queue (`capture-sessions`, `seal-past-days`, `para-extract`). Drop it for `workspace-tidy`, `git-hygiene`, `para-align`.
+- The Queue line appears only for burst workers that track a queue (`sessions-capture`, `daily-seal`, `para-extract`). Drop it for `workspace-clean`, `git-clean`, `para-align`.
 - The Report line is always last. Relative path from workspace root so it clicks or copies cleanly.
 
 ### Every firing produces both artifacts
@@ -150,21 +150,21 @@ Shape:
 Examples:
 
 ```
-capture-sessions · 2026-04-18T12:30Z · captured
+sessions-capture · 2026-04-18T12:30Z · captured
 Admitted: 3 (skipped=2, interactive=1)
 Captured: 1 session · dates: 2026-04-18
 Bleed: 0 · slugs merged: 0 · insights filed: 0
 Queue: un-admitted=0 · stale=0 · cron: enabled
-Report: memory/runs/capture-sessions/2026-04-18T12-30-00Z.md
+Report: memory/runs/sessions-capture/2026-04-18T12-30-00Z.md
 ```
 
 ```
-seal-past-days · 2026-04-17 · sealed (full)
+daily-seal · 2026-04-17 · sealed (full)
 Sections: 7 → 5 · noise blocks removed: 2 · slugs merged: 0
 Frontmatter: topics=5 · people=2 · projects=3
 Commit: abc1234 memory: seal 2026-04-17 - VPS migration
 Queue: 2 notes remaining · cron: enabled
-Report: memory/runs/seal-past-days/2026-04-18T02-30-00Z.md
+Report: memory/runs/daily-seal/2026-04-18T02-30-00Z.md
 ```
 
 ```

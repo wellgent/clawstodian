@@ -1,12 +1,12 @@
-# workspace-tidy
+# workspace
 
-The workspace stays navigable: trash is removed, misplaced files land in their intuitive home, ephemeral artifacts are `.gitignore`d, and the tree is intuitive to scan for both the operator and any agent working in it.
+Governs the workspace tree itself - everything outside PARA that keeps the tree navigable: trash is removed, misplaced files land in their intuitive home, ephemeral artifacts are `.gitignore`d, and the tree is intuitive to scan for both the operator and any agent working in it.
 
 ## References
 
 - PARA conventions (for deciding a file's intuitive home) -> `memory/para-structure.md`
 - Workspace dashboard -> `MEMORY.md`
-- Related programs -> `clawstodian/programs/git-hygiene.md` (commits changes tidy produces)
+- Related programs -> `clawstodian/programs/repo.md` (commits the changes this program produces)
 
 ## Conventions
 
@@ -60,4 +60,4 @@ Surface with filename and observed state; do not auto-repair.
 - Do not touch `.git/`, `.openclaw/`, or any dotfile the operator configured.
 - Do not trash anything produced by another program or routine without tracing origin first.
 - Do not auto-archive inactive projects.
-- Do not commit. Commits belong to the `git-hygiene` program.
+- Do not commit. Commits belong to the `repo` program.

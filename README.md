@@ -10,7 +10,7 @@ Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenCla
 
 **Routines** are thin scheduled invocations. Each routine references a program, picks a specific behavior to run, defines a target and a run report, and registers a cron job. Routines are the catch-up safety net for what agents did not do in-session.
 
-The split is **what** (programs) vs **when** (routines). Multiple routines can invoke the same program - for example, `capture-sessions` (burst, ingest session activity into daily notes) and `seal-past-days` (burst, seal a past-day note) both reference behaviors from the `daily-notes` program.
+The split is **what** (programs) vs **when** (routines). Multiple routines can invoke the same program - for example, `sessions-capture` (burst, ingest session activity into daily notes) and `daily-seal` (burst, seal a past-day note) both reference behaviors from the `daily-notes` program.
 
 ## Install into any workspace
 
@@ -30,21 +30,19 @@ The agent reads `INSTALL.md`, surveys your workspace, proposes a merge plan, ask
 
 - `daily-notes` - canonical daily notes at `memory/YYYY-MM-DD.md`. Covers tending today's note and sealing past-day notes.
 - `para` - the PARA knowledge graph (projects/areas/resources/archives). Covers extracting entities from sealed notes and aligning structural + semantic health.
-- `workspace-tidy` - workspace cleanliness. Trash removal, misplaced-file relocation, `.gitignore` upkeep.
-- `git-hygiene` - commit discipline. Stage-by-path commits, clear messages, immediate push.
+- `workspace` - workspace tree outside PARA. Trash removal, misplaced-file relocation, `.gitignore` upkeep.
+- `repo` - git repository discipline. Stage-by-path commits, clear messages, immediate push.
 
 **Six routines** (`routines/`): the scheduled invocations.
 
-Always-on crons:
-- `workspace-tidy` (every 2h) - workspace-tidy: walk and tidy.
-- `git-hygiene` (every 30m) - git-hygiene: commit drift.
-
-Fixed cron:
+Scheduled (wall-clock):
 - `para-align` (Sunday 06:00 UTC) - para: align PARA structure. Heartbeat may also `--wake now` on mid-week drift.
+- `workspace-clean` (Sunday 07:00 UTC) - workspace: walk and tidy.
+- `git-clean` (01:00 and 11:00 UTC daily) - repo: commit drift.
 
 Heartbeat-toggled bursts (start disabled; orchestrator enables on demand):
-- `capture-sessions` - daily-notes: capture one session's unread JSONL into the appropriate daily notes. Prioritizes live operator sessions over historical drain. Backstop for the agents' in-session note writing, not the primary writer.
-- `seal-past-days` - daily-notes: seal a past-day note.
+- `sessions-capture` - daily-notes: capture one session's unread JSONL into the appropriate daily notes. Prioritizes live operator sessions over historical drain. Backstop for the agents' in-session note writing, not the primary writer.
+- `daily-seal` - daily-notes: seal a past-day note.
 - `para-extract` - para: extract PARA from a sealed note.
 
 `AGENTS.md` holds the programs catalog; `HEARTBEAT.md` runs the orchestrator; `memory/crons.md` is the routine dashboard; `memory/session-ledger.md` is the authoritative per-session capture-cursor file. All specs are read on demand from the workspace symlinks.
@@ -55,7 +53,7 @@ Heartbeat-toggled bursts (start disabled; orchestrator enables on demand):
 - **Heartbeat is the orchestrator, not an executor.** On its cadence it reads workspace state, toggles burst workers based on queues (sealed-notes pending, past-day notes unsealed), spot-checks configuration health, appends a trace line to `memory/heartbeat-trace.md`, and posts a one-line executive summary. It never goes silent: even a healthy no-change tick posts.
 - **Three-layer observability.** Per-routine run reports (detail on demand), heartbeat executive summary (ambient awareness), `memory/heartbeat-trace.md` (forensic record). Silence in any of the three is itself informative.
 - **No package-owned state files.** Git, daily notes, PARA entities, session transcripts, `memory/session-ledger.md` (authoritative capture state for daily-notes), and `memory/heartbeat-trace.md` are the only state.
-- **In-session agents and cron dispatch share the same programs.** An agent finishing a work session can follow the `git-hygiene` program to commit drift; the `git-hygiene` routine fires every 30m to catch anything missed. Both read the same program spec.
+- **In-session agents and cron dispatch share the same programs.** An agent finishing a work session can follow the `repo` program to commit drift; the `git-clean` routine fires twice daily to catch anything missed. Both read the same program spec.
 
 ## Co-creation, not automation
 
@@ -83,15 +81,15 @@ clawstodian/
   programs/
     daily-notes.md                   domain: canonical daily notes
     para.md                          domain: PARA knowledge graph
-    workspace-tidy.md                domain: workspace cleanliness
-    git-hygiene.md                   domain: commit discipline
+    workspace.md                     domain: workspace tree outside PARA
+    repo.md                          domain: git repository discipline
 
   routines/
-    workspace-tidy.md                always-on; invokes workspace-tidy/walk-and-tidy
-    git-hygiene.md                   always-on; invokes git-hygiene/commit-drift
-    para-align.md                    fixed cron; invokes para/align
-    capture-sessions.md              burst; invokes daily-notes/capture
-    seal-past-days.md                burst; invokes daily-notes/seal
+    workspace-clean.md               scheduled; invokes workspace/walk-and-tidy
+    git-clean.md                     scheduled; invokes repo/commit-drift
+    para-align.md                    scheduled; invokes para/align
+    sessions-capture.md              burst; invokes daily-notes/capture
+    daily-seal.md                    burst; invokes daily-notes/seal
     para-extract.md                  burst; invokes para/extract
 
   templates/

@@ -18,18 +18,18 @@ Principle: **co-uninstall, don't automate**. Show the operator what each step re
 Disable first (stops future firings), then remove (deletes the job entry).
 
 ```bash
-for name in capture-sessions workspace-tidy git-hygiene para-align seal-past-days para-extract daily-note backfill-sessions; do
+for name in sessions-capture workspace-clean git-clean para-align daily-seal para-extract capture-sessions workspace-tidy git-hygiene seal-past-days daily-note backfill-sessions; do
   openclaw cron disable "$name" 2>/dev/null
   openclaw cron remove "$name" 2>/dev/null
 done
 ```
 
-(The `daily-note` and `backfill-sessions` names are included only to clean up any lingering crons from earlier v0.4 drafts that predate the `capture-sessions` consolidation.)
+(The `capture-sessions`, `workspace-tidy`, `git-hygiene`, `seal-past-days`, `daily-note`, and `backfill-sessions` names are included only to clean up any lingering crons from earlier v0.4 drafts that predate the current naming.)
 
 Verify:
 
 ```bash
-openclaw cron list --all | grep -E " (capture-sessions|workspace-tidy|git-hygiene|para-align|seal-past-days|para-extract|daily-note|backfill-sessions) "
+openclaw cron list --all | grep -E " (sessions-capture|workspace-clean|git-clean|para-align|daily-seal|para-extract|capture-sessions|workspace-tidy|git-hygiene|seal-past-days|daily-note|backfill-sessions) "
 ```
 
 Should return nothing.
@@ -126,7 +126,7 @@ Run these to confirm the removal:
 
 ```bash
 # Cron jobs gone
-openclaw cron list --all | grep -E " (capture-sessions|workspace-tidy|git-hygiene|para-align|seal-past-days|para-extract|daily-note|backfill-sessions) " && echo "FAIL cron entries remain" || echo "OK  cron entries removed"
+openclaw cron list --all | grep -E " (sessions-capture|workspace-clean|git-clean|para-align|daily-seal|para-extract|capture-sessions|workspace-tidy|git-hygiene|seal-past-days|daily-note|backfill-sessions) " && echo "FAIL cron entries remain" || echo "OK  cron entries removed"
 
 # Workspace symlinks gone
 [ -e clawstodian/programs ] && echo "FAIL programs symlink still present" || echo "OK  programs symlink removed"

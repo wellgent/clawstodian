@@ -1,4 +1,4 @@
-# capture-sessions (routine)
+# sessions-capture (routine)
 
 Backstop for the daily-notes program. Admits new sessions to `memory/session-ledger.md` and drains interactive capture gaps into the appropriate daily note(s) - catching what in-session agents did not finalize themselves.
 
@@ -43,7 +43,7 @@ The filter output is what lands in the daily note. Everything else stays in the 
 ## Exec safety
 
 - Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
-- For multi-line script logic, write the script to `/tmp/clawstodian-capture-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
+- For multi-line script logic, write the script to `/tmp/clawstodian-sessions-capture-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
 - `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
 
 ## Worker discipline
@@ -78,10 +78,10 @@ Applied to each interactive gap selected in Phase 2:
      ```bash
      tail -n +$((lines_captured+1)) <transcriptPath> | \
        jq -c 'select(.type=="message" and (.message.role=="user" or .message.role=="assistant")) | {ts: .timestamp, role: .message.role, content: (.message.content | if type == "string" then . else (map(select(.type=="text") | .text) | join("")) end | .[:2000])}' \
-       > /tmp/clawstodian-capture-<sid-prefix>.jsonl
+       > /tmp/clawstodian-sessions-capture-<sid-prefix>.jsonl
      ```
      Then `Read` the filtered file. Each line is one turn with timestamp, role, and text truncated to 2000 chars. Delete the temp file after processing.
-   - **Ad-hoc script in `/tmp/`** - only when the logic does not fit one jq pipe (joining two sessions' timelines, pre-computing bucket sizes, deduping against existing note sections). Write `/tmp/clawstodian-capture-<sid-prefix>.py`, invoke with `python3 /tmp/clawstodian-capture-<sid-prefix>.py`, clean up.
+   - **Ad-hoc script in `/tmp/`** - only when the logic does not fit one jq pipe (joining two sessions' timelines, pre-computing bucket sizes, deduping against existing note sections). Write `/tmp/clawstodian-sessions-capture-<sid-prefix>.py`, invoke with `python3 /tmp/clawstodian-sessions-capture-<sid-prefix>.py`, clean up.
 
    Record the source transcript's line count at time of read (`wc -l < <transcriptPath>`); that becomes the new `lines_captured` after step 6.
 
@@ -108,7 +108,7 @@ Cursor idempotency: if a cursor advance fails (note write succeeded but ledger e
 After Phase 2 returns, re-count un-admitted and stale-cursor sessions. If both are zero, disable the cron:
 
 ```bash
-openclaw cron disable capture-sessions
+openclaw cron disable sessions-capture
 ```
 
 **Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron remove`.** Remove deletes the cron permanently.
@@ -119,10 +119,10 @@ Two artifacts per meaningful firing: a full report on disk following the shared 
 
 ### File on disk
 
-Write to `memory/runs/capture-sessions/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
+Write to `memory/runs/sessions-capture/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ```markdown
-# capture-sessions run report
+# sessions-capture run report
 
 - timestamp: 2026-04-18T12:30:00Z
 - context: 2026-04-18T12:30Z firing
@@ -155,7 +155,7 @@ Write to `memory/runs/capture-sessions/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ## Commits
 
-- (none - capture-sessions does not commit)
+- (none - sessions-capture does not commit)
 
 ## Surfaced for operator
 
@@ -163,12 +163,12 @@ Write to `memory/runs/capture-sessions/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ## Channel summary
 
-capture-sessions · 2026-04-18T12:30Z · captured
+sessions-capture · 2026-04-18T12:30Z · captured
 Admitted: 3 (skipped=2, interactive=1)
 Captured: 1 session · dates: 2026-04-18
 Bleed: 0 · slugs merged: 0 · insights filed: 0
 Queue: un-admitted=0 · stale=0 · cron: enabled
-Report: memory/runs/capture-sessions/2026-04-18T12-30-00Z.md
+Report: memory/runs/sessions-capture/2026-04-18T12-30-00Z.md
 ```
 
 ### Channel summary
@@ -178,12 +178,12 @@ Multi-line. One insight per line.
 **Typical meaningful firing:**
 
 ```
-capture-sessions · <ISO timestamp UTC> · <outcome>
+sessions-capture · <ISO timestamp UTC> · <outcome>
 Admitted: <N> (skipped=<s>, interactive=<i>)
 Captured: <M> sessions · dates: <list>
 Bleed: <Z> · slugs merged: <X> · insights filed: <Y>
 Queue: un-admitted=<u> · stale=<s2> · cron: <enabled|disabled>
-Report: memory/runs/capture-sessions/<ts>.md
+Report: memory/runs/sessions-capture/<ts>.md
 ```
 
 `outcome` is one of: `captured` (interactive work done), `admitted-only` (only skipped admissions), `disabled` (queue drained, cron self-disabled this firing), `no-op` (no gaps found - cron was enabled but nothing was pending).
@@ -191,9 +191,9 @@ Report: memory/runs/capture-sessions/<ts>.md
 **Quiet firing** (no gaps at all, nothing to do):
 
 ```
-capture-sessions · <ISO timestamp UTC> · no-op
+sessions-capture · <ISO timestamp UTC> · no-op
 No gaps (un-admitted=0, stale=0) · cron: <enabled|disabled>
-Report: memory/runs/capture-sessions/<ts>.md
+Report: memory/runs/sessions-capture/<ts>.md
 ```
 
 Omit the Bleed line on admitted-only firings (where there was no interactive work AND bleed is 0) to keep the post short.
