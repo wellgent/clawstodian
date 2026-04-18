@@ -68,7 +68,7 @@ The weekly schedule still fires on Sunday regardless.
 
 Inspect and report any anomaly. Do not repair from here:
 
-- Heartbeat config matches recommended stance: `session: "session:clawstodian-maintainer"`, `isolatedSession: false`, `lightContext: true`, `target` is a real channel, `activeHours` set, `showAlerts: true`.
+- Heartbeat config matches recommended stance: `session: "session:clawstodian-maintainer"`, `isolatedSession: false`, `lightContext: false` (or omitted; full workspace context), `target` is a real channel, `activeHours` set, `showAlerts: true`.
 - All clawstodian cron entries exist: `daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`.
 - Recent cron runs: any routine that has not reported in the last 2 expected intervals, or has failed-status replies in a row.
 - Installed reference docs (`memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`) match package template markers.

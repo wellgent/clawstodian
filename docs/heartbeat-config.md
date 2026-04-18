@@ -1,6 +1,6 @@
 # Heartbeat configuration
 
-This is the authoritative reference for configuring clawstodian's heartbeat. The heartbeat is an OpenClaw primitive; clawstodian ships a specific recommended configuration that supports the collaborative-maintainer model: one persistent session, mixed cadence via `tasks:`, and a dedicated channel the operator can read (and, with a small extra setup, write into).
+This is the authoritative reference for configuring clawstodian's heartbeat. The heartbeat is an OpenClaw primitive; clawstodian ships a specific recommended configuration that supports the collaborative-maintainer model: a dedicated persistent session, mixed cadence via `tasks:`, and a dedicated channel the operator watches.
 
 The package's `templates/HEARTBEAT.md` is the workspace-level file the heartbeat reads on each tick. This doc is about the gateway-level config that wires that file into OpenClaw.
 
@@ -13,21 +13,19 @@ The heartbeat is the agent's collaborative maintenance thread. On each tick, the
 - Posts a brief status line to the maintainer channel.
 - On longer cadences: produces daily retrospectives and weekly reviews.
 
-The operator reads these posts and can reply - those replies become part of the same conversation the heartbeat sees next tick.
-
 The heartbeat does NOT execute program behaviors. Each routine runs as its own cron job (see `INSTALL.md` "Cron install commands"). The heartbeat is an observer, toggler, and collaborator.
 
-## Session model: why persistent
+## Session model: why persistent named
 
 The heartbeat can run in three session models:
 
-- **Isolated** (`isolatedSession: true`) - fresh session every tick, no conversation history. Cheap (~2-5K tokens per tick). The agent reconstructs context from files; it cannot remember past ticks' conversations with the operator.
-- **Main DM** (default, no isolation, no named session) - inherits the agent's main conversation. Continuity is automatic, but heartbeat directives and general operator chat share one context and pollute each other.
-- **Named persistent** (`session: "session:<name>"`) - a dedicated session reused across ticks. Continuity preserved, clean separation from the main DM. This is what clawstodian uses.
+- **Isolated** (`isolatedSession: true`) - fresh session every tick, no conversation history. Cheap (~2-5K tokens per tick with `lightContext: true`). The agent reconstructs context from files; it cannot remember past ticks' conversations with itself or the operator.
+- **Main DM** (default, no isolation, no named session) - the heartbeat runs inside the agent's main conversation. Continuity is automatic. If the target channel is the operator's DM, bidirectional flow is free. If the target channel is a different channel (a Discord group, Slack channel), the heartbeat still runs in main DM but posts one-way to the other channel. Concern: main DM gets cluttered with maintenance directives.
+- **Named persistent** (`session: "session:<name>"`) - a dedicated session reused across ticks. Continuity preserved, clean separation from the main DM. The heartbeat remembers its own past ticks. Channel replies do NOT auto-route here (see "Bidirectional flow" below).
 
-The persistent maintainer session is the architecturally-right fit for "agent as collaborative maintainer." The operator sees a running thread of maintenance conversation, distinct from their ad-hoc chat with the same agent. The agent remembers what it flagged last tick, what the operator replied to, what is still in flight.
+For clawstodian's vision of a dedicated maintainer channel that stays distinct from the operator's general chat with the agent, **named persistent** is the right fit. Operator replies don't flow into the named session without a small workaround, but the heartbeat's own conversational continuity (what it said last tick, what it flagged) is preserved.
 
-Cost is ~25-50K tokens per tick with `lightContext: true` (depends on session history length). Periodic auto-compaction bounds the growth.
+Cost is ~20-50K tokens per tick with `lightContext: false` (full bootstrap) plus a growing session history. OpenClaw ships session-maintenance defaults that bound growth automatically.
 
 ## Recommended gateway config
 
@@ -39,7 +37,7 @@ Cost is ~25-50K tokens per tick with `lightContext: true` (depends on session hi
         every: "2h",
         session: "session:clawstodian-maintainer",
         isolatedSession: false,
-        lightContext: true,
+        // lightContext omitted -> default false -> full workspace bootstrap loads each tick.
         target: "<your-maintainer-channel-id>",
         activeHours: {
           start: "08:00",
@@ -56,32 +54,30 @@ Cost is ~25-50K tokens per tick with `lightContext: true` (depends on session hi
         useIndicator: true
       }
     }
-  },
-  session: {
-    maintenance: {
-      mode: "enforce",
-      pruneAfter: "30d",
-      maxEntries: 300
-    }
   }
 }
 ```
+
+Session compaction, DM scope, reset semantics, and context pruning are NOT set here. Those are workspace-wide choices that live in the operator's `session.*` and `agents.defaults.contextPruning.*` config (see your sessions baseline). clawstodian does not override them.
 
 ### Field rationale
 
 - **`every: "2h"`** - matches the `status` task's cadence in `templates/HEARTBEAT.md`. A tighter cadence (e.g. `30m`) wastes budget; looser (`4h`) lets queues grow longer before the agent reacts. Adjust if your workspace has different tempo.
 - **`session: "session:clawstodian-maintainer"`** - dedicated persistent session. Named explicitly so the operator can inspect and prune it later. Create it once at install time (see below).
-- **`isolatedSession: false`** - opt out of isolation so conversation history persists. If you previously had `true`, flip to `false` and the session starts accumulating history from the next tick.
-- **`lightContext: true`** - skips full workspace bootstrap except `HEARTBEAT.md`. Program and routine specs and PARA reference docs are not auto-loaded; the agent reads them explicitly when needed via `clawstodian/programs/<name>.md` and `clawstodian/routines/<name>.md` paths.
-- **`target`** - the maintainer logs channel id. Use an explicit channel (Discord/Slack/Telegram) the operator actively watches. Avoid `"last"` and `"none"` for the maintainer use case.
-- **`activeHours`** - the agent's working window. Outside this window ticks skip silently. Match the operator's actual availability.
+- **`isolatedSession: false`** - opt out of isolation so conversation history persists across ticks. The agent's memory of what it flagged, what it is still tracking, and the shape of the ongoing maintenance conversation all depend on this.
+- **`lightContext` omitted (default `false`)** - the collaborative maintainer needs full workspace awareness every tick. `lightContext: true` would drop `AGENTS.md`, `SOUL.md`, `USER.md`, `MEMORY.md`, and daily notes, keeping only `HEARTBEAT.md`. That is the wrong trade for a maintainer that is supposed to know the workspace. Accept the ~20-50K tokens/tick cost.
+- **`target`** - the maintainer channel id. Use an explicit channel (Discord/Slack/Telegram) the operator actively watches. Avoid `"last"` and `"none"` for this use case.
+- **`activeHours`** - the agent's working window. Ticks outside skip silently. Match the operator's actual availability.
 - **`showAlerts: true`** - deliver substantive replies.
 - **`useIndicator: true`** - emit UI indicator events so compact status renders work.
-- **`session.maintenance`** - enforces compaction on long-lived sessions so the maintainer session doesn't grow unbounded. `maxEntries: 300` keeps roughly 25 days of 2h ticks before the oldest entries compact.
 
-### Why `showOk` is not set
+### Why session-maintenance is not set here
 
-By default `showOk: false`, which suppresses `HEARTBEAT_OK` acks. In clawstodian's v0.4 model the agent is prompted to always produce a substantive (possibly one-line) reply on every tick - it never returns bare `HEARTBEAT_OK` - so the flag's value does not matter in practice. Setting it explicitly is optional.
+OpenClaw has a global `session.maintenance` block (`mode`, `pruneAfter`, `maxEntries`, etc.) that defaults to `mode: "warn"`, `pruneAfter: "30d"`, `maxEntries: 500`. Those defaults are fine for the maintainer session. Prescribing `"enforce"` from the clawstodian config would silently change behavior for ALL sessions on the host, not just the maintainer. If the operator wants tighter compaction, they can set it deliberately at the host level; clawstodian does not prescribe.
+
+### Why context-pruning / DM-scope / reset are not set here
+
+These are host-wide policy choices the operator already made (see `claw-configs/sessions/baseline.md` or equivalent). clawstodian layers on top; it does not override the baseline.
 
 ## Create the maintainer session
 
@@ -106,47 +102,63 @@ openclaw sessions --json | grep clawstodian-maintainer
 1. The gateway parses the `tasks:` block.
 2. For each task, it checks if `now >= lastRun + interval` using per-task state stored in the session entry's `heartbeatTaskState`.
 3. Only due tasks are included in the batched prompt sent to the model.
-4. If zero tasks are due, the tick is skipped with `reason=no-tasks-due`. (This should not happen in steady state - the 2h status task matches the 2h heartbeat interval, so the status task fires every tick.)
+4. If zero tasks are due, the tick is skipped with `reason=no-tasks-due`. (In steady state this does not happen - the 2h `status` task matches the 2h heartbeat interval, so the status task fires every tick.)
 
-Task last-run timestamps survive across ticks in session state regardless of session model, so switching between isolated and persistent sessions does not reset task cadence.
+Task last-run timestamps survive across ticks in session state regardless of session model.
 
-The prose content in `HEARTBEAT.md` below the `tasks:` block is appended as "Additional context" on every tick. That's where the detailed instructions for each task live, plus framing for the agent's role.
+The prose content in `HEARTBEAT.md` below the `tasks:` block is appended as "Additional context" on every tick. That is where the detailed instructions for each task live, plus framing for the agent's role.
 
 ## Bidirectional flow: how the operator collaborates
 
-The maintainer channel is where heartbeat posts land. For the operator to send messages back INTO the heartbeat's session so the next tick sees them, there are two paths:
+This is the honest part. OpenClaw **does not** support direct channel-to-session binding. The heartbeat's `session` field controls where the heartbeat *runs*, not where *channel replies* route. When the operator posts in the maintainer channel, that message goes to the auto-derived session for that channel (e.g. `agent:<id>:discord:channel:<channel-id>`), **not** to `session:clawstodian-maintainer`.
 
-### Path 1: `sessions_send` from the main DM agent
+There are three workable bidirectional patterns. Pick one.
 
-The operator DMs the agent normally. The agent uses the `sessions_send` tool to push a message into `session:clawstodian-maintainer`. The next heartbeat tick sees that message in its session context.
+### Pattern A: `sessions_send` bridge (works out of the box)
 
-This works out of the box with no extra configuration. The main-session agent acts as a bridge.
+Operator DMs the agent normally ("tell the maintainer that the `para-extract` queue has been stuck for two days"). The main-session agent uses the `sessions_send` tool to inject a message into `session:clawstodian-maintainer`. The next heartbeat tick sees that message in its session context and can respond at its next post.
 
-Example operator prompt in DM: *"Tell the maintainer that the para-extract queue has been stuck at 3 for two days. Ask it to look into why."*
+Latency: up to one heartbeat interval (~2h).
 
-The main agent then calls `sessions_send` with the right session key.
+This is the default we document. Works with any OpenClaw setup, no extra channel or agent configuration.
 
-### Path 2: Explicit channel-to-session binding
+### Pattern B: Main-session heartbeat, DM as maintainer channel
 
-Some OpenClaw deployments support binding a specific channel to a specific session so messages posted in that channel route directly to that session. If your gateway config supports this (check `channels.bindings` or equivalent in your OpenClaw version), bind the maintainer channel to `session:clawstodian-maintainer`. The operator then chats directly in the maintainer channel and replies land straight in the heartbeat's session.
+Skip the named session entirely. Set `session: "main"` (or omit) and `target` to the operator's DM with the agent (or whatever channel already maps to the main session). Heartbeat ticks land in the operator's DM thread; the operator replies there; next tick sees it directly.
 
-This is cleaner UX but requires gateway-level support.
+Cost: the main DM session now carries maintenance directives intermixed with casual chat. For operators who interact primarily with the agent via DM and are comfortable with mixed context, this is the simplest bidirectional setup.
+
+Config change from the recommended:
+```json5
+heartbeat: {
+  // session field omitted -> main DM session used
+  isolatedSession: false,
+  ...
+}
+```
+
+### Pattern C: Dedicated maintainer agent with channel routing
+
+Register a second agent (e.g. `agent:maintainer`) in `agents.list` whose channel-routing rules target the dedicated maintainer channel (by Discord guild/channel id, Slack channel id, etc.). Configure that agent's heartbeat to use its own main session. Channel replies to #maintainer auto-route to that agent's channel-scoped session, which is where the heartbeat runs.
+
+This is the cleanest separation (dedicated agent, dedicated channel, bidirectional without bridges) but requires multi-agent setup in the OpenClaw gateway config. Documented as advanced.
 
 ## Cost profile
 
-Per-tick cost depends on session history length:
+Per-tick cost with the recommended config (`session: "session:..."`, `isolatedSession: false`, `lightContext: false`, `every: "2h"`):
 
-- Fresh session (first few ticks): ~5-15K tokens.
-- Steady state after a week, with `lightContext: true` and enforced compaction at `maxEntries: 300`: ~25-50K tokens.
-- Without compaction, growth is linear: the session could reach 100K+ tokens after several weeks.
+- Fresh session (first few ticks): ~15-30K tokens.
+- Steady state after a week, with default session-maintenance (warn mode, 500 entries): ~25-50K tokens. Token count grows as session history accumulates; auto-rotation caps it.
+- Without any session maintenance, growth is linear - worth keeping an eye on via `openclaw sessions --json | grep clawstodian-maintainer`.
 
 At 12 ticks/day in active hours, steady-state cost is ~300-600K tokens/day for the heartbeat alone. Combined with the six routine crons (~5K each, fired on their schedules), total package cost is ~400-800K tokens/day. Roughly $1-5/day depending on model pricing at time of read.
 
 If cost is a concern, consider:
 
 - Loosening `every` to `3h` or `4h`.
-- Lowering `session.maintenance.maxEntries` (more aggressive compaction).
-- Removing the `daily-retrospective` and `weekly-review` tasks from `HEARTBEAT.md` and relying on operator-triggered reviews instead.
+- Adding `lightContext: true` (accepts the "agent only sees HEARTBEAT.md" trade for ~2-5K tokens/tick).
+- Setting an explicit `session.maintenance.mode: "enforce"` with a lower `maxEntries` globally.
+- Removing `daily-retrospective` and/or `weekly-review` tasks from `HEARTBEAT.md` and relying on operator-triggered reviews instead.
 
 ## Troubleshooting
 
@@ -155,25 +167,25 @@ If cost is a concern, consider:
 1. Confirm the gateway is running and the heartbeat config loaded: `openclaw config show | grep -A5 heartbeat`.
 2. Check `activeHours` - ticks outside the window skip silently.
 3. Check `target` - if empty or invalid, the run may happen internally but not deliver. Gateway logs (`/tmp/openclaw/openclaw-<date>.log`) carry the reason.
-4. Check the maintainer session exists: `openclaw sessions --json | grep clawstodian-maintainer`. Absent session + `isolatedSession: false` may cause routing fallback to main.
+4. Check the maintainer session exists: `openclaw sessions --json | grep clawstodian-maintainer`. If absent with `isolatedSession: false`, routing may fall back.
 5. Check `memory/heartbeat-trace.md` - if it has recent append lines, the heartbeat is firing but delivery is failing. If it's empty, the heartbeat is not firing.
-6. Review `openclaw cron list --all` for the heartbeat entry (if run via cron) or check the gateway's internal scheduler state.
+6. Review `openclaw cron list --all` and the gateway's internal scheduler state.
 
 ### Heartbeat fires but session history isn't growing
 
-Confirm `isolatedSession: false` in the config. If `true`, each tick is fresh and conversation history is reset.
-
-### Session growing too fast / context window issues
-
-Lower `session.maintenance.maxEntries` - try 200 or 150 - and bump `pruneAfter` down to 14d.
+Confirm `isolatedSession: false` in the config. If `true`, each tick is fresh and conversation history is reset. Also confirm `session` is set to the named key and not accidentally empty.
 
 ### Operator replies in the maintainer channel don't reach the next tick
 
-Your gateway may not have channel-to-session binding for this channel. Fall back to Path 1 (`sessions_send` from the main DM agent). Document the workflow for the operator.
+Expected. Channel replies route to the auto-derived channel session, not the heartbeat's named session. Use one of the three bidirectional patterns documented above.
 
 ### Task never fires
 
 Confirm the task name matches exactly what's in `HEARTBEAT.md`. Check `openclaw sessions --json` for the `heartbeatTaskState` map on the maintainer session - stale entries there can prevent a task from firing if its interval has not elapsed since the stored timestamp.
+
+### Agent feels lobotomized - doesn't know the workspace
+
+Likely `lightContext: true`. That drops AGENTS.md, MEMORY.md, and daily notes. For a collaborative maintainer, use `lightContext: false` (default) so the full bootstrap loads each tick.
 
 ## See also
 
@@ -183,3 +195,4 @@ Confirm the task name matches exactly what's in `HEARTBEAT.md`. Check `openclaw 
 - `UNINSTALL.md` - removal flow including session pruning.
 - `docs/architecture.md` - first-principles design rationale for the collaborative-maintainer model.
 - OpenClaw's own `docs/gateway/heartbeat.md` for primitive-level reference.
+- OpenClaw's `docs/channels/channel-routing.md` for agent-selection-by-channel rules (relevant for Pattern C above).

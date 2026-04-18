@@ -69,16 +69,17 @@ Any `FAIL` should be investigated before relying on the install.
 
 The heartbeat lives in `~/.openclaw/openclaw.json` (or `config.toml`), not in the workspace. Read it and confirm:
 
-- `agents.defaults.heartbeat.every` is set (default recommended: `"2h"`).
+- `agents.defaults.heartbeat.every` is set (recommended: `"2h"`).
 - `agents.defaults.heartbeat.session` is `"session:clawstodian-maintainer"` (the persistent maintainer session).
 - `agents.defaults.heartbeat.isolatedSession` is `false` (persistent session preserves conversation history).
-- `agents.defaults.heartbeat.lightContext` is `true`.
+- `agents.defaults.heartbeat.lightContext` is `false` or omitted (default `false`; the maintainer needs full workspace context).
 - `agents.defaults.heartbeat.target` is set to the maintainer channel id (not empty, not `"last"`).
 - `agents.defaults.heartbeat.activeHours` has `start`, `end`, `timezone` - matches the operator's preferred window.
 - `channels.defaults.heartbeat.showAlerts` is `true`.
-- `session.maintenance.mode` is `"enforce"` with a bounded `maxEntries` so the maintainer session does not grow unbounded.
 
 A config that passes every other check but has `target: ""` or `showAlerts: false` will produce a silent heartbeat. That is the failure mode v0.4 is designed to prevent; catch it here.
+
+**Not checked here:** `session.maintenance`, `agents.defaults.contextPruning`, `session.dmScope`, `session.reset`. These are host-wide policy choices from the operator's sessions baseline; clawstodian does not prescribe them.
 
 `docs/heartbeat-config.md` has the full reference.
 

@@ -90,7 +90,8 @@ Typical revert options:
 - Reset `target` to the prior channel or `"last"`.
 - Reset `isolatedSession`, `lightContext`, `activeHours` to prior values.
 - Reset `channels.defaults.heartbeat.showAlerts` / `showOk` / `useIndicator` to prior values.
-- Remove the `session.maintenance` block if clawstodian added it and the operator did not already have compaction configured.
+
+clawstodian does NOT set `session.maintenance`, `agents.defaults.contextPruning`, `session.dmScope`, or `session.reset` at install time - those are host-wide baseline choices. Do not touch them during uninstall.
 
 Show the operator the exact diff before applying. Prefer letting the operator apply it themselves.
 

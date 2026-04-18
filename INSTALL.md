@@ -101,7 +101,7 @@ Produce a short, explicit plan for the operator. Items in the order the install 
   openclaw sessions new session:clawstodian-maintainer
   ```
   The heartbeat config below targets this session. Session maintenance (compaction) is enforced via the `session.maintenance` block in the gateway config so the session does not grow unbounded.
-- **Heartbeat config** - the authoritative reference is `~/clawstodian/docs/heartbeat-config.md`. Recommended stance: `every: "2h"`, `session: "session:clawstodian-maintainer"`, `isolatedSession: false`, `lightContext: true`, `target` pointing at the maintainer channel, `activeHours` set, `showAlerts: true`, plus a `session.maintenance` block to bound growth. Show the operator the snippet from that doc and propose merging it into their OpenClaw config. Apply this last.
+- **Heartbeat config** - the authoritative reference is `~/clawstodian/docs/heartbeat-config.md`. Recommended stance: `every: "2h"`, `session: "session:clawstodian-maintainer"`, `isolatedSession: false`, `lightContext: false` (full workspace context; omit or set false), `target` pointing at the maintainer channel, `activeHours` set, `showAlerts: true`. Do NOT add `session.maintenance`, `agents.defaults.contextPruning`, or other host-wide policy fields - those are the operator's sessions-baseline choices and clawstodian should not override them. Show the operator the snippet from `docs/heartbeat-config.md` and propose merging it into their OpenClaw config. Apply this last.
 
 **If Step 3 detected legacy v0.3 routines** (programs not renamed), prepend this advisory to the plan:
 
