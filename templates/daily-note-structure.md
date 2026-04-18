@@ -1,29 +1,30 @@
-<!-- template: clawstodian/daily-note-structure 2026-04-16 -->
+<!-- template: clawstodian/daily-note-structure 2026-04-18 -->
 # Daily Note Structure
 
-Single source of truth for the daily note model. The daily-notes program (defined in `AGENTS.md` under clawstodian) reads this file. Customize per workspace as needed.
+Single source of truth for the daily note model. The `daily-note`, `seal-past-days`, and `para-extract` routines (defined in `AGENTS.md` under clawstodian) read this file. Customize per workspace as needed.
 
 ## Overview
 
-Daily notes live at `memory/YYYY-MM-DD.md`. Each file represents exactly one calendar day. Content flows in from session transcripts, git activity, and workspace changes via the heartbeat `daily-notes-tend` task. Past days are sealed with disk-fidelity by the `close-of-day` cron burst when it is enabled.
+Daily notes live at `memory/YYYY-MM-DD.md`. Each file represents exactly one calendar day. Content flows in from session transcripts, git activity, and workspace changes via the `daily-note` cron routine. Past days are sealed by the `seal-past-days` burst worker. PARA entities get extracted from sealed notes by `para-extract`.
 
-**One canonical file per day.** The primary daily note is always `memory/YYYY-MM-DD.md`. Topic-suffixed variants such as `memory/YYYY-MM-DD-foo.md` may appear during active sessions but must be merged into the canonical note when the day is sealed. Sealed notes never have topic-suffixed siblings.
+**One canonical file per day.** The primary daily note is always `memory/YYYY-MM-DD.md`. Topic-suffixed variants such as `memory/YYYY-MM-DD-foo.md` may appear during active sessions; the `daily-note` routine merges them into the canonical note on its next run for today, and `seal-past-days` merges them on seal for past dates. Sealed notes never have topic-suffixed siblings.
 
 ```
-heartbeat daily-notes-tend (every 2h)     close-of-day cron burst
--------------------------------------     -----------------------
-appends new content to today's note       seals yesterday (or older) with
-from sessions_list + sessions_history     disk JSONL fidelity; merges any
-+ git log; status: active                 topic-suffixed variants; status: sealed
+daily-note (always-on cron)              seal-past-days (burst worker)            para-extract (burst worker)
+----------------------------             -------------------------------           -----------------------------
+appends new content to today's           seals yesterday (or older) with           propagates sealed note into
+note from sessions + git; merges         disk JSONL fidelity; merges any           PARA entities; flips
+slug siblings inline; status: active     slug variants; status: sealed             para_status pending -> done
 ```
 
 ## Frontmatter
 
 ```yaml
 ---
-date: 2026-04-16
+date: 2026-04-18
 status: active
-last_updated: 2026-04-16T17:30Z
+para_status: pending
+last_updated: 2026-04-18T17:30Z
 topics:
   - VPS migration and OpenClaw install
   - 1Password secrets management investigation
@@ -36,7 +37,8 @@ sessions: [96a0c068, b513d1a5]
 ### Fields
 
 - `date` - the date this note covers (`YYYY-MM-DD`).
-- `status` - `active` while the day is still receiving content, `sealed` after `close-of-day` has finalized it.
+- `status` - `active` while the day is still receiving content, `sealed` after `seal-past-days` has finalized it.
+- `para_status` - PARA extraction lifecycle. `pending` when the sealed note has not yet been propagated into PARA entities, `done` after `para-extract` has processed it. Omit or leave empty on `status: active` notes; set to `pending` at seal time.
 - `last_updated` - ISO timestamp of the most recent write.
 - `topics` - 3 to 8 short phrases. Specific enough to be useful, brief enough to scan.
 - `people` - real people mentioned. Test: remove the name. Does the section lose something?
@@ -45,8 +47,16 @@ sessions: [96a0c068, b513d1a5]
 
 ### Status transitions
 
-- `active` - day is current or recent; content still arriving; heartbeat `daily-notes-tend` may append.
-- `sealed` - day has been closed by `close-of-day`; no further appends. Only material corrections allowed, and only with operator approval.
+- `active` - day is current or recent; content still arriving; `daily-note` may append.
+- `sealed` - day has been closed by `seal-past-days`; no further appends. Only material corrections allowed, and only with operator approval.
+
+### PARA status transitions
+
+- (unset) - note is `active`; not in the PARA queue yet.
+- `pending` - note is `sealed` and queued for `para-extract`.
+- `done` - `para-extract` has processed this note; PARA entities have been created or updated.
+
+`para-extract` reads `status: sealed` + `para_status: pending` as its queue. Legacy sealed notes without `para_status` are not automatically queued.
 
 ## Note Structure
 
@@ -75,7 +85,7 @@ Content...
 - One section per topic. Multiple sessions on the same topic consolidate into one section.
 - Descriptive headers. Searchable by `memory_search`. Include topic or project name, what happened, and timestamp.
 - No duplicates. Overlapping content is merged, keeping the most complete version.
-- No ops noise. Daily notes capture what happened, not which heartbeat ticks ran.
+- No ops noise. Daily notes capture what happened, not which cron runs fired.
 - Day summary after the date heading. Human-readable narrative, not a bullet list.
 - Separator: `---` between the day summary and the first topic section.
 
@@ -99,17 +109,17 @@ Skip:
 
 ## What Sealing Does
 
-Sealing is purely editorial. No entity extraction, no `INDEX.md` updates. Entity extraction is handled by the PARA program in a separate tick.
+Sealing is purely editorial. No entity extraction, no `INDEX.md` updates. Entity extraction is handled by `para-extract` in a separate cron run.
 
 On seal:
 - Merge any topic-suffixed variants into the canonical note.
 - Organize sections into chronological order.
 - Merge duplicate sections from overlapping sessions.
-- Remove noise (tick digests, pipeline status).
+- Remove noise (cron-run dumps, pipeline status).
 - Write descriptive, searchable headers.
 - Write a day summary.
 - Curate frontmatter (topics, people, projects).
 - Add thread-continuity markers when topics span days.
-- Flip `status` from `active` to `sealed`.
+- Flip `status: active -> sealed` and set `para_status: pending`.
 
-**Trivial-day fast-path:** a day with 2 or fewer sections and under 1 KB of body content seals by flipping `status` without further editorial work.
+**Trivial-day fast-path:** a day with 2 or fewer sections and under 1 KB of body content seals by flipping `status` and setting `para_status: pending` without further editorial work.

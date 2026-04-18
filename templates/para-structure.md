@@ -1,7 +1,7 @@
-<!-- template: clawstodian/para-structure 2026-04-16 -->
+<!-- template: clawstodian/para-structure 2026-04-18 -->
 # PARA Conventions
 
-Single source of truth for how the knowledge graph is organized in this workspace. The PARA program (defined in `AGENTS.md` under clawstodian) reads this file when creating, moving, or validating entities. Customize per workspace as needed; keep the structural rules intact.
+Single source of truth for how the knowledge graph is organized in this workspace. The `para-extract` and `para-align` routines (defined in `AGENTS.md` under clawstodian) read this file when creating, moving, or validating entities. Customize per workspace as needed; keep the structural rules intact.
 
 ## What is PARA?
 

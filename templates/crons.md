@@ -1,44 +1,78 @@
-<!-- template: clawstodian/crons 2026-04-17 -->
+<!-- template: clawstodian/crons 2026-04-18 -->
 # Cron jobs
 
 Dashboard for this workspace's cron jobs. Authoritative state: `openclaw cron list --all`.
 
-## close-of-day
+Every clawstodian routine runs as its own cron job. The heartbeat orchestrator does not execute routines; it only toggles burst workers based on workspace state.
 
-Seals one past-day daily note per run with disk-fidelity. Self-disables when the queue is empty.
+## daily-note
+
+Keeps today's canonical daily note current. Appends session activity, merges slug siblings, files obvious durable insights.
+
+- Schedule: `every 30m`
+- Always enabled. Quiet runs reply `NO_REPLY` and stay silent.
+
+Install: `~/clawstodian/routines/daily-note.md`.
+
+## workspace-tidy
+
+Removes trash, moves misplaced files to intuitive homes, maintains `.gitignore` for ephemeral files.
+
+- Schedule: `every 2h`
+- Always enabled. Quiet runs reply `NO_REPLY`.
+
+Install: `~/clawstodian/routines/workspace-tidy.md`.
+
+## git-hygiene
+
+Commits meaningful drift stage-by-path, pushes, maintains `.gitignore`.
+
+- Schedule: `every 30m`
+- Always enabled. Quiet runs reply `NO_REPLY`.
+
+Install: `~/clawstodian/routines/git-hygiene.md`.
+
+## seal-past-days
+
+Seals one unsealed past-day daily note per run. Self-disables when the queue is empty.
 
 - Schedule: `every 30m` (while enabled)
-- Starts disabled. Heartbeat `daily-notes-tend` enables it when past-day notes with `status: active` exist.
+- Starts disabled. Heartbeat enables it when past-day notes with `status: active` exist.
 
-Install: `~/clawstodian/programs/close-of-day.md`.
+Install: `~/clawstodian/routines/seal-past-days.md`.
 
-## para-backfill
+## para-extract
 
-Propagates one sealed daily note into PARA per run. Self-disables when the queue is empty.
+Propagates one sealed daily note into PARA entities per run. Self-disables when the queue is empty.
 
 - Schedule: `every 30m` (while enabled)
 - Starts disabled. Heartbeat enables it when sealed notes with `para_status: pending` exist.
 
-Install: `~/clawstodian/programs/para-backfill.md`.
+Install: `~/clawstodian/routines/para-extract.md`.
 
-## weekly-para-align
+## para-align
 
-Verifies PARA structural integrity once per ISO week.
+Verifies PARA structural and semantic health (cross-references, naming, MEMORY.md currency). Applies trivial fixes; surfaces the rest.
 
-- Schedule: `0 6 * * 0` (Sunday 06:00, workspace timezone)
-- Always enabled.
+- Schedule: `0 6 * * 0` (Sunday 06:00 UTC)
+- Always enabled. Heartbeat may also `--wake now` mid-week on drift.
 
-Install: `~/clawstodian/programs/weekly-para-align.md`.
+Install: `~/clawstodian/routines/para-align.md`.
 
 ## Schedule overview
 
 ```
-DEMAND-DRIVEN (starts disabled)
-every 30m     close-of-day
-every 30m     para-backfill
+ALWAYS-ON CRONS
+every 30m     daily-note
+every 30m     git-hygiene
+every 2h      workspace-tidy
 
-WEEKLY
-Sunday 06:00  weekly-para-align
+HEARTBEAT-TOGGLED BURSTS (start disabled)
+every 30m     seal-past-days
+every 30m     para-extract
+
+FIXED CRON
+Sunday 06:00  para-align (UTC)
 ```
 
 ## System cron
