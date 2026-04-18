@@ -109,8 +109,7 @@ Shape:
 Examples:
 
 ```
-daily-note 2026-04-18: sessions 4/2/1 | appended 3 sections | merged 1 slugs | filed 0 insights | bleed 0 sealed | 0 awaiting operator
-backfill-sessions 96a0c068: captured | classification: interactive | lines: 384 | dates: [2026-04-15, 2026-04-16] | bleed: 2 sealed | queue: 17 | cron: enabled
+capture-sessions 96a0c068: captured | classification: interactive | lines: 142->189 | dates: [2026-04-18] | merged 1 slugs | filed 0 insights | bleed 0 sealed | queue: un-admitted=2/stale=0 | cron: enabled
 seal-past-days 2026-04-15: sealed | sections 7->5 | para_status: pending | queue: 2 | cron: enabled
 para-align 2026-W16: verified 48 entities | trivial fixes 3 | proposals 1 (awaiting operator)
 ```
@@ -119,7 +118,7 @@ Keep reports greppable and scan-friendly. Prose belongs elsewhere.
 
 ## NO_REPLY convention
 
-Routines where a quiet run is common (daily-note with no new activity, git-hygiene with a clean tree) should return `NO_REPLY` on no-change. The cron runner interprets `NO_REPLY` as "suppress delivery" - the channel stays silent.
+Routines where a quiet run is common (git-hygiene with a clean tree, capture-sessions on a skipped-classification admission) should return `NO_REPLY` on no-change. The cron runner interprets `NO_REPLY` as "suppress delivery" - the channel stays silent.
 
 Routines where every run carries meaningful state transition (seal-past-days succeeded, para-extract processed a note, para-align verified the weekly graph) should always report. Do not `NO_REPLY` a successful operation just because the counts are low.
 

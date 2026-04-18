@@ -1,28 +1,26 @@
 <!-- template: clawstodian/daily-note-structure 2026-04-18 -->
 # Daily Note Structure
 
-Single source of truth for the daily note model. The `daily-note`, `seal-past-days`, and `para-extract` routines (defined in `AGENTS.md` under clawstodian) read this file. Customize per workspace as needed.
+Single source of truth for the daily note model. The `capture-sessions`, `seal-past-days`, and `para-extract` routines (defined in `AGENTS.md` under clawstodian) read this file. Customize per workspace as needed.
 
 ## Overview
 
-Daily notes live at `memory/YYYY-MM-DD.md`. Each file represents exactly one calendar day. Content flows in from session transcripts, git activity, and workspace changes via the `daily-note` cron routine. Past days are sealed by the `seal-past-days` burst worker. PARA entities get extracted from sealed notes by `para-extract`. Sessions that fall outside the steady-state window are processed by the `backfill-sessions` burst worker.
+Daily notes live at `memory/YYYY-MM-DD.md`. Each file represents exactly one calendar day.
 
-**One canonical file per day.** The primary daily note is always `memory/YYYY-MM-DD.md`. Topic-suffixed variants such as `memory/YYYY-MM-DD-foo.md` may appear during active sessions; the `daily-note` routine merges them into the canonical note on its next run for today, and `seal-past-days` merges them on seal for past dates. Sealed notes never have topic-suffixed siblings.
+**The primary writer of daily notes is the agent working in session with the operator.** Per the workspace's memory-maintenance rules, any agent doing notable work appends to today's note as the work happens. That is the default path.
+
+The `capture-sessions` cron is the **backstop**: it catches sessions that did not get fully written up in-session, including sub-agent sessions, cron-kind sessions, gateway-outage gaps, and historical sessions that predate a clawstodian install. Past days are sealed by `seal-past-days`. PARA entities get extracted from sealed notes by `para-extract`.
+
+**One canonical file per day.** The primary daily note is always `memory/YYYY-MM-DD.md`. Topic-suffixed variants such as `memory/YYYY-MM-DD-foo.md` may appear during active sessions; the `capture-sessions` routine merges them into the canonical note when it next processes a session touching that date, and `seal-past-days` merges them on seal for past dates. Sealed notes never have topic-suffixed siblings.
 
 **Capture state lives in the ledger, not the note.** Per-session cursors (how far each session transcript has been read) live in `memory/session-ledger.md`. Daily notes reference sessions only by id; the `sessions:` frontmatter field is a human-readable attribution list, not capture state.
 
 ```
-daily-note (always-on cron)              seal-past-days (burst worker)            para-extract (burst worker)
-----------------------------             -------------------------------           -----------------------------
-appends new content to today's           seals yesterday (or older) with           propagates sealed note into
-note from sessions + git; merges         disk JSONL fidelity; merges any           PARA entities; flips
-slug siblings inline; status: active     slug variants; status: sealed             para_status pending -> done
-
-backfill-sessions (burst worker)
------------------------------
-processes sessions older than the
-6h activeMinutes window that have
-no ledger entry yet; one per firing
+agent in-session (primary)             capture-sessions (burst backstop)        seal-past-days (burst)              para-extract (burst)
+--------------------------             ---------------------------------        --------------------                --------------------
+writes to memory/YYYY-MM-DD.md         picks one session with a gap and         seals one unsealed past-day         propagates sealed note
+as work happens; commits;              applies its unread JSONL tail;           note per firing with JSONL          into PARA entities;
+pushes                                 prioritizes live over historical         fidelity; status: sealed            flips para_status done
 ```
 
 ## Frontmatter
@@ -55,7 +53,7 @@ sessions: [96a0c068, b513d1a5]
 
 ### Status transitions
 
-- `active` - day is current or recent; content still arriving; `daily-note` may append.
+- `active` - day is current or recent; content still arriving; `capture-sessions` may append.
 - `sealed` - day has been closed by `seal-past-days`; no further appends. Only material corrections allowed, and only with operator approval.
 
 ### PARA status transitions

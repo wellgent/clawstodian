@@ -2,9 +2,19 @@
 
 The workspace maintains one canonical daily note per calendar day at `memory/YYYY-MM-DD.md`, capturing activity, decisions, and context that happened that day. The note is the primary timeline record for the workspace.
 
-Daily notes are fed by an **idempotent capture loop** over OpenClaw's session transcripts. Every session is discovered via `sessions_list`, classified once, and then cursor-advanced forward: each tick reads only the JSONL lines that are new since the prior run and buckets content by timestamp into the appropriate date. No re-scanning, no re-processing, no fuzzy text deduplication.
+## Primary mechanism: agents write notes in-session
 
-The loop is split across two routines: `daily-note` handles the steady state (sessions active in the last six hours) and `backfill-sessions` drains the historical queue (sessions older than that window with no ledger entry). The six-hour window is wider than the strict "recent activity" span on purpose: it absorbs gateway downtime up to ~6h without creating a silent capture gap, at near-zero extra cost because cursor-short-circuit skips any session whose `updatedAt` already matches the ledger's `last_activity`.
+The primary writer of daily notes is **the agent working in a session with the operator**. Per the workspace's `AGENTS.md` memory-maintenance rules, any agent doing notable work appends to `memory/YYYY-MM-DD.md` for that day as the work happens, commits, and pushes. This is the default path; it produces the highest-fidelity notes because the agent has full context of the conversation, the operator's intent, and the judgment calls made.
+
+## Backstop mechanism: session-capture cron
+
+Not every session ends cleanly. Agents forget, contexts get cut, sub-agent sessions and cron-kind sessions never touch the daily note at all, the gateway can be down, and a new clawstodian install lands on a workspace with history but no notes. The `capture-sessions` cron exists to close those gaps - not to be the primary writer.
+
+The capture loop is **idempotent**: every session is discovered via `sessions_list`, classified once, and cursor-advanced forward through its JSONL tail. Content is bucketed by timestamp into the appropriate calendar date. Cursor-short-circuit skips any session whose `updatedAt` already matches the ledger's `last_activity`, so re-running the cron has near-zero cost when there is nothing new.
+
+Content the agent already wrote into today's note in-session is merged by the "merge with existing sections on the same topic" rule during per-date application; the cron's reads advance the cursor past that content without duplicating it.
+
+The cron is a **heartbeat-toggled burst**: it starts disabled, the heartbeat enables it when it detects gaps (un-admitted sessions or stale cursors), and it self-disables when the gaps drain. On a disciplined workspace it may go days without firing. On a fresh install over existing history it drains historical sessions in the background, one per firing, prioritized so live operator sessions are captured first.
 
 ## References
 
@@ -83,36 +93,43 @@ The filter output is what lands in the daily note. Everything else stays in the 
 
 ## Behaviors
 
-### Ingest recent activity
+### Capture one session's new content
 
-Steady-state capture of the last ~6 hours of session activity into today's note (and, when bleed-over lands, yesterday's if still active).
+One session per firing. Dispatched by the `capture-sessions` routine. Picks the highest-priority gap in the session ledger, reads the session's JSONL tail (or full transcript on first admission), buckets by date, and applies per date.
 
-1. **Discover active sessions.** Call `sessions_list({activeMinutes: 360, limit: 500})`. Result is sessions with `updatedAt` within the last 6 hours. The window is deliberately wider than the 30-minute cron cadence so that a gateway restart or scheduler hiccup up to ~6h does not create a silent capture gap.
-2. **Classify new sessions.** For each row not already in `memory/session-ledger.md`: classify per the rules above, append an entry to the ledger. If classification is `skipped`, stop for that session.
-3. **Short-circuit unchanged sessions.** For each `interactive` entry whose ledger `last_activity` equals the row's `updatedAt`: skip. No new lines, no work.
-4. **Read new JSONL tail.** For each session needing work, open `transcriptPath` with `Read` starting at `offset: lines_captured + 1`. Parse each returned line as JSON.
-5. **Bucket by date.** For each JSONL entry with `role: "user"` or `role: "assistant"`, convert its timestamp to the workspace-local date. Group entries into date buckets. One session's new lines may touch one, two, or occasionally more dates (mostly the current day, sometimes the prior day if capture crossed midnight).
-6. **Apply per-date.** For each date bucket:
-   - If the date's note is `status: active` (or missing): open or create the note, append a section with a descriptive header and `(~HH:MM UTC)` timestamp, content distilled per the "What to Capture" rules in `memory/daily-note-structure.md`. Merge with existing sections on the same topic if an obvious match exists.
-   - If the date's note is `status: sealed`: do NOT mutate the note. Add the session id and date to a `bleed_over` accumulator for the run report.
-7. **Merge slug siblings.** After applying today's bucket, check `memory/YYYY-MM-DD-*.md` for today. Read, merge into canonical note under an appropriate section, delete the sibling file. Ambiguous merges surface instead.
-8. **File obvious durable insights inline.** If a decision, resolved bug, or reusable pattern clearly belongs in `resources/` or a project's `README.md`, file it now. Ambiguous insights surface instead.
-9. **Advance the ledger cursor.** For each session processed successfully: update `lines_captured` to the new line count, update `last_activity` to the row's `updatedAt`, extend `dates_touched` with any newly-affected dates. Edit in place via narrow `Edit` calls; never rewrite the whole ledger.
-10. **Update frontmatter** on each touched daily note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if not present), and `para_status` handling per the structure spec.
+The single behavior covers every case: a brand-new operator session that just appeared, an active session whose cursor fell behind during a gateway outage, a historical session from before the install was ever done. The only differences are which session is selected and how many JSONL lines get read on this firing; the apply-logic is identical.
 
-If a session's cursor advance fails (note write succeeded but ledger edit failed, or vice versa), the next tick retries from the old cursor. The worst case is re-ingesting some of the same content; the `Extract from JSONL tail` step is idempotent by timestamp bucket merge, so duplicates consolidate rather than accumulate.
+1. **Enumerate gaps.** Read `memory/session-ledger.md`. Call `sessions_list({limit: 500})`. For each sessions_list row, determine its gap state:
+   - **un-admitted** - row is in sessions_list but has no ledger entry.
+   - **stale** - row is in sessions_list, ledger entry exists, and `row.updatedAt > ledger.last_activity`.
+   - **current** - row is in sessions_list, ledger entry exists, `row.updatedAt == ledger.last_activity` (no work).
+   - **skipped** - ledger entry with `classification: skipped` (no work).
 
-### Ingest a historical session
+2. **Select target.** Among sessions with `un-admitted` or `stale` state, pick the one with the **newest `updatedAt`**. This prioritizes live operator sessions over historical drain. If there are no un-admitted or stale sessions, nothing to do - self-disable the cron (see the routine spec) and return.
 
-Full-transcript capture of one session that has no ledger entry and was NOT surfaced by the recent-activity window. Used by the `backfill-sessions` burst worker during initial install on an already-populated workspace and to catch sessions that slipped past the 6-hour window.
+3. **Classify if new.** For an `un-admitted` target, apply the classification rules. Append a ledger entry. If classification is `skipped`, stop here; run report returns `NO_REPLY` because admitting a skipped session is not interesting enough to announce (cron / hook / subagent admissions are noisy during initial backfill).
 
-1. **Select target.** Read `memory/session-ledger.md`. Call `sessions_list({limit: 500})` (no `activeMinutes` filter). Pick the **oldest session by `updatedAt`** that is NOT present in the ledger.
-2. **Classify.** Apply the classification rules. If `skipped`, append the `skipped` ledger entry and stop.
-3. **Read the full transcript.** Open `transcriptPath` with `Read`. Parse every line.
-4. **Bucket by date.** Same as step 5 in "Ingest recent activity": group entries by workspace-local date of their timestamp.
-5. **Apply per-date.** Same as step 6. Most historical sessions touch only sealed dates; those buckets go to the `bleed_over` accumulator. If the operator wants to retroactively surface that content, they must reopen the seal; this program never does so unbidden. A historical session may also touch an `active` past date (recent days not yet sealed), in which case content is applied normally.
-6. **Append the ledger entry.** Create the `interactive` entry with final `lines_captured`, `dates_touched`, `last_activity`, and `status` (`done` if the session's `updatedAt` is older than 7 days, otherwise `active`).
-7. **One session per firing.** Do not loop to the next historical session. The burst worker re-fires on its schedule until the ledger is caught up.
+4. **Read JSONL tail.** For an `interactive` target (either newly admitted or `stale`), open `transcriptPath` with `Read` starting at `offset: lines_captured + 1`. For a newly-admitted interactive session, `lines_captured` is 0, so the full transcript is read. Parse each returned line as JSON.
+
+5. **Filter turns.** Apply the turn-level filter rules above: skip cron-prefixed user turns and their assistant responses, skip heartbeat-matched user turns and their responses, skip hook payload turns, summarize tool calls inline rather than pasting raw output.
+
+6. **Bucket by date.** For each surviving `role: "user"` or `role: "assistant"` entry, convert its timestamp to the workspace-local date. Group entries into date buckets. A session's content may touch one date (the common case), two (midnight-crossing), or many (historical sessions spanning weeks).
+
+7. **Apply per-date.** For each date bucket:
+   - If the date's note is `status: active` (or missing): open or create the note, append a section with a descriptive header and `(~HH:MM UTC)` timestamp, content distilled per the "What to Capture" rules in `memory/daily-note-structure.md`. Merge with existing sections on the same topic if an obvious match exists. This is where content the agent already wrote in-session gets absorbed rather than duplicated.
+   - If the date's note is `status: sealed`: do NOT mutate the note. Add the session id and date to a `bleed_over` accumulator for the run report. Common and expected on historical backfill (most historical sessions will only touch already-sealed dates); unusual and worth attention during steady-state capture.
+
+8. **Merge slug siblings.** If the target session's bucket includes today's date, check `memory/YYYY-MM-DD-*.md` for today. Read, merge into the canonical note under an appropriate section, delete the sibling file. Ambiguous merges surface instead.
+
+9. **File obvious durable insights.** If a decision, resolved bug, or reusable pattern clearly belongs in `resources/` or a project's `README.md`, file it now. Ambiguous insights surface instead.
+
+10. **Advance the ledger cursor.** Update `lines_captured` to the new line count, `last_activity` to the row's `updatedAt`, and extend `dates_touched` with any newly-affected dates. Edit in place via narrow `Edit` calls; never rewrite the whole ledger. For a newly-admitted session, set `status`: `done` if the session's `updatedAt` is more than 7 days old, otherwise `active`.
+
+11. **Update frontmatter** on each touched daily note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if not present), and `para_status` handling per the structure spec.
+
+12. **One session per firing.** Do not loop to the next gap. The burst worker re-fires on its schedule; the heartbeat re-toggles enable state as gaps drain.
+
+If a cursor advance fails (note write succeeded but ledger edit failed, or vice versa), the next firing retries from the old cursor. The worst case is re-ingesting some of the same content; the per-date "merge with existing sections on same topic" rule makes that a no-op in terms of final note state. Cursor idempotency is what makes the whole loop safe to re-run.
 
 ### Seal a past-day note
 
@@ -167,11 +184,12 @@ Do not perform PARA extraction here. That responsibility belongs to `clawstodian
 - Do not reconstruct content for days with no evidence.
 - Do not rewrite sealed notes cosmetically.
 - Do not write into a sealed note at all; surface bleed-over instead.
-- Do not re-read session transcripts from line 0 if the ledger has a cursor; advance from the cursor.
+- Do not re-read session transcripts from line 0 if the ledger has a cursor; advance from the cursor. (Re-reading from 0 is only correct when the ledger has no entry for that session, i.e. first admission.)
 - Do not store cursor state in daily-note frontmatter; the ledger is authoritative.
 - Do not delete ledger entries to match observed state (e.g. if a transcript disappears); surface the anomaly and leave the entry.
 - Do not perform PARA extraction as part of tending or sealing.
 - Do not auto-create new top-level directories for insight filing.
 - Do not create stub PARA entities.
 - Do not batch multiple past-day seals in one pass; one note per invocation.
-- Do not loop in a single firing. Each behavior processes one unit of work (one session's new lines for tending; one historical session for backfill; one past-day note for sealing) and returns.
+- Do not loop in a single firing. Each behavior processes one unit of work (one session's new lines for capture; one past-day note for sealing) and returns.
+- Do not treat the `capture-sessions` cron as the primary writer of daily notes. Agents in session are the primary writers; the cron is the backstop.

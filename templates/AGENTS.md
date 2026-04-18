@@ -11,7 +11,7 @@
 <!-- template: clawstodian/agents 2026-04-18 -->
 ## Workspace Maintainer (clawstodian)
 
-This workspace runs four maintenance **programs** that define how the workspace operates, and seven **routines** that schedule those programs to run on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, session transcripts, and `memory/session-ledger.md` are the only state.
+This workspace runs four maintenance **programs** that define how the workspace operates, and six **routines** that schedule those programs to run on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, session transcripts, and `memory/session-ledger.md` are the only state.
 
 ### Operating model
 
@@ -56,8 +56,8 @@ Three layers give continuity across sessions:
 
 **Memory maintenance (applies to all agents in this workspace, not just clawstodian-driven runs):**
 
-- **Log your work in the canonical daily note.** Do something notable -> append to `memory/YYYY-MM-DD.md` for that day -> commit -> push. Don't batch, don't defer. Unpushed commits are invisible to other sessions; mental notes don't survive restarts.
-- **One file per day.** Avoid creating `memory/YYYY-MM-DD-<topic>.md` unless necessary for a specific handoff. The daily-note routine will merge any such siblings into the canonical note on its next run.
+- **Log your work in the canonical daily note.** Do something notable -> append to `memory/YYYY-MM-DD.md` for that day -> commit -> push. Don't batch, don't defer. Unpushed commits are invisible to other sessions; mental notes don't survive restarts. You are the primary writer of daily notes; `capture-sessions` is only the backstop that catches what you miss.
+- **One file per day.** Avoid creating `memory/YYYY-MM-DD-<topic>.md` unless necessary for a specific handoff. The `capture-sessions` routine will merge any such siblings into the canonical note when it next processes a session touching today.
 - **Internalize, don't collect.** When a useful pattern is discovered, update the document you would be reading when doing that task again. No standalone "lessons learned" files.
 - **Docs describe the present.** Remove traces of old decisions, retired sections, migration notes, "added on date X" annotations. Git history captures the evolution.
 
@@ -83,8 +83,7 @@ Two execution classes:
 
 Current routines:
 
-- **daily-note** (always-on, every 30m) - invokes daily-notes: ingest recent session activity into today's note.
-- **backfill-sessions** (burst, every 30m while enabled) - invokes daily-notes: ingest one historical session per firing. Heartbeat enables when the session ledger is behind `sessions_list`.
+- **capture-sessions** (burst, every 30m while enabled) - invokes daily-notes: capture one session's unread JSONL into the appropriate daily notes. Heartbeat enables when the ledger has un-admitted sessions or stale cursors. Agents in-session remain the primary writers; this cron is the backstop.
 - **seal-past-days** (burst, every 30m while enabled) - invokes daily-notes: seal one past-day note per firing.
 - **para-extract** (burst, every 30m while enabled) - invokes para: extract PARA from one sealed note per firing.
 - **para-align** (fixed cron, Sunday 06:00 UTC) - invokes para: align PARA structure.

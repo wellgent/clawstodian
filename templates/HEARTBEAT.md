@@ -45,7 +45,7 @@ Programs and routines own their own steps; this file does not. If you need to in
 Read fresh each tick (file state is authoritative; session memory is conversational continuity, not state-of-the-workspace):
 
 - `memory/YYYY-MM-DD.md` for today and recent past days - frontmatter `status`, `para_status`, `last_updated`.
-- `memory/YYYY-MM-DD-*.md` siblings for today (count only; the `daily-note` routine handles the merge).
+- `memory/YYYY-MM-DD-*.md` siblings for today (count only; the `capture-sessions` routine handles the merge when it processes a session touching today's date).
 - `git status` - tree state overview.
 - `openclaw cron list --all` - which crons exist, which are enabled, last-run timestamps.
 - `openclaw cron logs --name <routine> --limit 1` (or equivalent) for each clawstodian routine - the most recent reply text.
@@ -54,11 +54,11 @@ Read fresh each tick (file state is authoritative; session memory is conversatio
 
 ### 1. Assess burst worker queues
 
-- **`backfill-sessions`** - enable if EITHER of these is true, disable only when BOTH are false:
-  - `sessions_list({limit: 500})` returns more rows than `memory/session-ledger.md` has H2 entries (grep for `^## ` and count) - the admission gap.
-  - Any ledger entry's `last_activity` is meaningfully behind the matching `sessions_list` row's `updatedAt` by more than the `daily-note` window (6h) - the stale-cursor case. This covers gateway outages longer than 6h where `daily-note` could not see the session in its own window.
+- **`capture-sessions`** - enable if EITHER of these is true, disable only when BOTH are false:
+  - `sessions_list({limit: 500})` returns more rows than `memory/session-ledger.md` has H2 entries (grep for `^## ` and count) - the **admission gap**: sessions the ledger has never seen.
+  - Any ledger entry's `last_activity` is meaningfully behind the matching `sessions_list` row's `updatedAt` (use a 6h threshold so small live-session lag does not trigger the cron) - the **stale-cursor case**: sessions the ledger knows about but whose JSONL has grown without capture catching up.
 
-  This is the session-capture queue for historical work, anything that slipped past the `daily-note` routine's 6h window, and anything left behind during an extended gateway outage.
+  The session-capture cron is the backstop for the daily-notes program. It handles: historical drain on a fresh install over existing workspace history, sessions the agent did not finalize in-session, sub-agent and cron-kind sessions that never touched the note, anything left behind during an extended gateway outage. Agents in live sessions remain the primary writers of daily notes per AGENTS.md memory rules.
 - **`seal-past-days`** - enable if any `memory/YYYY-MM-DD.md` for a past date has `status: active`, or a past date is missing but `git log` shows commits that day. Disable when none exist.
 - **`para-extract`** - enable if any `memory/YYYY-MM-DD.md` has `status: sealed` and `para_status: pending`. Disable when none exist.
 
@@ -79,10 +79,10 @@ The weekly schedule still fires on Sunday regardless.
 Inspect and report any anomaly. Do not repair from here:
 
 - Heartbeat config matches recommended stance: `every` set, `target` is a channel plugin (`discord`, `slack`, ...) and `to` is the channel-specific recipient, `activeHours` set, `showAlerts: true`. `session`, `isolatedSession`, and `lightContext` are either omitted or at defaults (main session, non-isolated, full bootstrap).
-- Session visibility config: `tools.sessions.visibility` in `~/.openclaw/openclaw.json` is `"all"`. If it is `"tree"` (the default) or unset, the `daily-note` and `backfill-sessions` routines silently capture nothing. This is the single most load-bearing config for the daily-notes program.
-- All clawstodian cron entries exist: `daily-note`, `backfill-sessions`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`.
+- Session visibility config: `tools.sessions.visibility` in `~/.openclaw/openclaw.json` is `"all"`. If it is `"tree"` (the default) or unset, the `capture-sessions` routine silently captures nothing. This is the single most load-bearing config for the daily-notes program.
+- All clawstodian cron entries exist: `capture-sessions`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`.
 - Recent cron runs: any routine that has not reported in the last 2 expected intervals, or has failed-status replies in a row.
-- **Stale-cursor scan.** For each ledger entry in `memory/session-ledger.md`, find the matching row in `sessions_list({limit: 500})`. If the row's `updatedAt` is more than 6h ahead of the ledger's `last_activity`, the cursor is stale - that session had activity outside the `daily-note` routine's window and was not picked up. Count the stale-cursor sessions. If any exist, enabling `backfill-sessions` (step 1 above already does this) plus surfacing the count in the status summary is the right response; backfill's broader `sessions_list({limit: 500})` scope will process them. Do not advance cursors from here.
+- **Gap accounting for `capture-sessions`.** Compute and report two counts: `un-admitted` (sessions_list rows with no ledger entry) and `stale` (ledger entries whose `last_activity` lags the matching sessions_list row's `updatedAt` by more than 6h). If either is nonzero, the cron should be enabled (step 1 above already does this); include the counts in the status summary so the operator sees gaps landing in the queue rather than vanishing. Do not advance cursors from here.
 - Installed reference docs (`memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`) match package template markers. The session ledger starts as a near-empty template and grows; only check the marker line, not the body.
 - Workspace symlinks resolve: `clawstodian/programs` -> `~/clawstodian/programs` and `clawstodian/routines` -> `~/clawstodian/routines`.
 
@@ -93,7 +93,7 @@ Anomalies go into the summary. The heartbeat does not edit configs, restart serv
 Append one line to `memory/heartbeat-trace.md` (create the file if missing):
 
 ```
-YYYY-MM-DDTHH:MM:SSZ | backfill=<0|1> seal=<0|1> extract=<0|1> | enabled: <routines toggled> | health: <ok|anomaly:reason> | summary: <one-line>
+YYYY-MM-DDTHH:MM:SSZ | capture=<0|1> seal=<0|1> extract=<0|1> | enabled: <routines toggled> | health: <ok|anomaly:reason> | summary: <one-line>
 ```
 
 Append-only. Never rewrite prior lines. The file is the forensic record that proves heartbeat fired this tick, independent of session history (which can be compacted).
@@ -105,16 +105,16 @@ One message per tick. Never silent - even "nothing changed" gets a one-liner. Tw
 **Healthy no-change:**
 
 ```
-status <HH:MMZ> | queues: backfill=0 seal=0 extract=0 | <N> routines reported quiet | health: ok
+status <HH:MMZ> | queues: capture=0 seal=0 extract=0 | <N> routines reported quiet | health: ok
 ```
 
 **Something happened:**
 
 ```
-status <HH:MMZ> | queues: backfill=<b> seal=<n> extract=<m> (toggled: <which> <enabled|disabled>) | stale-cursors: <s> | recent: <routine>@<time> <summary>, ... | health: <ok|anomaly: <reason>>
+status <HH:MMZ> | queues: capture=<u>+<s>/seal=<n>/extract=<m> (toggled: <which> <enabled|disabled>) | recent: <routine>@<time> <summary>, ... | health: <ok|anomaly: <reason>>
 ```
 
-Omit the `stale-cursors` segment when count is zero. Include it when non-zero so the operator sees capture gaps landing in the backfill queue rather than vanishing.
+The `capture=<u>+<s>` notation encodes both gap kinds: `u` is un-admitted sessions, `s` is stale cursors. When both are zero, the healthy-no-change form `capture=0` is used instead. This surfaces capture gaps landing in the queue rather than vanishing.
 
 Keep under 300 characters. Per-routine detail already arrived via each routine's own announce; this message is the orchestrator overview. Speak plainly - this is a running conversation, not a report template.
 
@@ -140,8 +140,8 @@ Scan the last seven days:
 
 - **Cron patterns.** Any routine that has failed repeatedly, or has reported the same anomaly for multiple days. Any routine that should be failing and isn't (e.g. `git-hygiene` on a noisy-tree week reporting clean).
 - **PARA drift.** Entities with frontmatter violations that persist across `para-align` runs. Cross-references that break. MEMORY.md drifting from reality.
-- **Queue accumulations.** `backfill-sessions`, `seal-past-days`, or `para-extract` that have been enabled for longer than expected.
-- **Bleed aggregation.** Scan the last seven days of `daily-note` and `backfill-sessions` run reports (and `memory/heartbeat-trace.md` summaries) for `bleed: N sealed` counts. If the total across the week is meaningful (e.g. more than 3-5 bleed events, or any single sealed date received bleed more than once), propose one of: reopen the affected seal(s) so the late-arriving content can land; or surface the pattern to the operator so they can decide. Do not reopen seals unilaterally; it is material note-rewrite and requires operator approval. Include the affected dates and session ids in the proposal.
+- **Queue accumulations.** `capture-sessions`, `seal-past-days`, or `para-extract` that have been enabled for longer than expected.
+- **Bleed aggregation.** Scan the last seven days of `capture-sessions` run reports (and `memory/heartbeat-trace.md` summaries) for `bleed: N sealed` counts. If the total across the week is meaningful (e.g. more than 3-5 bleed events, or any single sealed date received bleed more than once), propose one of: reopen the affected seal(s) so the late-arriving content can land; or surface the pattern to the operator so they can decide. Do not reopen seals unilaterally; it is material note-rewrite and requires operator approval. Include the affected dates and session ids in the proposal.
 - **Emerging workstreams.** Themes in daily notes that look like they deserve their own PARA project but have not been promoted.
 
 Propose one or two concrete improvements. Surface them in the channel as a short review post. You are a chief of staff here: terse, specific, actionable.

@@ -1,6 +1,6 @@
 # clawstodian
 
-A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. The package ships **four programs** (domain authorities for daily notes, PARA knowledge graph, workspace tidiness, git hygiene) and **seven routines** (scheduled cron invocations of specific program behaviors) so the workspace stays in good shape whether the operator is actively working or not.
+A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. The package ships **four programs** (domain authorities for daily notes, PARA knowledge graph, workspace tidiness, git hygiene) and **six routines** (scheduled cron invocations of specific program behaviors) so the workspace stays in good shape whether the operator is actively working or not.
 
 Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenClaw primitives, and the observable-by-design execution pattern those packages got right.
 
@@ -10,7 +10,7 @@ Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenCla
 
 **Routines** are thin scheduled invocations. Each routine references a program, picks a specific behavior to run, defines a target and a run report, and registers a cron job. Routines are the catch-up safety net for what agents did not do in-session.
 
-The split is **what** (programs) vs **when** (routines). Multiple routines can invoke the same program - for example, `daily-note` (every 30m, tend today's note) and `seal-past-days` (burst, seal a past-day note) both reference behaviors from the `daily-notes` program.
+The split is **what** (programs) vs **when** (routines). Multiple routines can invoke the same program - for example, `capture-sessions` (burst, ingest session activity into daily notes) and `seal-past-days` (burst, seal a past-day note) both reference behaviors from the `daily-notes` program.
 
 ## Install into any workspace
 
@@ -33,16 +33,17 @@ The agent reads `INSTALL.md`, surveys your workspace, proposes a merge plan, ask
 - `workspace-tidy` - workspace cleanliness. Trash removal, misplaced-file relocation, `.gitignore` upkeep.
 - `git-hygiene` - commit discipline. Stage-by-path commits, clear messages, immediate push.
 
-**Seven routines** (`routines/`): the scheduled invocations.
+**Six routines** (`routines/`): the scheduled invocations.
 
 Always-on crons:
-- `daily-note` (every 30m) - daily-notes: ingest recent session activity (6h window) into today's note.
 - `workspace-tidy` (every 2h) - workspace-tidy: walk and tidy.
 - `git-hygiene` (every 30m) - git-hygiene: commit drift.
+
+Fixed cron:
 - `para-align` (Sunday 06:00 UTC) - para: align PARA structure. Heartbeat may also `--wake now` on mid-week drift.
 
 Heartbeat-toggled bursts (start disabled; orchestrator enables on demand):
-- `backfill-sessions` - daily-notes: ingest one historical session per firing (sessions older than the 6h window with no ledger entry, and sessions with stale cursors after an extended gateway outage).
+- `capture-sessions` - daily-notes: capture one session's unread JSONL into the appropriate daily notes. Prioritizes live operator sessions over historical drain. Backstop for the agents' in-session note writing, not the primary writer.
 - `seal-past-days` - daily-notes: seal a past-day note.
 - `para-extract` - para: extract PARA from a sealed note.
 
@@ -86,11 +87,10 @@ clawstodian/
     git-hygiene.md                   domain: commit discipline
 
   routines/
-    daily-note.md                    always-on; invokes daily-notes/ingest-recent
     workspace-tidy.md                always-on; invokes workspace-tidy/walk-and-tidy
     git-hygiene.md                   always-on; invokes git-hygiene/commit-drift
     para-align.md                    fixed cron; invokes para/align
-    backfill-sessions.md             burst; invokes daily-notes/ingest-historical
+    capture-sessions.md              burst; invokes daily-notes/capture
     seal-past-days.md                burst; invokes daily-notes/seal
     para-extract.md                  burst; invokes para/extract
 

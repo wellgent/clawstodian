@@ -7,19 +7,13 @@ Every clawstodian routine runs as its own cron job. Each routine invokes a behav
 
 Install commands live in `~/clawstodian/INSTALL.md` under "Cron install commands". Verification is in `~/clawstodian/VERIFY.md`. Removal is in `~/clawstodian/UNINSTALL.md`. Routine specs under `~/clawstodian/routines/` are thin dispatchers; program specs under `~/clawstodian/programs/` are the domain authorities.
 
-## daily-note
+## capture-sessions
 
-Invokes `daily-notes` program: ingest recent session activity. Reads `sessions_list({activeMinutes: 360})` (6h window, sized to absorb gateway restarts up to that gap), advances per-session cursors in `memory/session-ledger.md`, appends to today's (and any still-active past day's) note, merges slug siblings, files obvious durable insights.
-
-- Schedule: `every 30m`
-- Always enabled. Quiet runs reply `NO_REPLY` and stay silent.
-
-## backfill-sessions
-
-Invokes `daily-notes` program: ingest one historical session per firing. Picks the oldest session from `sessions_list` that has no entry in `memory/session-ledger.md`. Classifies it, reads the full transcript, buckets by date, applies to active-date notes and surfaces bleed for sealed-date buckets. Self-disables when `sessions_list` count matches ledger entry count and no stale-cursor sessions remain.
+Invokes `daily-notes` program: capture one session's unread JSONL into the appropriate daily notes. Picks the session with the newest `updatedAt` among those with a gap (un-admitted in ledger, or stale cursor). Classifies if new, reads JSONL from `lines_captured + 1` to end, buckets by timestamp into daily notes, advances the cursor. Merges slug siblings and files obvious insights when today's bucket is touched. Self-disables when no gaps remain.
 
 - Schedule: `every 30m` (while enabled)
-- Starts disabled. Heartbeat enables it when the session ledger is behind `sessions_list`.
+- Starts disabled. Heartbeat enables it when the ledger has un-admitted sessions or stale cursors.
+- Backstop only: agents in live sessions are the primary writers of daily notes per `AGENTS.md` memory rules; this cron catches what they miss.
 
 ## workspace-tidy
 
@@ -60,12 +54,11 @@ Invokes `para` program: align PARA structure. Verifies structural and semantic h
 
 ```
 ALWAYS-ON CRONS
-every 30m     daily-note
 every 30m     git-hygiene
 every 2h      workspace-tidy
 
 HEARTBEAT-TOGGLED BURSTS (start disabled)
-every 30m     backfill-sessions
+every 30m     capture-sessions
 every 30m     seal-past-days
 every 30m     para-extract
 

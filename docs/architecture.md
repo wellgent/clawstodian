@@ -15,7 +15,7 @@ The package splits behavior from scheduling at the file level.
 - A **program** (`programs/<name>.md`) is a durable statement of how the workspace operates in one domain: conventions, authority, approval gates, escalation rules, and the full set of behaviors the agent can perform. Programs are read at session bootstrap via `AGENTS.md` so every agent in the workspace knows how the domain is governed. They change only when the domain's convention changes.
 - A **routine** (`routines/<name>.md`) is a thin scheduled invocation: a reference to a program plus the behavior to invoke, a target, a run-report format, worker discipline, and a cron install command. Routines are read only inside cron dispatch. Cadences and report formats change freely without touching programs.
 
-Programs answer *what is true about this domain, always?* Routines answer *what do we run, when, and how do we report it?* Multiple routines can reference the same program, which is the expected shape (for example, both `daily-note` and `seal-past-days` routines reference behaviors from the `daily-notes` program).
+Programs answer *what is true about this domain, always?* Routines answer *what do we run, when, and how do we report it?* Multiple routines can reference the same program, which is the expected shape (for example, both `capture-sessions` and `seal-past-days` routines reference behaviors from the `daily-notes` program).
 
 ### 2. Native primitives over invented machinery
 
@@ -70,7 +70,7 @@ This is why `isolatedSession: true` and `lightContext: true` are correct for rou
 
 Note the interaction: `lightContext: true` skips the full workspace bootstrap except `HEARTBEAT.md`. Routines that need `MEMORY.md`, `AGENTS.md`, or PARA reference docs must explicitly read them. Specs in this package do so where needed.
 
-Note also the one OpenClaw config prerequisite: `tools.sessions.visibility: "all"`. Without it, isolated cron sessions cannot see sibling sessions' transcripts, so the `daily-note` and `backfill-sessions` routines silently capture zero content. This is the sharpest edge in the install and VERIFY explicitly checks it.
+Note also the one OpenClaw config prerequisite: `tools.sessions.visibility: "all"`. Without it, isolated cron sessions cannot see sibling sessions' transcripts, so the `capture-sessions` routine silently captures zero content. This is the sharpest edge in the install and VERIFY explicitly checks it.
 
 ### 6. Co-create, do not guess
 
@@ -89,7 +89,7 @@ standing authority           AGENTS.md + programs/     (charter + four domain au
 collaborative maintainer     HEARTBEAT.md              (reads state, toggles bursts, reflects, converses)
 maintainer cadence           heartbeat                 (2h, main session, active hours, full bootstrap)
 maintainer continuity        main session history      (conversation with the operator, host-wide compaction)
-scheduled invocations        routines/ + cron          (seven routines; each a cron job in its own isolated session)
+scheduled invocations        routines/ + cron          (six routines; each a cron job in its own isolated session)
 capture state                memory/session-ledger.md  (per-session classification + read cursor)
 audit trail                  notifications channel + session transcripts + git + heartbeat-trace.md
 workspace memory             memory/, projects/, areas/, resources/, archives/
@@ -97,31 +97,33 @@ workspace memory             memory/, projects/, areas/, resources/, archives/
 
 There is no "standing orders" primitive in the OpenClaw codebase; the term in OpenClaw's docs refers to rules written into `AGENTS.md`. clawstodian uses the standing-orders anatomy to structure each program (conventions / authority / approval gates / escalation / behaviors / what NOT to do). The mechanism remains the AGENTS.md file loaded at bootstrap plus cron jobs that dispatch routines with `Read clawstodian/routines/<name>.md and execute.` messages.
 
-## Four programs, seven routines
+## Four programs, six routines
 
 Programs (authorities):
 
-- **`daily-notes`** - canonical daily notes: `memory/YYYY-MM-DD.md` per day. Behaviors: Ingest recent activity; Ingest a historical session; Seal a past-day note.
+- **`daily-notes`** - canonical daily notes: `memory/YYYY-MM-DD.md` per day. Behaviors: Capture one session's new content; Seal a past-day note.
 - **`para`** - PARA knowledge graph: `projects/` / `areas/` / `resources/` / `archives/`. Behaviors: Extract PARA from a sealed note; Align PARA structure.
 - **`workspace-tidy`** - workspace cleanliness. Behavior: Walk and tidy.
 - **`git-hygiene`** - commit discipline. Behavior: Commit drift.
 
 Routines (scheduled invocations):
 
-- **`daily-note`** - daily-notes / Ingest recent activity - always-on cron, every 30m.
-- **`backfill-sessions`** - daily-notes / Ingest a historical session - heartbeat-toggled burst, every 30m while enabled.
+- **`capture-sessions`** - daily-notes / Capture one session's new content - heartbeat-toggled burst, every 30m while enabled.
 - **`seal-past-days`** - daily-notes / Seal a past-day note - heartbeat-toggled burst, every 30m while enabled.
 - **`para-extract`** - para / Extract PARA from a sealed note - heartbeat-toggled burst, every 30m while enabled.
 - **`para-align`** - para / Align PARA structure - fixed cron, Sunday 06:00 UTC.
 - **`workspace-tidy`** - workspace-tidy / Walk and tidy - always-on cron, every 2h.
 - **`git-hygiene`** - git-hygiene / Commit drift - always-on cron, every 30m.
 
-Two execution classes for routines:
+Three execution classes for routines:
 
 - **Always-on cron** - enabled at install time; fires on its schedule; quiet runs return `NO_REPLY`.
+- **Fixed cron** - enabled at install time; wall-clock schedule (e.g. Sunday 06:00 UTC).
 - **Heartbeat-toggled burst** - starts disabled; heartbeat enables when a queue exists and disables when empty.
 
-Three heartbeat-toggled bursts (`backfill-sessions`, `seal-past-days`, `para-extract`) form a pipeline: backfill and daily-note together populate the session ledger and daily notes; seal-past-days closes past-day notes with `para_status: pending`; para-extract propagates those sealed notes into PARA entities. Each stage signals readiness via workspace state (ledger entries / frontmatter flags), not in-memory queues. The heartbeat reads those signals once per tick and flips the corresponding crons on or off.
+Three heartbeat-toggled bursts (`capture-sessions`, `seal-past-days`, `para-extract`) form a pipeline: `capture-sessions` populates daily notes from session transcripts that the agents did not write up in-session; `seal-past-days` closes past-day notes with `para_status: pending`; `para-extract` propagates those sealed notes into PARA entities. Each stage signals readiness via workspace state (ledger entries, frontmatter flags), not in-memory queues. The heartbeat reads those signals once per tick and flips the corresponding crons on or off.
+
+Agents in live sessions remain the primary writers of daily notes per `AGENTS.md` memory-maintenance rules; `capture-sessions` is the backstop that fires only when the session ledger shows un-admitted sessions or stale cursors. On a disciplined workspace where agents update their daily notes in-session, the cron may go days between firings.
 
 ## Observability and troubleshooting
 
