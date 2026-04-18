@@ -56,11 +56,11 @@ Read these files in order and build a mental model of the install:
 - `~/clawstodian/templates/daily-note-structure.md` - daily note format (includes `para_status` queue semantics).
 - `~/clawstodian/templates/MEMORY.md` - dashboard skeleton.
 - `~/clawstodian/templates/crons.md` - cron routine catalog.
-- `~/clawstodian/templates/session-ledger.md` - starter session ledger the daily-notes program uses as its authoritative capture-cursor file.
+- `~/clawstodian/templates/session-ledger.md` - starter skeleton for the session ledger. The full format spec lives at `~/clawstodian/docs/session-ledger.md`; the template is intentionally empty beyond its marker so a fresh workspace starts with a clean state file.
 
 Then skim the program specs under `~/clawstodian/programs/` (domain authorities: daily-notes, para, workspace-tidy, git-hygiene) and routine specs under `~/clawstodian/routines/` (scheduled dispatchers). You do not need to copy them into the workspace - they are read on demand via the `clawstodian/programs/` and `clawstodian/routines/` symlinks created in Step 5.
 
-All seven templates (`AGENTS.md`, `HEARTBEAT.md`, `MEMORY.md`, `para-structure.md`, `daily-note-structure.md`, `crons.md`, `session-ledger.md`) are installable reference docs: copy to the workspace and adapt as needed. The template marker comments are optional scaffolding that lets the install detect when a template has updated; the operator can drop the markers if they prefer plain files.
+All seven templates are installable workspace files: copy to the workspace and adapt as needed. Six of them are reference docs that describe workspace conventions the operator can edit (`AGENTS.md`, `HEARTBEAT.md`, `MEMORY.md`, `para-structure.md`, `daily-note-structure.md`, `crons.md`); the seventh (`session-ledger.md`) is an empty skeleton for an internal state file that only the `capture-sessions` routine writes. The format spec for the session ledger is not in the template - it lives at `~/clawstodian/docs/session-ledger.md`. The template marker comments are optional scaffolding that lets the install detect when a template has updated; the operator can drop the markers if they prefer plain files.
 
 ## Step 3 - Survey the target workspace
 
@@ -88,7 +88,7 @@ Produce a short, explicit plan for the operator. Items in the order the install 
   - Existing AGENTS.md with current clawstodian marker: leave alone.
   - Existing AGENTS.md with older clawstodian marker: propose replacing just the clawstodian-marked block with the latest from the template. Warn before replacing a customized block.
 - **HEARTBEAT.md** (workspace root) - same cases as AGENTS.md, using `~/clawstodian/templates/HEARTBEAT.md`. For most workspaces HEARTBEAT.md is dedicated to the orchestrator and the full template works as-is; an existing non-clawstodian HEARTBEAT.md is unusual and should prompt an explicit warning.
-- **Reference templates** - for each of `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`: install from clawstodian template, skip (already exists with non-clawstodian content), or update (exists with an older clawstodian template marker). The session ledger is special-cased: if the file already exists with entries, DO NOT overwrite it. Only install if the file is absent or is a stub (no H2 entries beyond the examples in the template).
+- **Reference templates** - for each of `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`: install from clawstodian template, skip (already exists with non-clawstodian content), or update (exists with an older clawstodian template marker). The session ledger is special-cased: if the file already exists with any H2 session entries, DO NOT overwrite it (those are real capture state). Only install if the file is absent or contains just the empty-skeleton marker.
 - **PARA folders** - create missing top-level `projects/`, `areas/`, `resources/`, `archives/` if not present? (ask; some workspaces prefer different names.)
 - **Workspace `clawstodian/` directory** - create it with two directory symlinks pointing at the package's `programs/` and `routines/` directories:
   ```bash

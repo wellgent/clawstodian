@@ -19,10 +19,10 @@ The cron is a **heartbeat-toggled burst**: it starts disabled, the heartbeat ena
 ## References
 
 - Daily note format and frontmatter -> `memory/daily-note-structure.md`
-- Session ledger format (cursor state) -> `memory/session-ledger.md`
+- Session ledger format (cursor state) -> `~/clawstodian/docs/session-ledger.md` (package docs). The workspace file at `memory/session-ledger.md` is the state; the package doc is the format spec.
 - PARA extraction program that reads sealed notes -> `clawstodian/programs/para.md`
 
-Read `memory/daily-note-structure.md` before writing a daily note. Read `memory/session-ledger.md` before advancing cursors.
+Read `memory/daily-note-structure.md` before writing a daily note. Read `~/clawstodian/docs/session-ledger.md` before advancing cursors if you need to check field names or the H2-per-session shape.
 
 ## Prerequisites
 
