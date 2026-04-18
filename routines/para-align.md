@@ -12,12 +12,13 @@ The full PARA graph: all entities in `projects/`, `areas/`, `resources/`, `archi
 
 ## Scope
 
-Four dimensions:
+Five dimensions:
 
 1. **Structural integrity** - frontmatter schema, `INDEX.md` coverage, `related:` pointer resolution.
 2. **Cross-reference consistency** - when an entity moves or is renamed, every referrer updates; when an entity is deleted or archived, nothing still points at its old path.
 3. **Naming and slug conventions** - kebab-case, no spaces, no underscores, lowercase; consistent with `memory/para-structure.md`.
 4. **MEMORY.md currency** - every active project listed; retired projects not listed under active; infrastructure and area pointers resolve.
+5. **Semantic freshness** - active projects and key areas (people, companies, servers) reflect recent workspace activity. An entity with meaningful mentions in sealed daily notes from the last 7 days after its `last_updated` is semantically stale. Resources are excluded; reference material is meant to be stable and staleness there means something different.
 
 ## Steps
 
@@ -32,8 +33,15 @@ Four dimensions:
    - If a target moved or was renamed and the new path is unambiguous (slug differs only by known convention change), update the referrer.
    - If a target appears deleted or archived and no replacement is obvious, surface.
 3. **Verify `MEMORY.md`.** Every project with `status: active` appears individually; retired or archived projects do not; infrastructure pointers resolve; top-level structure sections match reality. Rebuild the dashboard in place if drifted; the dashboard is a summary of current state, not a historical record.
-4. **Classify findings.**
+4. **Semantic freshness check.** For each active project in `projects/` and each entity in `areas/people/`, `areas/companies/`, `areas/servers/`:
+   - Read the entity's `last_updated`.
+   - Grep for its slug (and obvious title variants) across sealed daily notes from the last 7 days.
+   - For each matching note dated newer than the entity's `last_updated`: if the mention carries meaningful content (decision, status change, outcome, substantive context - not a passing reference), record as drift. Ignore incidental mentions.
+   - Surface each drift case with: entity path, entity `last_updated`, list of mentioning notes with dates, one-line characterization of what the notes add that the entity does not reflect.
+   - Do NOT write entity content. Surfacing is the entire action; resolution is an operator decision (update the entity in-session, or re-enqueue affected notes for `para-extract` by resetting their `para_status` to `pending`).
+5. **Classify findings.**
    - **Trivial structural fix** (missing `INDEX.md` entry, frontmatter whitespace, inferrable `last_updated`, broken `related:` pointer with obvious replacement, MEMORY.md dashboard sections out of date): apply in place.
+   - **Semantic drift** (entity stale relative to recent workspace activity): always surface, never auto-fix. PARA-entity content authorship is not this routine's job.
    - **Anything else** (entity content, path, status semantics, ambiguous `related:` target, slug rename with downstream implications, new top-level folder): do NOT rewrite. Surface with file path, observed state, proposed fix.
 
 ## Commit
@@ -50,6 +58,7 @@ Add only the files you changed. Commit message: `para: align YYYY-Www - <summary
 
 - Single-run job. Walk the graph, classify findings, apply trivial fixes, surface the rest.
 - Apply only the trivial structural fixes the program authorizes. Everything else surfaces in the run report.
+- Semantic-freshness detection is read-only: grep and compare, never mutate entity content based on daily-note inference. That is `para-extract`'s (and in-session agents') territory.
 - No self-disable; this cron is scheduled, not queue-driven. The heartbeat orchestrator may `--wake now` this routine mid-week if `para-extract` reports drift it cannot safely resolve.
 
 ## Run report
@@ -85,20 +94,29 @@ Write to `memory/runs/para-align/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
   - resources/1password-secrets-management.md - added missing `last_updated`
   - areas/people/alice.md - removed stale `related` entry
 
+### Semantic freshness
+
+- entities checked: 17 (projects=8, areas/people=6, areas/companies=2, areas/servers=1)
+- drift flagged: 2
+  - projects/vps-migration/README.md - last_updated 2026-04-05; memory/2026-04-12.md and memory/2026-04-15.md record migration progress (Stripe cutover, DNS rollover) not reflected in entity body
+  - areas/people/alice.md - last_updated 2026-03-20; memory/2026-04-14.md records a pricing decision that updates her relationship context
+
 ## Commits
 
 - 7aa12bc para: align 2026-W16 - 3 trivial fixes
 
 ## Surfaced for operator
 
-- 1 proposal
+- 1 structural proposal
   - projects/unnamed-project/README.md - `type: project` but no `status` field and unclear ownership. Suggested action: ask operator whether to archive or promote.
+- 2 semantic drift flags (see "Semantic freshness" above)
 
 ## Channel summary
 
 para-align · 2026-W16 · fixes-applied
 Verified: 48 entities (clean=47, violations=1)
 Trivial fixes: 3 applied
+Drift: 2 entities flagged
 Proposals: 1 awaiting operator
 Report: memory/runs/para-align/2026-04-20T06-00-00Z.md
 ```
@@ -111,12 +129,14 @@ Multi-line. One insight per line:
 para-align · <ISO-week> · <outcome>
 Verified: <N> entities (clean=<C>, violations=<V>)
 Trivial fixes: <M> applied
+Drift: <D> entities flagged
 Proposals: <K> awaiting operator
 Report: memory/runs/para-align/<ts>.md
 ```
 
-- `outcome` is `clean | fixes-applied | proposals-surfaced | failed` (use the most-significant one if several apply).
+- `outcome` is `clean | fixes-applied | proposals-surfaced | failed` (use the most-significant one if several apply). Semantic drift rolls into `proposals-surfaced` when it is the only finding, since drift flags are proposals for the operator.
 - Omit the "Trivial fixes" line when `M` is 0 on a clean graph.
+- Omit the "Drift" line when `D` is 0.
 - Omit the "Proposals" line when `K` is 0.
 
 Even a clean graph produces both artifacts (no `NO_REPLY`); the weekly health signal is valuable.
