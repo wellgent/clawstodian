@@ -133,9 +133,9 @@ Rule of thumb: if you did not deliberately choose to tie a cron to a specific co
 When you ship a new routine:
 
 - Confirm the behavior exists in a program. If not, write the program first (see `writing-a-program.md`).
-- Add the routine to `AGENTS-SECTION.md` Routines catalog under the right execution class.
+- Add the routine to the Routines catalog in `templates/AGENTS.md` under the right execution class.
 - Add an entry to `templates/crons.md` with schedule, enable logic, and the program/behavior it invokes.
 - Add the `openclaw cron add` command in the routine spec itself (the canonical install location).
 - Update `INSTALL.md` under "Cron install commands" with the new routine's `openclaw cron add` invocation, and `VERIFY.md`'s cron-name list.
-- If the routine is heartbeat-toggled, add or update the enable/disable logic in `HEARTBEAT-SECTION.md`.
+- If the routine is heartbeat-toggled, add or update the enable/disable logic in `templates/HEARTBEAT.md`.
 - Add a changelog entry in `CHANGELOG.md` for the next version draft.

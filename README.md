@@ -77,8 +77,6 @@ clawstodian/
   VERIFY.md                          standalone verification checks
   UNINSTALL.md                       full removal flow
 
-  AGENTS-SECTION.md                  workspace charter + programs catalog + routines catalog
-  HEARTBEAT-SECTION.md               pure-orchestrator heartbeat
 
   programs/
     daily-notes.md                   domain: canonical daily notes
@@ -95,9 +93,11 @@ clawstodian/
     para-extract.md                  burst; invokes para/extract
 
   templates/
+    AGENTS.md                        installable to workspace root AGENTS.md (workspace charter + catalogs)
+    HEARTBEAT.md                     installable to workspace root HEARTBEAT.md (pure-orchestrator heartbeat)
+    MEMORY.md                        installable to workspace root MEMORY.md
     para-structure.md                installable to memory/para-structure.md
     daily-note-structure.md          installable to memory/daily-note-structure.md
-    MEMORY.md                        installable to workspace root MEMORY.md
     crons.md                         installable to memory/crons.md
 
   docs/

@@ -30,8 +30,9 @@ Changed:
   - `git-hygiene` (always-on, every 30m) -> `git-hygiene` program, commit drift.
 - Every routine is now a cron job. Execution classes simplified to two: **Always-on cron** and **Heartbeat-toggled burst**. The `heartbeat-direct`, `heartbeat-inline`, and `ambient` classes are retired.
 - Workspace install produces two symlinks: `clawstodian/programs` -> `~/clawstodian/programs` and `clawstodian/routines` -> `~/clawstodian/routines`.
-- `HEARTBEAT-SECTION.md` is now a pure orchestrator: reads state, toggles burst workers, spot-checks health, appends tick trace, posts executive summary. Does not execute programs.
-- `AGENTS-SECTION.md` now has two catalogs: four programs (primary, domain authorities) and six routines (scheduled invocations appendix).
+- `templates/HEARTBEAT.md` (new) is the pure orchestrator: reads state, toggles burst workers, spot-checks health, appends tick trace, posts executive summary. Does not execute programs. Replaces the earlier `HEARTBEAT-SECTION.md` at the repo root - workspace HEARTBEAT.md is now treated as a regular installable template like MEMORY.md and the others.
+- `templates/AGENTS.md` (new) carries the workspace charter with two catalogs: four programs (primary, domain authorities) and six routines (scheduled invocations appendix). Replaces the earlier `AGENTS-SECTION.md`.
+- Template markers renamed: `clawstodian/agents-section` -> `clawstodian/agents`, `clawstodian/heartbeat-section` -> `clawstodian/heartbeat`. The old names are still recognized by INSTALL/VERIFY/UNINSTALL for backward compatibility with workspaces installed before this rename.
 - `templates/crons.md` lists all six routines with the program/behavior each invokes.
 - Template markers bumped from `2026-04-17` to `2026-04-18`.
 

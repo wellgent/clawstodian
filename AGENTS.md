@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for any agent working on the clawstodian repo itself (not for workspaces that install clawstodian; that content lives in `AGENTS-SECTION.md`).
+Instructions for any agent working on the clawstodian repo itself (not for workspaces that install clawstodian; that content lives in `templates/AGENTS.md`).
 
 ## Purpose
 
@@ -38,9 +38,7 @@ v0.4-draft. See `docs/briefs/2026-04-18-v0.4-observability-brief.md` for the act
 - `INSTALL.md` - agent-driven install flow. References `VERIFY.md` for the post-install check and `UNINSTALL.md` for removal.
 - `VERIFY.md` - standalone verification of an existing install; idempotent, can be run any time.
 - `UNINSTALL.md` - full removal flow.
-- `AGENTS-SECTION.md` - workspace maintainer charter with the four-program catalog (primary) and six-routine catalog (scheduled invocations).
-- `HEARTBEAT-SECTION.md` - pure-orchestrator heartbeat (reads state, toggles bursts, posts executive summary).
-- `templates/` - installable workspace reference docs (`para-structure.md`, `daily-note-structure.md`, `MEMORY.md`, `crons.md`).
+- `templates/` - installable workspace reference docs. Six templates: `AGENTS.md` (workspace charter with programs + routines catalogs), `HEARTBEAT.md` (pure-orchestrator heartbeat), `MEMORY.md` (dashboard skeleton), `para-structure.md`, `daily-note-structure.md`, `crons.md`. Each template carries optional `<!-- template: clawstodian/... -->` markers for update detection.
 - `programs/` - the four domain authorities: `daily-notes.md`, `para.md`, `workspace-tidy.md`, `git-hygiene.md`. Each is a thick spec containing conventions, authority, approval gates, escalation rules, and named behaviors.
 - `routines/` - the six scheduled dispatchers. Always-on crons: `daily-note.md`, `workspace-tidy.md`, `git-hygiene.md`, `para-align.md`. Heartbeat-toggled bursts: `seal-past-days.md`, `para-extract.md`. Each routine references a program, picks a behavior, defines target + run report + install command.
 - `docs/architecture.md` - first-principles design.

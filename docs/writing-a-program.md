@@ -90,7 +90,7 @@ Use "surface" rather than "ask" throughout; clarify the context distinction once
 
 When you ship a new program:
 
-- Add it to the `AGENTS-SECTION.md` Programs catalog with a one-sentence domain description.
+- Add it to the Programs catalog in `templates/AGENTS.md` with a one-sentence domain description. Workspaces with older copies of the template will pull the update on their next refresh.
 - If routines need to invoke its behaviors, add or update the relevant `routines/<name>.md` files.
 - If this program introduces new conventions that reference docs, update or add the doc under `templates/` (e.g. `memory/<domain>-structure.md`).
 - Update `docs/architecture.md` if the program affects first-principle reasoning about the repo.
