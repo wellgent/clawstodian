@@ -1,8 +1,13 @@
-# INSTALL_FOR_AGENTS.md
+# INSTALL.md
 
 You (the installing agent) are reading this because an operator pasted an install line into their session. Your job is to install clawstodian into their workspace with their judgment, not without it.
 
 Principle: **co-create, don't automate**. Propose diffs, wait for approval, apply, verify. Never overwrite operator content silently.
+
+Companion docs:
+
+- `VERIFY.md` - standalone verification checks, referenced from Step 6 below.
+- `UNINSTALL.md` - full removal flow.
 
 ## Pre-flight
 
@@ -173,36 +178,21 @@ openclaw cron list --all | grep <routine-name>
 
 The smoke test in Step 6 verifies all six at once.
 
-## Step 6 - Smoke test
+## Step 6 - Verify
 
-After all selected items are applied, run the smoke test. It verifies install-time correctness in under ten seconds. Each line is pass/fail:
+After all selected items are applied, run the checks in `~/clawstodian/VERIFY.md`. Verify is a standalone doc that covers:
 
-```bash
-# Markers in place
-grep -q 'clawstodian/agents-section' AGENTS.md && echo "OK agents-section" || echo "FAIL agents-section"
-grep -q 'clawstodian/heartbeat-section' HEARTBEAT.md && echo "OK heartbeat-section" || echo "FAIL heartbeat-section"
+- Section markers landed in `AGENTS.md` and `HEARTBEAT.md`.
+- Both workspace symlinks (`clawstodian/programs`, `clawstodian/routines`) resolve.
+- All four program specs and six routine specs reachable.
+- All four reference templates installed.
+- All six cron jobs registered.
+- Heartbeat config sanity (`isolatedSession`, `lightContext`, `target`, `activeHours`, `showAlerts`).
+- `memory/heartbeat-trace.md` present (or prepared for first tick).
 
-# Symlinks resolve
-readlink -e clawstodian/programs >/dev/null && echo "OK programs symlink" || echo "FAIL programs symlink"
-readlink -e clawstodian/routines >/dev/null && echo "OK routines symlink" || echo "FAIL routines symlink"
+Paste the "Quick verify" block from `VERIFY.md` and report the results to the operator as a checklist. Any `FAIL` should be investigated before the first heartbeat tick fires.
 
-# Templates landed
-for f in memory/para-structure.md memory/daily-note-structure.md MEMORY.md memory/crons.md; do
-  [ -f "$f" ] && echo "OK template $f" || echo "MISSING template $f"
-done
-
-# Cron jobs registered (names match v0.4 catalog)
-for name in daily-note workspace-tidy git-hygiene para-align seal-past-days para-extract; do
-  openclaw cron list --all | grep -q " $name " && echo "OK cron $name" || echo "FAIL cron $name"
-done
-
-# Heartbeat trace file exists (or will be created on first tick)
-[ -f memory/heartbeat-trace.md ] || touch memory/heartbeat-trace.md && echo "OK heartbeat-trace"
-```
-
-Report the smoke test as a checklist. Any FAIL should be investigated before the first heartbeat tick fires.
-
-**Scope note:** the smoke test verifies install-time correctness. It does NOT verify that routines deliver their work over time (that is a separate audit concern, deferred to a later iteration). If a routine is registered and then never fires, the smoke test will still pass.
+**Scope note:** verify checks install-time correctness and current state. It does NOT confirm that routines deliver work over time (that is a separate audit concern, deferred).
 
 ## Step 7 - First heartbeat observation
 
@@ -251,29 +241,6 @@ If a workspace has customized its `AGENTS.md` clawstodian block, leave the custo
 
 Ask. Short questions are cheaper than wrong installs.
 
-## Appendix - Uninstall
+## Uninstall
 
-If the operator decides to remove clawstodian, do the reverse with confirmation at each step:
-
-1. **Disable and remove cron routines:**
-   ```bash
-   for name in daily-note workspace-tidy git-hygiene para-align seal-past-days para-extract; do
-     openclaw cron disable "$name" 2>/dev/null
-     openclaw cron remove "$name" 2>/dev/null
-   done
-   ```
-
-2. **Remove the workspace `clawstodian/` directory** (the symlink):
-   ```bash
-   rm -rf clawstodian
-   ```
-
-3. **Remove the clawstodian section from workspace `AGENTS.md`:** delete everything between `<!-- template: clawstodian/agents-section ... -->` and `<!-- /template: clawstodian/agents-section ... -->` inclusive.
-
-4. **Remove the clawstodian section from workspace `HEARTBEAT.md`:** same, between the `clawstodian/heartbeat-section` markers. If `HEARTBEAT.md` is otherwise empty, either leave it or delete the file if the workspace no longer uses the heartbeat.
-
-5. **Revert heartbeat config** in `~/.openclaw/openclaw.json` to the operator's preferred stance.
-
-6. **Optional: delete the package clone** at `~/clawstodian` if no longer needed.
-
-7. **Leave the reference templates and `memory/heartbeat-trace.md` alone** - they are workspace conventions and historical records that outlive clawstodian. Only remove them if the operator explicitly asks.
+Full uninstall flow lives in `~/clawstodian/UNINSTALL.md`. Follow that doc when the operator decides to remove clawstodian. It covers disabling and removing crons, removing workspace symlinks, removing `AGENTS.md` / `HEARTBEAT.md` sections, reverting heartbeat config, optionally deleting the package clone, and explicitly flags what to leave in place (templates, workspace state, `memory/heartbeat-trace.md`).
