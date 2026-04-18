@@ -56,9 +56,6 @@ for name in daily-note workspace-tidy git-hygiene para-align seal-past-days para
   openclaw cron list --all 2>/dev/null | grep -q " ${name} " && echo "OK  cron ${name}" || echo "FAIL cron ${name}"
 done
 
-# Maintainer session exists
-openclaw sessions --json 2>/dev/null | grep -q 'clawstodian-maintainer' && echo "OK  maintainer session" || echo "FAIL maintainer session"
-
 # Heartbeat trace file present (or prepare it for first tick)
 [ -f memory/heartbeat-trace.md ] && echo "OK  heartbeat-trace" || { touch memory/heartbeat-trace.md && echo "OK  heartbeat-trace (created)"; }
 ```
@@ -70,12 +67,10 @@ Any `FAIL` should be investigated before relying on the install.
 The heartbeat lives in `~/.openclaw/openclaw.json` (or `config.toml`), not in the workspace. Read it and confirm:
 
 - `agents.defaults.heartbeat.every` is set (recommended: `"2h"`).
-- `agents.defaults.heartbeat.session` is `"session:clawstodian-maintainer"` (the persistent maintainer session).
-- `agents.defaults.heartbeat.isolatedSession` is `false` (persistent session preserves conversation history).
-- `agents.defaults.heartbeat.lightContext` is `false` or omitted (default `false`; the maintainer needs full workspace context).
-- `agents.defaults.heartbeat.target` is set to the maintainer channel id (not empty, not `"last"`).
+- `agents.defaults.heartbeat.target` is set to the notifications channel id (not empty, not `"last"`).
 - `agents.defaults.heartbeat.activeHours` has `start`, `end`, `timezone` - matches the operator's preferred window.
 - `channels.defaults.heartbeat.showAlerts` is `true`.
+- `agents.defaults.heartbeat.session`, `isolatedSession`, and `lightContext` are either omitted (defaults) or set to: no `session` override, `isolatedSession: false`, `lightContext: false`. These defaults mean heartbeat runs in the agent's main session with full workspace bootstrap.
 
 A config that passes every other check but has `target: ""` or `showAlerts: false` will produce a silent heartbeat. That is the failure mode v0.4 is designed to prevent; catch it here.
 

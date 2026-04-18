@@ -71,10 +71,10 @@ Before proposing any change, read what the operator already has. Specifically ch
 4. Workspace PARA folders - `projects/`, `areas/`, `resources/`, `archives/`. Which already exist, which are populated?
 5. Existing cron jobs - `openclaw cron list --all`. Note any clawstodian routine (`daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`) already present, and any legacy v0.3 routines (`daily-notes-tend`, `close-of-day`, `para-backfill`, `weekly-para-align`, `workspace-tidiness`, `para-tend`, `durable-insight`, `health-sweep`).
 6. Current heartbeat config in `~/.openclaw/openclaw.json` (or `config.toml`). Note current `every`, `session`, `isolatedSession`, `lightContext`, `target`, `activeHours`, and channel visibility flags. See `~/clawstodian/docs/heartbeat-config.md` for the recommended stance.
-7. Existence of the maintainer session: `openclaw sessions --json | grep clawstodian-maintainer`. If absent, the install will create it.
+7. Identify the operator's intended notifications channel (Discord/Slack/Telegram channel id) - heartbeat posts and cron routine announcements both target this channel. Distinct from the operator's DM with the agent (where collaboration happens).
 8. Existing ops-* packages - check for `ops/daily/`, `ops/para/`, `ops/clean/` directories in the workspace, and for legacy cron jobs via `openclaw cron list`. Their presence is not a blocker; note it.
 9. Existing workspace `clawstodian/` directory (if the workspace has a previous clawstodian install). Note which symlinks exist: v0.4 uses `clawstodian/programs` + `clawstodian/routines`; earlier drafts used only `clawstodian/routines` or only `clawstodian/programs`. Note which resolve.
-10. `memory/heartbeat-trace.md` - does it exist? If not, the install will create it. If it exists, leave it; the orchestrator appends to it.
+10. `memory/heartbeat-trace.md` - does it exist? If not, the install will create it. If it exists, leave it; the heartbeat appends to it.
 
 ## Step 4 - Propose a merge plan
 
@@ -96,12 +96,7 @@ Produce a short, explicit plan for the operator. Items in the order the install 
   ```
   One-time setup. Program specs become reachable at `clawstodian/programs/<name>.md` and routine specs at `clawstodian/routines/<name>.md` relative to workspace root. If a legacy single symlink from an earlier draft exists (either name), remove it before adding the pair.
 - **Cron routines** - install all six routines (exact commands in the **Cron install commands** section below). Always-on: `daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`. Heartbeat-toggled bursts (start disabled): `seal-past-days`, `para-extract`. Ask the operator which logs channel to deliver announcements to (Discord/Slack/Telegram channel id). Offer `--no-deliver` as alternative for workspaces that prefer silent runs.
-- **Maintainer session** - create `session:clawstodian-maintainer` if absent:
-  ```bash
-  openclaw sessions new session:clawstodian-maintainer
-  ```
-  The heartbeat config below targets this session. Session maintenance (compaction) is enforced via the `session.maintenance` block in the gateway config so the session does not grow unbounded.
-- **Heartbeat config** - the authoritative reference is `~/clawstodian/docs/heartbeat-config.md`. Recommended stance: `every: "2h"`, `session: "session:clawstodian-maintainer"`, `isolatedSession: false`, `lightContext: false` (full workspace context; omit or set false), `target` pointing at the maintainer channel, `activeHours` set, `showAlerts: true`. Do NOT add `session.maintenance`, `agents.defaults.contextPruning`, or other host-wide policy fields - those are the operator's sessions-baseline choices and clawstodian should not override them. Show the operator the snippet from `docs/heartbeat-config.md` and propose merging it into their OpenClaw config. Apply this last.
+- **Heartbeat config** - the authoritative reference is `~/clawstodian/docs/heartbeat-config.md`. Recommended stance: `every: "2h"`, `target` pointing at the notifications channel, `activeHours` set. Leave `session`, `isolatedSession`, and `lightContext` at their defaults so heartbeat runs in the main session with full workspace bootstrap. Do NOT add `session.maintenance`, `agents.defaults.contextPruning`, or other host-wide policy fields - those are the operator's sessions-baseline choices. Show the operator the snippet from `~/clawstodian/docs/heartbeat-config.md` and propose merging it into their OpenClaw config. Apply this last.
 
 **If Step 3 detected legacy v0.3 routines** (programs not renamed), prepend this advisory to the plan:
 
@@ -122,8 +117,7 @@ When the operator approves a specific item, apply it:
 - **Creating PARA folders**: create the folders and add an empty `INDEX.md` in each with just `# <folder name> INDEX` as the header.
 - **Creating `clawstodian/` workspace directory**: run the two-symlink commands above. Verify with `readlink clawstodian/programs` and `readlink clawstodian/routines`.
 - **Adding cron routines**: run the commands from the **Cron install commands** section below, substituting `<your-logs-channel-id>`. Install in the listed order; there are no dependencies between routines.
-- **Creating the maintainer session**: run `openclaw sessions new session:clawstodian-maintainer`. Verify with `openclaw sessions --json | grep clawstodian-maintainer`.
-- **Applying heartbeat config**: show the exact diff the operator would apply to their OpenClaw config, using the recommended shape from `~/clawstodian/docs/heartbeat-config.md`. For `target`: ask the operator for a dedicated maintainer channel ID. Avoid `target: "last"` for the maintainer use case - the heartbeat belongs in a stable channel, not wherever the agent last posted. Let the operator apply the diff themselves, or, with explicit confirmation, apply it for them.
+- **Applying heartbeat config**: show the exact diff the operator would apply to their OpenClaw config, using the recommended shape from `~/clawstodian/docs/heartbeat-config.md`. For `target`: ask the operator for a dedicated notifications channel ID (where cron routine announcements should also land; one pane for all maintenance activity). Avoid `target: "last"` - the notifications channel should be stable. Let the operator apply the diff themselves, or, with explicit confirmation, apply it for them.
 
 Apply one item at a time. After each, verify by reading the resulting file or running the status command.
 
@@ -200,8 +194,7 @@ After all selected items are applied, run the checks in `~/clawstodian/VERIFY.md
 - All four program specs and six routine specs reachable.
 - All four reference templates installed.
 - All six cron jobs registered.
-- Heartbeat config sanity (`session`, `isolatedSession`, `lightContext`, `target`, `activeHours`, `showAlerts`).
-- Maintainer session exists.
+- Heartbeat config sanity (`every`, `target`, `activeHours`, `showAlerts`).
 - `memory/heartbeat-trace.md` present (or prepared for first tick).
 
 Paste the "Quick verify" block from `VERIFY.md` and report the results to the operator as a checklist. Any `FAIL` should be investigated before the first heartbeat tick fires.

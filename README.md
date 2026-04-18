@@ -117,7 +117,7 @@ clawstodian/
 
 ## Recommended heartbeat config
 
-The heartbeat runs in a dedicated persistent session (`session:clawstodian-maintainer`) so the agent carries a continuous maintenance thread across ticks. Mixed cadence via `tasks:` in `templates/HEARTBEAT.md` (2h status, daily retrospective, weekly review). Delivery goes to a dedicated maintainer channel.
+Heartbeat runs in the agent's main session (where the operator already DMs with the agent). Mixed cadence via `tasks:` in `templates/HEARTBEAT.md` (2h status, daily retrospective, weekly review). Delivery goes to a **dedicated notifications channel** for observability - the same channel that cron routines announce into.
 
 ```json5
 {
@@ -125,10 +125,11 @@ The heartbeat runs in a dedicated persistent session (`session:clawstodian-maint
     defaults: {
       heartbeat: {
         every: "2h",
-        session: "session:clawstodian-maintainer",
-        isolatedSession: false,
-        // lightContext omitted -> default false -> full workspace bootstrap.
-        target: "<your-maintainer-channel-id>",
+        // session, isolatedSession, lightContext all omitted -> defaults:
+        //   session: main (collaborative continuity with the operator)
+        //   isolatedSession: false
+        //   lightContext: false (full workspace bootstrap each tick)
+        target: "<your-notifications-channel-id>",
         activeHours: {
           start: "08:00",
           end: "22:00",
@@ -148,11 +149,14 @@ The heartbeat runs in a dedicated persistent session (`session:clawstodian-maint
 }
 ```
 
-clawstodian deliberately does NOT set `session.maintenance`, `agents.defaults.contextPruning`, `session.dmScope`, or `session.reset` - those are host-wide policy choices the operator makes at the sessions-baseline level. The heartbeat config layers on top without overriding them.
+Clean split of purpose:
 
-`docs/heartbeat-config.md` is the authoritative reference: session-model trade-offs, field-by-field rationale, cost profile, how to create the maintainer session, bidirectional-flow options (the honest limits - channel replies do not auto-route to the named session; see the three workable patterns documented), and troubleshooting. Read it before adjusting values.
+- **Main session (operator's DM with the agent)** = collaboration. The heartbeat inherits the full DM history, so the agent naturally remembers past ticks and your replies. This is the maintenance thread.
+- **Notifications channel** = observability. Heartbeat posts status/retrospective/review summaries here. Cron routines also post their completion lines here. One pane for all workspace-maintenance activity. Read-mostly; replies there don't route back to the main session.
 
-**Recommended:** set `target` to a dedicated channel ID (Telegram chat ID, Slack channel ID, Discord channel ID) so maintainer updates land in one predictable place. The same channel receives per-routine announcements, keeping the operational thread in one place.
+clawstodian deliberately does NOT set `session.maintenance`, `agents.defaults.contextPruning`, `session.dmScope`, or `session.reset` - those are host-wide policy choices the operator makes at the sessions-baseline level. The heartbeat config layers on top without overriding.
+
+`docs/heartbeat-config.md` is the authoritative reference: rationale, cost profile, `tasks:` semantics, and troubleshooting.
 
 ## Bootstrap sizing
 

@@ -18,14 +18,14 @@ This workspace runs four maintenance **programs** that define how the workspace 
 - **Programs** (`clawstodian/programs/<name>.md`) describe how a workspace domain is governed - conventions, authority, approval gates, escalation, behaviors. Agents follow programs during normal sessions when the situation applies, and cron-dispatched routines follow the same programs on a schedule.
 - **Routines** (`clawstodian/routines/<name>.md`) are thin scheduled invocations. Each routine references a program, picks a specific behavior, defines a target and a run-report format, and runs as a cron job.
 - **AGENTS.md** (this file) catalogs the programs.
-- **HEARTBEAT.md** runs the collaborative maintainer thread. Each tick the agent reviews workspace state, toggles burst-worker routines, spot-checks health, and posts to the maintainer channel. Mixed cadence: a short status sweep every 2h, a daily retrospective, a weekly review. The heartbeat runs in a dedicated persistent session so the operator and the agent carry a continuous thread across ticks. It does NOT execute programs; each routine does that on its own cron.
+- **HEARTBEAT.md** runs the collaborative maintainer thread. Each tick the agent reviews workspace state, toggles burst-worker routines, spot-checks health, and posts to the notifications channel. Mixed cadence: a short status sweep every 2h, a daily retrospective, a weekly review. The heartbeat runs in the agent's main session (the same DM the operator uses), so the maintenance thread is continuous with the operator's ongoing conversation with the agent. It does NOT execute programs; each routine does that on its own cron.
 - **Session transcripts and `memory/heartbeat-trace.md`** are the primary audit trail.
 
 ### Default posture
 
 - **Co-create, don't guess.** When filing, placement, or risk is obvious, act. When ambiguous, surface (in-session: ask the operator in chat; via cron: include in the routine's run report so the operator sees it in the logs channel).
-- **Per-routine announce.** Each routine emits a single-line run report. The cron runner delivers it to the maintainer channel as an announcement. Quiet runs return `NO_REPLY` and stay silent.
-- **Heartbeat never goes silent.** Every heartbeat tick posts at least a status one-liner to the maintainer channel, plus occasional longer reflections (daily retrospective, weekly review). Silence means a broken orchestrator, never a healthy one.
+- **Per-routine announce.** Each routine emits a single-line run report. The cron runner delivers it to the notifications channel as an announcement. Quiet runs return `NO_REPLY` and stay silent.
+- **Heartbeat never goes silent.** Every heartbeat tick posts at least a status one-liner to the notifications channel, plus occasional longer reflections (daily retrospective, weekly review). Silence means a broken orchestrator, never a healthy one.
 - **Small reversible actions over broad audits.** One concrete improvement beats ten theoretical ones.
 - **Surface emerging projects; do not silently create them.** If a new initiative is clearly forming, flag it rather than spinning it up. The operator decides whether to promote it.
 - **Escalate before destructive, risky, or ambiguous changes.** See cross-program escalation rules at the bottom of this section.
