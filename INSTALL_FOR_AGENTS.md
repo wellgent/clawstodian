@@ -45,14 +45,14 @@ If the operator's clone is behind its default branch, ask whether to pull. Do no
 Read these files in order and build a mental model of the install:
 
 - `~/clawstodian/README.md` - scope and philosophy.
-- `~/clawstodian/AGENTS-SECTION.md` - the charter and routine catalog.
+- `~/clawstodian/AGENTS-SECTION.md` - the workspace charter, programs catalog, and routines catalog.
 - `~/clawstodian/HEARTBEAT-SECTION.md` - the heartbeat orchestrator.
 - `~/clawstodian/templates/para-structure.md` - PARA convention.
 - `~/clawstodian/templates/daily-note-structure.md` - daily note format (includes `para_status` queue semantics).
 - `~/clawstodian/templates/MEMORY.md` - dashboard skeleton.
 - `~/clawstodian/templates/crons.md` - cron routine catalog.
 
-Then skim the routine specs under `~/clawstodian/routines/` so you understand what each routine does. You do not need to copy them into the workspace - they are read on demand via the `clawstodian/routines/` symlink created in Step 5.
+Then skim the program specs under `~/clawstodian/programs/` (domain authorities: daily-notes, para, workspace-tidy, git-hygiene) and routine specs under `~/clawstodian/routines/` (scheduled dispatchers). You do not need to copy them into the workspace - they are read on demand via the `clawstodian/programs/` and `clawstodian/routines/` symlinks created in Step 5.
 
 ## Step 3 - Survey the target workspace
 
@@ -65,7 +65,7 @@ Before proposing any change, read what the operator already has. Specifically ch
 5. Existing cron jobs - `openclaw cron list --all`. Note any clawstodian routine (`daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`) already present, and any legacy v0.3 routines (`daily-notes-tend`, `close-of-day`, `para-backfill`, `weekly-para-align`, `workspace-tidiness`, `para-tend`, `durable-insight`, `health-sweep`).
 6. Current heartbeat config in `~/.openclaw/openclaw.json` (or `config.toml`). Note current `every`, `isolatedSession`, `lightContext`, `target`, `activeHours`, and channel visibility flags.
 7. Existing ops-* packages - check for `ops/daily/`, `ops/para/`, `ops/clean/` directories in the workspace, and for legacy cron jobs via `openclaw cron list`. Their presence is not a blocker; note it.
-8. Existing workspace `clawstodian/` directory (if the workspace has a previous clawstodian install). Note whether the `routines` or legacy `programs` symlink resolves.
+8. Existing workspace `clawstodian/` directory (if the workspace has a previous clawstodian install). Note which symlinks exist: v0.4 uses `clawstodian/programs` + `clawstodian/routines`; earlier drafts used only `clawstodian/routines` or only `clawstodian/programs`. Note which resolve.
 9. `memory/heartbeat-trace.md` - does it exist? If not, the install will create it. If it exists, leave it; the orchestrator appends to it.
 
 ## Step 4 - Propose a merge plan
@@ -76,11 +76,13 @@ Produce a short, explicit plan for the operator. Items in the order the install 
 - **HEARTBEAT.md** - create new (install clawstodian section as the whole file)? Append the clawstodian section? Replace an older version? Warn explicitly before replacing a non-empty non-clawstodian HEARTBEAT.md.
 - **Reference templates** - for each of `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`: install from clawstodian template, skip (already exists with non-clawstodian content), or update (exists with an older clawstodian template marker)?
 - **PARA folders** - create missing top-level `projects/`, `areas/`, `resources/`, `archives/` if not present? (ask; some workspaces prefer different names.)
-- **Workspace `clawstodian/` directory** - create it with a single directory symlink that points at the package's `routines/` directory:
+- **Workspace `clawstodian/` directory** - create it with two directory symlinks pointing at the package's `programs/` and `routines/` directories:
   ```bash
-  mkdir -p clawstodian && ln -s ~/clawstodian/routines clawstodian/routines
+  mkdir -p clawstodian
+  ln -s ~/clawstodian/programs clawstodian/programs
+  ln -s ~/clawstodian/routines clawstodian/routines
   ```
-  One-time setup. All routine specs become reachable at `clawstodian/routines/<name>.md` relative to workspace root. If a legacy `clawstodian/programs` symlink exists from a v0.3 install, remove it after adding the new `clawstodian/routines` symlink: `rm clawstodian/programs`.
+  One-time setup. Program specs become reachable at `clawstodian/programs/<name>.md` and routine specs at `clawstodian/routines/<name>.md` relative to workspace root. If a legacy single symlink from an earlier draft exists (either name), remove it before adding the pair.
 - **Cron routines** - install all six routines (exact commands in the **Cron install commands** section below). Always-on: `daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`. Heartbeat-toggled bursts (start disabled): `seal-past-days`, `para-extract`. Ask the operator which logs channel to deliver announcements to (Discord/Slack/Telegram channel id). Offer `--no-deliver` as alternative for workspaces that prefer silent runs.
 - **Heartbeat config** - show the recommended snippet from `~/clawstodian/README.md` ("Recommended heartbeat config") and propose merging it into the operator's OpenClaw config. Key stance: `every: 2h`, `isolatedSession: true`, `lightContext: true`, `target` pointing at the logs channel, `activeHours` set, `showAlerts: true`. The orchestrator now posts a summary every tick, so `showOk` is irrelevant (the heartbeat never replies with just `HEARTBEAT_OK`). Apply this last.
 
@@ -101,7 +103,7 @@ When the operator approves a specific item, apply it:
 - **Appending to AGENTS.md or HEARTBEAT.md**: append the section verbatim from the clawstodian file. Preserve everything already in the file above and below. Include the template marker comments.
 - **Installing reference templates**: copy from `~/clawstodian/templates/<file>` to the workspace path. Preserve the template marker.
 - **Creating PARA folders**: create the folders and add an empty `INDEX.md` in each with just `# <folder name> INDEX` as the header.
-- **Creating `clawstodian/` workspace directory**: run the single-symlink command above. Verify with `readlink clawstodian/routines`.
+- **Creating `clawstodian/` workspace directory**: run the two-symlink commands above. Verify with `readlink clawstodian/programs` and `readlink clawstodian/routines`.
 - **Adding cron routines**: run the commands from the **Cron install commands** section below, substituting `<your-logs-channel-id>`. Install in the listed order; there are no dependencies between routines.
 - **Applying heartbeat config**: show the exact diff the operator would apply to their OpenClaw config. For `target`: ask the operator for a dedicated channel ID. If they do not have one handy, default to `target: "last"` with a note that they can switch to an explicit channel later. Let them apply the diff themselves, or, with explicit confirmation, apply it for them.
 
@@ -180,7 +182,8 @@ After all selected items are applied, run the smoke test. It verifies install-ti
 grep -q 'clawstodian/agents-section' AGENTS.md && echo "OK agents-section" || echo "FAIL agents-section"
 grep -q 'clawstodian/heartbeat-section' HEARTBEAT.md && echo "OK heartbeat-section" || echo "FAIL heartbeat-section"
 
-# Symlink resolves
+# Symlinks resolve
+readlink -e clawstodian/programs >/dev/null && echo "OK programs symlink" || echo "FAIL programs symlink"
 readlink -e clawstodian/routines >/dev/null && echo "OK routines symlink" || echo "FAIL routines symlink"
 
 # Templates landed
@@ -223,11 +226,12 @@ Re-run this install flow. Step 3's survey detects which template markers are old
 
 **Migrating from v0.3 to v0.4:**
 
-- The directory changed: `clawstodian/programs` -> `clawstodian/routines`. Remove the old symlink, add the new one.
-- Routines renamed: `daily-notes-tend` -> `daily-note`, `close-of-day` -> `seal-past-days`, `para-backfill` -> `para-extract`, `workspace-tidiness` -> `workspace-tidy`, `weekly-para-align` -> `para-align`.
-- Routines dropped: `para-tend`, `durable-insight`, `health-sweep` (functions folded into surviving routines and into the heartbeat orchestrator).
-- Routines added as always-on crons: `daily-note`, `workspace-tidy`, `git-hygiene` (previously heartbeat-direct).
-- Heartbeat is now pure orchestrator: reads state, toggles bursts, posts summary. Does not execute routines directly.
+- Two workspace symlinks now: `clawstodian/programs` -> `~/clawstodian/programs` and `clawstodian/routines` -> `~/clawstodian/routines`. Remove any single legacy symlink from earlier drafts; add both new ones.
+- Names changed: `daily-notes-tend` -> `daily-note`, `close-of-day` -> `seal-past-days`, `para-backfill` -> `para-extract`, `workspace-tidiness` -> `workspace-tidy`, `weekly-para-align` -> `para-align`.
+- Dropped: `para-tend`, `durable-insight`, `health-sweep` (functions folded into programs and into the heartbeat orchestrator).
+- New always-on crons: `daily-note`, `workspace-tidy`, `git-hygiene` (in v0.3 these were heartbeat-direct).
+- Programs vs routines: four programs (`daily-notes`, `para`, `workspace-tidy`, `git-hygiene`) under `programs/` are the domain authorities. Six routines under `routines/` are thin cron dispatchers that invoke specific behaviors from those programs.
+- Heartbeat is a pure orchestrator: reads state, toggles bursts, posts summary. Does not execute programs directly.
 
 If a workspace has customized its `AGENTS.md` clawstodian block, leave the customization alone and only bump the marker date to match the package. Surface the customization in the plan so the operator knows their diff is preserved.
 
