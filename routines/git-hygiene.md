@@ -27,7 +27,7 @@ The current workspace working tree and its remote-tracking branch.
 
 ## Run report
 
-Two artifacts on firings that committed or surfaced anything: a full report on disk following the shared run-report shape, and a multi-line scannable summary posted to the notifications channel. On clean-tree firings: `NO_REPLY` (no file, no channel post).
+Two artifacts every firing: a full report on disk following the shared run-report shape, and a multi-line scannable summary posted to the notifications channel. Every firing produces both - no silent firings.
 
 ### File on disk
 
@@ -69,6 +69,8 @@ Report: memory/runs/git-hygiene/2026-04-18T14-00-00Z.md
 
 Multi-line. One insight per line:
 
+**Meaningful firing:**
+
 ```
 git-hygiene · <ISO timestamp UTC> · <outcome>
 Commits: <N> pushed
@@ -76,7 +78,16 @@ Awaiting decision: <M>
 Report: memory/runs/git-hygiene/<ts>.md
 ```
 
-- `outcome` is `committed | surfaced-only | failed`.
-- Omit the "Awaiting decision" line when M is 0.
+`outcome` is `committed | surfaced-only | failed`. Omit the "Awaiting decision" line when M is 0.
 
-Return `NO_REPLY` when the tree was already clean (no commits, nothing surfaced). No file is written in that case.
+**Quiet firing** (tree already clean):
+
+```
+git-hygiene · <ISO timestamp UTC> · clean
+Working tree clean · nothing to commit
+Report: memory/runs/git-hygiene/<ts>.md
+```
+
+### Every firing speaks
+
+Every firing produces both a run-report file and a channel post - including clean-tree firings where there was nothing to commit. The post confirms the cron is alive and the check actually ran. A three-line "clean" post is the minimum; removing NO_REPLY closes the "silent cron looks the same as broken cron" ambiguity.

@@ -53,7 +53,7 @@ This inverts the v0.3 pure-prose dispatcher (which silently dropped ticks when a
 
 A healthy install carries continuity on four layers, each serving a different need:
 
-- **Per-routine announcement** (detail on demand). Each cron routine posts a single-line run report to the notifications channel on every run that changes something. Quiet runs return `NO_REPLY` and stay silent.
+- **Per-routine announcement** (detail on demand). Each cron routine posts a multi-line scannable summary to the notifications channel on every firing and writes a detailed run-report file to `memory/runs/<routine>/<timestamp>.md`. Even a quiet firing ("nothing to do") produces both artifacts, so silence in the channel is never ambiguous - it means the cron did not fire.
 - **Heartbeat notifications posts** (running observability). Every tick posts at least a status line; longer cadences add reflections and reviews. This channel is read-mostly - it's the pane of glass on workspace maintenance activity.
 - **Main session history** (collaborative memory). The heartbeat runs in the operator's main DM session with the agent, so past tick outputs, operator replies, and in-flight decisions all accumulate as conversation history. Host-wide session maintenance (compaction) bounds growth.
 - **Tick trace file** (forensic record). `memory/heartbeat-trace.md` is an append-only log independent of session state. Greppable and permanent. Survives compaction, session deletion, and anything else that might trim session history.
@@ -118,7 +118,7 @@ Routines (scheduled invocations):
 
 Three execution classes for routines:
 
-- **Always-on cron** - enabled at install time; fires on its schedule; quiet runs return `NO_REPLY`.
+- **Always-on cron** - enabled at install time; fires on its schedule; every firing produces a run-report file and channel post (including quiet firings with `outcome: clean` or similar).
 - **Fixed cron** - enabled at install time; wall-clock schedule (e.g. Sunday 06:00 UTC).
 - **Heartbeat-toggled burst** - starts disabled; heartbeat enables when a queue exists and disables when empty.
 

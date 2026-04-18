@@ -173,7 +173,9 @@ Report: memory/runs/capture-sessions/2026-04-18T12-30-00Z.md
 
 ### Channel summary
 
-Multi-line. One insight per line. Exactly six lines on a typical firing:
+Multi-line. One insight per line.
+
+**Typical meaningful firing:**
 
 ```
 capture-sessions · <ISO timestamp UTC> · <outcome>
@@ -184,12 +186,20 @@ Queue: un-admitted=<u> · stale=<s2> · cron: <enabled|disabled>
 Report: memory/runs/capture-sessions/<ts>.md
 ```
 
-- Line 1 `outcome` is one of: `captured` (interactive work done), `admitted-only` (only skipped admissions), `disabled` (queue drained, cron self-disabled this firing).
-- `dates` is a bracketed comma-separated list, or `-` when captured is 0.
-- Omit the Bleed line if there is no interactive work AND bleed is 0 (keeps admitted-only announcements short).
+`outcome` is one of: `captured` (interactive work done), `admitted-only` (only skipped admissions), `disabled` (queue drained, cron self-disabled this firing), `no-op` (no gaps found - cron was enabled but nothing was pending).
 
-### NO_REPLY
+**Quiet firing** (no gaps at all, nothing to do):
 
-Return `NO_REPLY` (no channel post, no file on disk) when the firing produced no observable effect: admitted is 0 OR all admissions were skipped, AND captured is 0, AND the cron state did not change.
+```
+capture-sessions · <ISO timestamp UTC> · no-op
+No gaps (un-admitted=0, stale=0) · cron: <enabled|disabled>
+Report: memory/runs/capture-sessions/<ts>.md
+```
 
-Always report (file + channel) when: any interactive capture happened (`captured > 0`), any bleed surfaced (`bleed > 0`), or the cron self-disabled (state transition).
+Omit the Bleed line on admitted-only firings (where there was no interactive work AND bleed is 0) to keep the post short.
+
+### Every firing speaks
+
+Every firing produces both a run-report file and a channel post - no silent firings. A quiet tick (no gaps, nothing to do) still announces with `outcome: no-op` so the operator sees the cron is alive.
+
+Report the state transition clearly when the cron self-disables: the channel post has `cron: disabled` and the outcome reflects the transition (typically `disabled` if the last gap just drained, or `no-op` if the tick found nothing and disables preemptively).

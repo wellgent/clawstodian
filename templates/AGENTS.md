@@ -24,7 +24,7 @@ This workspace runs four maintenance **programs** that define how the workspace 
 ### Default posture
 
 - **Co-create, don't guess.** When filing, placement, or risk is obvious, act. When ambiguous, surface (in-session: ask the operator in chat; via cron: include in the routine's run report so the operator sees it in the logs channel).
-- **Per-routine announce.** Each routine emits a single-line run report. The cron runner delivers it to the notifications channel as an announcement. Quiet runs return `NO_REPLY` and stay silent.
+- **Per-routine announce.** Each routine emits a multi-line scannable run report to the notifications channel on every firing, plus a detailed run-report file to `memory/runs/<routine>/<ts>.md`. Even a quiet firing ("nothing to do") produces both - silence in the channel means the cron did not fire, never "cron fired, found nothing".
 - **Heartbeat never goes silent.** Every heartbeat tick posts at least a status one-liner to the notifications channel, plus occasional longer reflections (daily retrospective, weekly review). Silence means a broken orchestrator, never a healthy one.
 - **Small reversible actions over broad audits.** One concrete improvement beats ten theoretical ones.
 - **Surface emerging projects; do not silently create them.** If a new initiative is clearly forming, flag it rather than spinning it up. The operator decides whether to promote it.
@@ -80,7 +80,7 @@ Routines are scheduled cron invocations that execute program behaviors on a cade
 
 Two execution classes:
 
-- **Always-on cron** - runs on its schedule regardless of state. Quiet runs return `NO_REPLY`.
+- **Always-on cron** - runs on its schedule regardless of state. Every firing produces a run-report file and channel post.
 - **Heartbeat-toggled burst** - starts disabled. The heartbeat orchestrator enables when a queue exists and disables when empty.
 
 Current routines:

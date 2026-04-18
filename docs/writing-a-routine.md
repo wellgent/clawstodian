@@ -17,9 +17,9 @@ Before writing a routine, confirm the behavior you want to schedule already exis
 
 Three classes, distinguished by how the cron's enabled state is managed. The class is a property of the cron configuration, not the routine spec - but the routine's `Self-disable` section (if any) depends on the class, so the spec has to know which one it is.
 
-- **Always-on cron** - enabled at install. Fires on its schedule regardless of workspace state. Quiet runs return `NO_REPLY` and stay silent. No self-disable section in the routine.
-- **Fixed cron** - enabled at install, wall-clock schedule. Usually carries meaningful state on every run, so the routine always reports (no `NO_REPLY`). No self-disable section.
-- **Heartbeat-toggled burst** - starts disabled. The heartbeat orchestrator enables the cron when a queue exists and disables it when empty. The routine self-disables when it drains the queue.
+- **Always-on cron** - enabled at install. Fires on its schedule regardless of workspace state. Every firing produces a run-report file and channel post (quiet firings still speak). No self-disable section in the routine.
+- **Fixed cron** - enabled at install, wall-clock schedule. Usually carries meaningful state on every run. Every firing produces both artifacts. No self-disable section.
+- **Heartbeat-toggled burst** - starts disabled. The heartbeat orchestrator enables the cron when a queue exists and disables it when empty. The routine self-disables when it drains the queue. Every firing produces both artifacts, including the drain-and-disable firing.
 
 ## Anatomy
 
@@ -119,11 +119,13 @@ Conventions:
 - The Queue line appears only for burst workers that track a queue (`capture-sessions`, `seal-past-days`, `para-extract`). Drop it for `workspace-tidy`, `git-hygiene`, `para-align`.
 - The Report line is always last. Relative path from workspace root so it clicks or copies cleanly.
 
-### NO_REPLY
+### Every firing produces both artifacts
 
-Return `NO_REPLY` (no channel post, no file on disk) when the firing produced no observable effect. A no-op firing is silent across both surfaces. Exact conditions are routine-specific (see each routine's spec).
+No `NO_REPLY`. Every cron firing writes a run-report file and posts a channel summary, even when the routine had nothing to do. The fact that the cron fired is itself information - the operator needs to know the cron ran, not infer it from silence.
 
-<When to return NO_REPLY, if applicable.>
+Quiet firings get an `outcome: no-op` (or equivalent routine-specific term like `clean`) and a short 3-line channel post: header line, one line of "nothing to do", Report pointer. Files on disk stay terse too.
+
+This catches silent-failure modes that NO_REPLY would have hidden: cron not firing at all, heartbeat not toggling it on, visibility config clobbered. Every healthy firing produces evidence in the channel and on disk.
 ```
 
 That is all. No `## Install`, no `## Verify`, no `## Uninstall` - those live in the top-level docs.
@@ -176,11 +178,11 @@ Report: memory/runs/para-align/2026-04-20T06-00-00Z.md
 
 Keep reports greppable line-by-line. Prose belongs elsewhere.
 
-## NO_REPLY convention
+## Every firing speaks
 
-Routines where a quiet run is common (git-hygiene with a clean tree, capture-sessions on a skipped-classification admission) should return `NO_REPLY` on no-change. The cron runner interprets `NO_REPLY` as "suppress delivery" - the channel stays silent.
+Every routine firing produces a channel post and a run-report file. No silent firings. A routine that "had nothing to do" still announces `no-op` (or `clean`, etc.) so the operator sees the cron is alive. Silence belongs to truly-disabled crons and to operator-judgment ticks (heartbeat outside active hours), not to busy workers doing nothing.
 
-Routines where every run carries meaningful state transition (seal-past-days succeeded, para-extract processed a note, para-align verified the weekly graph) should always report. Do not `NO_REPLY` a successful operation just because the counts are low.
+This is a change from the earlier `NO_REPLY` convention, which hid failures: a routine returning `NO_REPLY` could mean "clean" or "dead", and the operator could not tell from the channel alone. Always-speaking routines close that gap.
 
 ## Install command conventions
 

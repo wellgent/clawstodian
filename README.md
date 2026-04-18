@@ -51,7 +51,7 @@ Heartbeat-toggled bursts (start disabled; orchestrator enables on demand):
 
 ## How it runs
 
-- **Each routine runs as its own cron job.** Isolated session, light context, per-routine announcement to the logs channel. A quiet run returns `NO_REPLY` and stays silent.
+- **Each routine runs as its own cron job.** Isolated session, light context, per-routine announcement to the logs channel on every firing - including quiet firings (the cron fired, nothing was wrong, worth confirming). Silent routines hide failure.
 - **Heartbeat is the orchestrator, not an executor.** On its cadence it reads workspace state, toggles burst workers based on queues (sealed-notes pending, past-day notes unsealed), spot-checks configuration health, appends a trace line to `memory/heartbeat-trace.md`, and posts a one-line executive summary. It never goes silent: even a healthy no-change tick posts.
 - **Three-layer observability.** Per-routine run reports (detail on demand), heartbeat executive summary (ambient awareness), `memory/heartbeat-trace.md` (forensic record). Silence in any of the three is itself informative.
 - **No package-owned state files.** Git, daily notes, PARA entities, session transcripts, `memory/session-ledger.md` (authoritative capture state for daily-notes), and `memory/heartbeat-trace.md` are the only state.

@@ -24,7 +24,7 @@ The workspace tree, excluding `.git/`, `.openclaw/`, and operator-configured dot
 
 ## Run report
 
-Two artifacts on firings that changed anything: a full report on disk following the shared run-report shape, and a multi-line scannable summary posted to the notifications channel. On truly quiet firings: `NO_REPLY` (no file, no channel post).
+Two artifacts every firing: a full report on disk following the shared run-report shape, and a multi-line scannable summary posted to the notifications channel. Every firing produces both - no silent firings.
 
 ### File on disk
 
@@ -73,6 +73,8 @@ Report: memory/runs/workspace-tidy/2026-04-18T10-00-00Z.md
 
 Multi-line. One insight per line:
 
+**Meaningful firing:**
+
 ```
 workspace-tidy · <ISO timestamp UTC> · <outcome>
 Removed: <N> · moved: <M>
@@ -80,7 +82,16 @@ Awaiting decision: <K>
 Report: memory/runs/workspace-tidy/<ts>.md
 ```
 
-- `outcome` is `tidied | surfaced-only | failed`.
-- Omit the "Awaiting decision" line when K is 0.
+`outcome` is `tidied | surfaced-only | failed`. Omit the "Awaiting decision" line when K is 0.
 
-Return `NO_REPLY` on no-change firings (removed=0, moved=0, surfaced=0). No file is written in that case.
+**Quiet firing** (walk found nothing):
+
+```
+workspace-tidy · <ISO timestamp UTC> · clean
+Nothing to tidy
+Report: memory/runs/workspace-tidy/<ts>.md
+```
+
+### Every firing speaks
+
+Every firing produces both a run-report file and a channel post - including clean firings where the walk found nothing. The post confirms the cron is alive and the walk actually happened. A three-line "clean" post is the minimum; removing NO_REPLY closes the "silent cron looks the same as working cron" ambiguity.

@@ -20,14 +20,14 @@ Invokes `daily-notes` program: capture one session's unread JSONL into the appro
 Invokes `workspace-tidy` program: walk and tidy. Removes trash, moves misplaced files to intuitive homes, maintains `.gitignore` for ephemeral files.
 
 - Schedule: `every 2h`
-- Always enabled. Quiet runs reply `NO_REPLY`.
+- Always enabled. Every firing produces a run-report file + channel post (quiet firings post `outcome: clean`).
 
 ## git-hygiene
 
 Invokes `git-hygiene` program: commit drift. Commits meaningful changes stage-by-path, pushes, maintains `.gitignore`.
 
 - Schedule: `every 30m`
-- Always enabled. Quiet runs reply `NO_REPLY`.
+- Always enabled. Every firing produces a run-report file + channel post (quiet firings post `outcome: clean`).
 
 ## seal-past-days
 
