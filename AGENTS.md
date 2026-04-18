@@ -35,7 +35,9 @@ v0.4-draft. See `docs/briefs/2026-04-18-v0.4-observability-brief.md` for the act
 ## Key files
 
 - `README.md` - package overview and install invocation.
-- `INSTALL_FOR_AGENTS.md` - agent-driven install flow, includes the install smoke test.
+- `INSTALL.md` - agent-driven install flow. References `VERIFY.md` for the post-install check and `UNINSTALL.md` for removal.
+- `VERIFY.md` - standalone verification of an existing install; idempotent, can be run any time.
+- `UNINSTALL.md` - full removal flow.
 - `AGENTS-SECTION.md` - workspace maintainer charter with the four-program catalog (primary) and six-routine catalog (scheduled invocations).
 - `HEARTBEAT-SECTION.md` - pure-orchestrator heartbeat (reads state, toggles bursts, posts executive summary).
 - `templates/` - installable workspace reference docs (`para-structure.md`, `daily-note-structure.md`, `MEMORY.md`, `crons.md`).

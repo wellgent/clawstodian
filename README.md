@@ -20,9 +20,9 @@ git clone https://github.com/wellgent/clawstodian.git ~/clawstodian
 
 Then tell your running OpenClaw or Claude Code agent:
 
-> Install clawstodian into my workspace. Follow `INSTALL_FOR_AGENTS.md` in the clawstodian repo.
+> Install clawstodian into my workspace. Follow `INSTALL.md` in the clawstodian repo.
 
-The agent reads `INSTALL_FOR_AGENTS.md`, surveys your workspace, proposes a merge plan, asks whatever it needs to ask, applies on your approval, and finishes with a smoke test. Nothing is overwritten silently.
+The agent reads `INSTALL.md`, surveys your workspace, proposes a merge plan, asks whatever it needs to ask, applies on your approval, and finishes with a smoke test. Nothing is overwritten silently.
 
 ## What it installs
 
@@ -66,14 +66,16 @@ The maintainer is a scribe, not an architect. Four rules:
 
 ## Manual install (without an agent)
 
-Clone to `~/clawstodian`, open `INSTALL_FOR_AGENTS.md`, and follow the steps yourself. Everything is explicit and reversible.
+Clone to `~/clawstodian`, open `INSTALL.md`, and follow the steps yourself. Everything is explicit and reversible.
 
 ## Repo shape
 
 ```
 clawstodian/
   README.md                          this file
-  INSTALL_FOR_AGENTS.md              agent-driven install entry point
+  INSTALL.md                         agent-driven install entry point
+  VERIFY.md                          standalone verification checks
+  UNINSTALL.md                       full removal flow
 
   AGENTS-SECTION.md                  workspace charter + programs catalog + routines catalog
   HEARTBEAT-SECTION.md               pure-orchestrator heartbeat

@@ -5,7 +5,7 @@ Dashboard for this workspace's cron jobs. Authoritative state: `openclaw cron li
 
 Every clawstodian routine runs as its own cron job. Each routine invokes a behavior from a program in `clawstodian/programs/`. The heartbeat orchestrator does not execute routines; it only toggles burst workers based on workspace state and posts an executive summary each tick.
 
-Install commands live in `~/clawstodian/INSTALL_FOR_AGENTS.md` under "Cron install commands". Routine specs under `~/clawstodian/routines/` are thin dispatchers; program specs under `~/clawstodian/programs/` are the domain authorities.
+Install commands live in `~/clawstodian/INSTALL.md` under "Cron install commands". Verification is in `~/clawstodian/VERIFY.md`. Removal is in `~/clawstodian/UNINSTALL.md`. Routine specs under `~/clawstodian/routines/` are thin dispatchers; program specs under `~/clawstodian/programs/` are the domain authorities.
 
 ## daily-note
 

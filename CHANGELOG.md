@@ -4,21 +4,23 @@
 
 Program/routine split, cron-per-routine inversion, three-layer observability. v0.3 kept the heartbeat executing five routines in a pure-prose dispatcher; in live use a gateway restart produced a silent heartbeat failure with no detectable signal. v0.4 separates domain authorities (programs) from scheduled invocations (routines), pushes execution onto cron (the self-observing substrate), and shrinks the heartbeat to a pure orchestrator that never goes silent.
 
-The v0.4 draft went through two iterations inside the `2026-04-18` day. The first pass merged behavior and scheduling into a single set of "routines." The second pass separated them: behavior lives in `programs/` (domain authorities), scheduling lives in `routines/` (thin cron dispatchers). The final shape is what this entry describes.
+The v0.4 draft went through several iterations inside the `2026-04-18` day. The first pass merged behavior and scheduling into a single set of "routines." The second pass separated them: behavior lives in `programs/` (domain authorities), scheduling lives in `routines/` (thin cron dispatchers). The third pass stripped install/verify/uninstall sections out of routine specs and extracted them into top-level `INSTALL.md`, `VERIFY.md`, and `UNINSTALL.md` so routines stay purely behavioral. The final shape is what this entry describes.
 
 Added:
 - `programs/` directory with four domain authorities: `daily-notes.md`, `para.md`, `workspace-tidy.md`, `git-hygiene.md`. Each is a thick spec describing conventions, authority, approval gates, escalation, and named behaviors. Programs are read at session bootstrap via `AGENTS.md` so any agent in the workspace follows the same domain rules whether invoked in-session or via cron.
 - `memory/heartbeat-trace.md` append-only tick log as the forensic record that proves heartbeat fired.
 - Executive summary to logs channel on every heartbeat tick (including healthy no-change ticks).
 - Per-routine announcements to the logs channel via `--announce --channel --to` on every cron.
-- Install smoke test in `INSTALL_FOR_AGENTS.md` that verifies markers, symlinks, templates, and cron registrations in under ten seconds.
+- `VERIFY.md` standalone verification doc: markers, both symlinks, programs + routines reachable, templates, cron registrations, heartbeat config sanity, trace file. Idempotent; can be run after install or any time. `INSTALL.md` references it as its final step.
+- `UNINSTALL.md` standalone removal doc: disable and remove crons, remove symlinks, strip sections, revert heartbeat config, what to leave alone.
 - `para_status` field documented in `templates/daily-note-structure.md` as the PARA extraction queue marker (`pending -> done`).
 - `docs/writing-a-program.md` (new) for adding a domain authority.
 - `docs/writing-a-routine.md` (rewritten) for adding a scheduled dispatcher.
 - `docs/briefs/2026-04-18-v0.4-observability-brief.md`.
 
 Changed:
-- `routines/` now holds thin cron dispatchers (6 files, ~30-50 lines each). Each routine references a program and a named behavior, defines a target, run report, worker discipline, and install command. Behavioral detail lives in the program it dispatches, not in the routine.
+- `routines/` now holds thin cron dispatchers (6 files, ~25-40 lines each). Each routine references a program and a named behavior, defines a target, run report, and worker discipline. Install, verify, and uninstall instructions live in their own top-level docs, not in the routine. Behavioral detail lives in the program it dispatches, not in the routine.
+- `INSTALL_FOR_AGENTS.md` renamed to `INSTALL.md`.
 - Six-routine catalog (four programs):
   - `daily-note` (always-on) -> `daily-notes` program, tend today's note.
   - `seal-past-days` (burst) -> `daily-notes` program, seal a past-day note.

@@ -136,6 +136,6 @@ When you ship a new routine:
 - Add the routine to `AGENTS-SECTION.md` Routines catalog under the right execution class.
 - Add an entry to `templates/crons.md` with schedule, enable logic, and the program/behavior it invokes.
 - Add the `openclaw cron add` command in the routine spec itself (the canonical install location).
-- Update `INSTALL_FOR_AGENTS.md`'s smoke-test name list.
+- Update `INSTALL.md` under "Cron install commands" with the new routine's `openclaw cron add` invocation, and `VERIFY.md`'s cron-name list.
 - If the routine is heartbeat-toggled, add or update the enable/disable logic in `HEARTBEAT-SECTION.md`.
 - Add a changelog entry in `CHANGELOG.md` for the next version draft.
