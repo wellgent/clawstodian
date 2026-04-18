@@ -2,7 +2,7 @@
 
 Every 30 minutes, always enabled. Tends today's canonical daily note per the daily-notes program by ingesting recent session activity.
 
-This routine is the steady-state arm of session capture. It covers sessions with activity in the last 90 minutes via `sessions_list({activeMinutes: 90})` and advances each one's cursor in `memory/session-ledger.md`. Historical sessions (older than the 90-minute window with no ledger entry) are handled by the `backfill-sessions` burst worker, not by this routine.
+This routine is the steady-state arm of session capture. It covers sessions with activity in the last 6 hours via `sessions_list({activeMinutes: 360})` and advances each one's cursor in `memory/session-ledger.md`. The 6-hour window is intentionally wider than the 30-minute cron cadence so that a gateway restart or scheduler hiccup up to ~6h does not create a silent capture gap. Historical sessions (older than the 6-hour window with no ledger entry) are handled by the `backfill-sessions` burst worker, not by this routine.
 
 ## Program
 
@@ -10,7 +10,7 @@ This routine is the steady-state arm of session capture. It covers sessions with
 
 ## Target
 
-`memory/YYYY-MM-DD.md` for today's workspace-local date. Also yesterday's note when a session's new lines bucket to yesterday and the note is still `status: active`. Sealed past notes are never modified; bleed-over goes to the run report.
+`memory/YYYY-MM-DD.md` for today's workspace-local date. Also any past-date note still `status: active` when a session's new lines bucket to that date (midnight-crossing sessions, sessions discovered after a gateway outage up to ~6h). Sealed past notes are never modified; bleed-over goes to the run report.
 
 ## Exec safety
 
@@ -33,7 +33,7 @@ daily-note YYYY-MM-DD: sessions <active>/<captured>/<new-skipped> | appended <N>
 ```
 
 Where:
-- `active` = sessions returned by `sessions_list({activeMinutes: 90})`.
+- `active` = sessions returned by `sessions_list({activeMinutes: 360})`.
 - `captured` = sessions whose ledger cursor advanced this run.
 - `new-skipped` = sessions newly classified as `skipped` and added to the ledger.
 - `bleed` = sessions whose new lines contained content for sealed dates (not applied, surfaced).

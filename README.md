@@ -36,13 +36,13 @@ The agent reads `INSTALL.md`, surveys your workspace, proposes a merge plan, ask
 **Seven routines** (`routines/`): the scheduled invocations.
 
 Always-on crons:
-- `daily-note` (every 30m) - daily-notes: ingest recent session activity (90m window) into today's note.
+- `daily-note` (every 30m) - daily-notes: ingest recent session activity (6h window) into today's note.
 - `workspace-tidy` (every 2h) - workspace-tidy: walk and tidy.
 - `git-hygiene` (every 30m) - git-hygiene: commit drift.
 - `para-align` (Sunday 06:00 UTC) - para: align PARA structure. Heartbeat may also `--wake now` on mid-week drift.
 
 Heartbeat-toggled bursts (start disabled; orchestrator enables on demand):
-- `backfill-sessions` - daily-notes: ingest one historical session per firing (sessions older than the 90m window with no ledger entry).
+- `backfill-sessions` - daily-notes: ingest one historical session per firing (sessions older than the 6h window with no ledger entry, and sessions with stale cursors after an extended gateway outage).
 - `seal-past-days` - daily-notes: seal a past-day note.
 - `para-extract` - para: extract PARA from a sealed note.
 

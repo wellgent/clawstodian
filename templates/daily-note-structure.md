@@ -21,7 +21,7 @@ slug siblings inline; status: active     slug variants; status: sealed          
 backfill-sessions (burst worker)
 -----------------------------
 processes sessions older than the
-90m activeMinutes window that have
+6h activeMinutes window that have
 no ledger entry yet; one per firing
 ```
 

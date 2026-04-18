@@ -9,14 +9,14 @@ Install commands live in `~/clawstodian/INSTALL.md` under "Cron install commands
 
 ## daily-note
 
-Invokes `daily-notes` program: ingest recent session activity. Reads `sessions_list({activeMinutes: 90})`, advances per-session cursors in `memory/session-ledger.md`, appends to today's (and if still active, yesterday's) note, merges slug siblings, files obvious durable insights.
+Invokes `daily-notes` program: ingest recent session activity. Reads `sessions_list({activeMinutes: 360})` (6h window, sized to absorb gateway restarts up to that gap), advances per-session cursors in `memory/session-ledger.md`, appends to today's (and any still-active past day's) note, merges slug siblings, files obvious durable insights.
 
 - Schedule: `every 30m`
 - Always enabled. Quiet runs reply `NO_REPLY` and stay silent.
 
 ## backfill-sessions
 
-Invokes `daily-notes` program: ingest one historical session per firing. Picks the oldest session from `sessions_list` that has no entry in `memory/session-ledger.md`. Classifies it, reads the full transcript, buckets by date, applies to active-date notes and surfaces bleed for sealed-date buckets. Self-disables when `sessions_list` count matches ledger entry count.
+Invokes `daily-notes` program: ingest one historical session per firing. Picks the oldest session from `sessions_list` that has no entry in `memory/session-ledger.md`. Classifies it, reads the full transcript, buckets by date, applies to active-date notes and surfaces bleed for sealed-date buckets. Self-disables when `sessions_list` count matches ledger entry count and no stale-cursor sessions remain.
 
 - Schedule: `every 30m` (while enabled)
 - Starts disabled. Heartbeat enables it when the session ledger is behind `sessions_list`.

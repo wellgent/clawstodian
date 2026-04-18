@@ -4,6 +4,8 @@ The workspace maintains one canonical daily note per calendar day at `memory/YYY
 
 Daily notes are fed by an **idempotent capture loop** over OpenClaw's session transcripts. Every session is discovered via `sessions_list`, classified once, and then cursor-advanced forward: each tick reads only the JSONL lines that are new since the prior run and buckets content by timestamp into the appropriate date. No re-scanning, no re-processing, no fuzzy text deduplication.
 
+The loop is split across two routines: `daily-note` handles the steady state (sessions active in the last six hours) and `backfill-sessions` drains the historical queue (sessions older than that window with no ledger entry). The six-hour window is wider than the strict "recent activity" span on purpose: it absorbs gateway downtime up to ~6h without creating a silent capture gap, at near-zero extra cost because cursor-short-circuit skips any session whose `updatedAt` already matches the ledger's `last_activity`.
+
 ## References
 
 - Daily note format and frontmatter -> `memory/daily-note-structure.md`
@@ -60,7 +62,7 @@ Must NOT rewrite sealed notes cosmetically or for stylistic reasons. Must NOT wr
 
 Every session observed by this program is classified exactly once and the result is stored in `memory/session-ledger.md`. Classification rules:
 
-- `kind: cron` -> `skipped`, reason: "cron session". Heartbeat and cron-dispatched routines land here; their activity is not part of the human daily note.
+- `kind: cron` -> `skipped`, reason: "cron session". Cron-dispatched routines land here; their activity is not part of the human daily note.
 - `kind: hook` -> `skipped`, reason: "hook session".
 - `kind: node` (sub-agent) where `parentSessionKey` points to a session already classified `interactive` -> `skipped`, reason: "sub-agent of <parent id>". The parent session's transcript contains the sub-agent's user-visible output.
 - Session with zero user-authored messages -> `skipped`, reason: "delivery-only session". These are outbound-only sessions with no interactive content.
@@ -68,13 +70,24 @@ Every session observed by this program is classified exactly once and the result
 
 Classification is idempotent. A session classified as `skipped` is never re-examined except to confirm the reason on demand.
 
+### Turn-level filtering within an interactive session
+
+An `interactive` classification means the session as a whole carries human content, not that every turn in its transcript does. When extracting content from the JSONL, filter turn-by-turn:
+
+- **Cron-injected user turns** have a literal prefix `[cron:<jobId> <jobName>]` at the start of the `content` field. OpenClaw emits this consistently for cron-triggered turns; treat any user turn whose content starts with `[cron:` as non-human and skip it along with the assistant turn that follows.
+- **Heartbeat-injected user turns** in the main session have NO structural marker in the JSONL - the gateway appends them as regular user messages. Detect by content: a user turn whose content matches (exactly or with only a whitespace / timestamp trailing line difference) one of the `tasks[].prompt` strings in the workspace's `HEARTBEAT.md` is a heartbeat tick, not an operator message. Skip it and its assistant response. If the operator has customized `HEARTBEAT.md`, read it fresh each tick so the filter stays in sync.
+- **Hook-injected user turns** (webhook / Gmail / HTTP hook) also have no structural marker. If the workspace uses hooks, their payload shape is known to the operator; treat such turns as "what the integration said" rather than operator speech. If hooks are not configured, this case does not arise.
+- **Tool calls and tool results** within an assistant turn are part of the model's work, not standalone content. Summarize them inline (one short `-> read * grep * grep` style line in the daily-note section) rather than pasting tool output verbatim. Lines with raw tool output exceeding a few hundred characters should be omitted entirely.
+
+The filter output is what lands in the daily note. Everything else stays in the JSONL but does not appear in the human timeline.
+
 ## Behaviors
 
 ### Ingest recent activity
 
-Steady-state capture of the last ~90 minutes of session activity into today's note (and, when bleed-over lands, yesterday's if still active).
+Steady-state capture of the last ~6 hours of session activity into today's note (and, when bleed-over lands, yesterday's if still active).
 
-1. **Discover active sessions.** Call `sessions_list({activeMinutes: 90, limit: 500})`. Result is sessions with `updatedAt` within the last 90 minutes.
+1. **Discover active sessions.** Call `sessions_list({activeMinutes: 360, limit: 500})`. Result is sessions with `updatedAt` within the last 6 hours. The window is deliberately wider than the 30-minute cron cadence so that a gateway restart or scheduler hiccup up to ~6h does not create a silent capture gap.
 2. **Classify new sessions.** For each row not already in `memory/session-ledger.md`: classify per the rules above, append an entry to the ledger. If classification is `skipped`, stop for that session.
 3. **Short-circuit unchanged sessions.** For each `interactive` entry whose ledger `last_activity` equals the row's `updatedAt`: skip. No new lines, no work.
 4. **Read new JSONL tail.** For each session needing work, open `transcriptPath` with `Read` starting at `offset: lines_captured + 1`. Parse each returned line as JSON.
@@ -91,7 +104,7 @@ If a session's cursor advance fails (note write succeeded but ledger edit failed
 
 ### Ingest a historical session
 
-Full-transcript capture of one session that has no ledger entry and was NOT surfaced by the recent-activity window. Used by the `backfill-sessions` burst worker during initial install on an already-populated workspace and to catch sessions that slipped past the 90-minute window.
+Full-transcript capture of one session that has no ledger entry and was NOT surfaced by the recent-activity window. Used by the `backfill-sessions` burst worker during initial install on an already-populated workspace and to catch sessions that slipped past the 6-hour window.
 
 1. **Select target.** Read `memory/session-ledger.md`. Call `sessions_list({limit: 500})` (no `activeMinutes` filter). Pick the **oldest session by `updatedAt`** that is NOT present in the ledger.
 2. **Classify.** Apply the classification rules. If `skipped`, append the `skipped` ledger entry and stop.
@@ -109,7 +122,8 @@ Close and finalize one unsealed past-day note with disk-fidelity.
 
 1. List `memory/YYYY-MM-DD.md` files where the date is before today (workspace local timezone).
 2. Candidate = frontmatter `status: active`, OR the file is missing for a past date where `git log --since=YYYY-MM-DD --until=YYYY-MM-DD+1d` shows commits.
-3. Pick the **oldest** candidate.
+3. **Midnight grace.** Reject any candidate whose date is yesterday if the current workspace-local time is less than 2 hours past midnight. A session whose activity straddles midnight needs at least one more `daily-note` firing to have its post-midnight content captured into today's note and any pre-midnight content captured into yesterday's note; sealing yesterday before that finishes creates a race that sends late-captured content into the `bleed_over` accumulator instead of into yesterday's note. Only yesterday is affected; older past-days have no live sessions and no straddling risk.
+4. Pick the **oldest** remaining candidate.
 
 **Trivial-day fast-path.** Before the full seal, inspect the note body (excluding frontmatter). If **<=2 sections and <=1KB body**:
 

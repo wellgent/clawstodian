@@ -4,7 +4,7 @@ Every 30 minutes while enabled. Drains the historical-session queue one session 
 
 Starts disabled. The heartbeat orchestrator enables this cron when the `sessions_list` count exceeds the number of entries in `memory/session-ledger.md`, and disables it when the ledger is caught up.
 
-This routine exists so that fresh installs on already-populated workspaces, and any session that slipped past the `daily-note` routine's 90-minute steady-state window, eventually get captured into daily notes without the always-on cron having to do a full rescan every tick.
+This routine exists so that fresh installs on already-populated workspaces, and any session that slipped past the `daily-note` routine's 6-hour steady-state window, eventually get captured into daily notes without the always-on cron having to do a full rescan every tick.
 
 ## Program
 
@@ -12,7 +12,12 @@ This routine exists so that fresh installs on already-populated workspaces, and 
 
 ## Target
 
-The oldest session by `updatedAt` returned by `sessions_list({limit: 500})` that has no entry in `memory/session-ledger.md`.
+One of:
+
+- The oldest session by `updatedAt` returned by `sessions_list({limit: 500})` that has no entry in `memory/session-ledger.md` (admission gap; the common case).
+- A session that IS in the ledger but whose `last_activity` is more than 6h behind the matching `sessions_list` row's `updatedAt` (stale cursor; happens after an extended gateway outage). Process these before any un-admitted sessions so capture gaps close first.
+
+If both kinds exist, prefer stale-cursor sessions over un-admitted ones. Within each kind, pick the oldest.
 
 ## Exec safety
 
@@ -28,7 +33,7 @@ Run commands by exact path. Never inline code through heredocs piped into shell 
 
 ## Self-disable on empty queue
 
-After processing, re-check: if `sessions_list` count equals the ledger entry count, disable the cron so idle firings stop:
+After processing, re-check both signals: the admission gap (`sessions_list` count vs. ledger entry count) AND the stale-cursor count (ledger entries whose `last_activity` lags the matching row's `updatedAt` by more than 6h). If BOTH are zero, disable the cron so idle firings stop:
 
 ```bash
 openclaw cron disable backfill-sessions
@@ -44,4 +49,4 @@ Single line delivered to the logs channel by the cron runner:
 backfill-sessions <session-id-prefix>: <captured|skipped|failed> | classification: <interactive|skipped:<reason>> | lines: N | dates: [YYYY-MM-DD, ...] | bleed: <count> sealed | queue: <remaining> | cron: <enabled|disabled>
 ```
 
-Never return `NO_REPLY` on a backfill attempt; each run is a state transition worth seeing.
+Return `NO_REPLY` on runs whose only work was admitting a `skipped`-classified session to the ledger (cron / hook / subagent / delivery-only). These are frequent during the initial backfill drain on a populated workspace and reporting each one creates channel fatigue without carrying useful information. Captures (interactive sessions), failures, and queue-becomes-empty self-disable runs are always worth seeing - never `NO_REPLY` those.
