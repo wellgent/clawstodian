@@ -86,13 +86,25 @@ Edit `~/.openclaw/openclaw.json` (or `config.toml`). The operator chose the conf
 Typical revert options:
 
 - Set `agents.defaults.heartbeat.every` back to the operator's prior value, or remove the block to disable the heartbeat entirely.
+- Clear `agents.defaults.heartbeat.session` (remove the `session:clawstodian-maintainer` reference) or set it back to the operator's prior value.
 - Reset `target` to the prior channel or `"last"`.
 - Reset `isolatedSession`, `lightContext`, `activeHours` to prior values.
 - Reset `channels.defaults.heartbeat.showAlerts` / `showOk` / `useIndicator` to prior values.
+- Remove the `session.maintenance` block if clawstodian added it and the operator did not already have compaction configured.
 
 Show the operator the exact diff before applying. Prefer letting the operator apply it themselves.
 
-## Step 6 - (Optional) delete the package clone
+## Step 6 - (Optional) prune the maintainer session
+
+The persistent `session:clawstodian-maintainer` session accumulated conversation history across ticks. If the operator is done with that history and wants it gone:
+
+```bash
+openclaw sessions delete session:clawstodian-maintainer
+```
+
+Ask first. The operator may want to keep it for reference even after uninstall.
+
+## Step 7 - (Optional) delete the package clone
 
 If `~/clawstodian` is no longer needed by any workspace on this machine:
 
@@ -126,6 +138,9 @@ openclaw cron list --all | grep -E " (daily-note|workspace-tidy|git-hygiene|para
 # Section markers gone (checks both current and legacy marker names)
 grep -qE 'clawstodian/agents(-section)?' AGENTS.md 2>/dev/null && echo "FAIL agents marker still present" || echo "OK  agents marker removed"
 grep -qE 'clawstodian/heartbeat(-section)?' HEARTBEAT.md 2>/dev/null && echo "FAIL heartbeat marker still present" || echo "OK  heartbeat marker removed"
+
+# Maintainer session gone (if the operator chose to prune it)
+openclaw sessions --json 2>/dev/null | grep -q 'clawstodian-maintainer' && echo "NOTE maintainer session still present (operator chose to keep)" || echo "OK  maintainer session removed"
 ```
 
 All lines should print `OK`.

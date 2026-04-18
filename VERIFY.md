@@ -56,6 +56,9 @@ for name in daily-note workspace-tidy git-hygiene para-align seal-past-days para
   openclaw cron list --all 2>/dev/null | grep -q " ${name} " && echo "OK  cron ${name}" || echo "FAIL cron ${name}"
 done
 
+# Maintainer session exists
+openclaw sessions --json 2>/dev/null | grep -q 'clawstodian-maintainer' && echo "OK  maintainer session" || echo "FAIL maintainer session"
+
 # Heartbeat trace file present (or prepare it for first tick)
 [ -f memory/heartbeat-trace.md ] && echo "OK  heartbeat-trace" || { touch memory/heartbeat-trace.md && echo "OK  heartbeat-trace (created)"; }
 ```
@@ -67,13 +70,17 @@ Any `FAIL` should be investigated before relying on the install.
 The heartbeat lives in `~/.openclaw/openclaw.json` (or `config.toml`), not in the workspace. Read it and confirm:
 
 - `agents.defaults.heartbeat.every` is set (default recommended: `"2h"`).
-- `agents.defaults.heartbeat.isolatedSession` is `true`.
+- `agents.defaults.heartbeat.session` is `"session:clawstodian-maintainer"` (the persistent maintainer session).
+- `agents.defaults.heartbeat.isolatedSession` is `false` (persistent session preserves conversation history).
 - `agents.defaults.heartbeat.lightContext` is `true`.
-- `agents.defaults.heartbeat.target` is set to the maintainer logs channel id (not empty, not `"last"` unless temporary).
+- `agents.defaults.heartbeat.target` is set to the maintainer channel id (not empty, not `"last"`).
 - `agents.defaults.heartbeat.activeHours` has `start`, `end`, `timezone` - matches the operator's preferred window.
-- `channels.defaults.heartbeat.showAlerts` is `true` (so summaries actually deliver).
+- `channels.defaults.heartbeat.showAlerts` is `true`.
+- `session.maintenance.mode` is `"enforce"` with a bounded `maxEntries` so the maintainer session does not grow unbounded.
 
 A config that passes every other check but has `target: ""` or `showAlerts: false` will produce a silent heartbeat. That is the failure mode v0.4 is designed to prevent; catch it here.
+
+`docs/heartbeat-config.md` has the full reference.
 
 ## Burst-worker enable state
 
