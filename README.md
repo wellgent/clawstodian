@@ -1,8 +1,8 @@
 # clawstodian
 
-A sharable OpenClaw agent package that turns a workspace into a heartbeat-driven maintainer. Daily notes, durable insight capture, PARA knowledge graph, workspace tidiness, git hygiene, and health monitoring - all handled by the main-session agent on a quiet cadence, with the workspace itself as the only ledger.
+A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. Daily notes, PARA knowledge graph, workspace tidiness, and git hygiene - all handled by six focused routines that each run on their own cron, each announcing their own completion to the operator's logs channel.
 
-Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenClaw primitives, far fewer moving parts.
+Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenClaw primitives, and the observable-by-design execution pattern those packages got right.
 
 ## Install into any workspace
 
@@ -14,45 +14,39 @@ Then tell your running OpenClaw or Claude Code agent:
 
 > Install clawstodian into my workspace. Follow `INSTALL_FOR_AGENTS.md` in the clawstodian repo.
 
-The agent reads `INSTALL_FOR_AGENTS.md`, surveys your workspace, proposes a merge plan, asks whatever it needs to ask, and applies on your approval. Nothing is overwritten silently.
+The agent reads `INSTALL_FOR_AGENTS.md`, surveys your workspace, proposes a merge plan, asks whatever it needs to ask, applies on your approval, and finishes with a smoke test. Nothing is overwritten silently.
 
 ## What it installs
 
-Nine programs shipped as individual specs in `programs/`, categorized by how they run:
+Six routines under `routines/`, each its own cron job:
 
-**Heartbeat-direct** (run by `HEARTBEAT.md` each tick)
-- `daily-notes-tend` - keep today's canonical daily note current
-- `para-tend` - propagate one sealed note into PARA per tick
-- `workspace-tidiness` - prune trash, remove stale scratch
+**Always-on crons**
+- `daily-note` - keep today's canonical note current; merge slug siblings; file obvious durable insights
+- `workspace-tidy` - remove trash, move misplaced files to intuitive homes
 - `git-hygiene` - commit meaningful drift, maintain `.gitignore`
-- `health-sweep` - surface anomalies, never auto-repair
+- `para-align` - weekly PARA structural and semantic health (cross-references, naming, MEMORY.md currency)
 
-**Heartbeat-inline** (folded into another program's tick)
-- `durable-insight` - file obvious insights, surface ambiguous ones
+**Heartbeat-toggled bursts** (start disabled; orchestrator enables on demand)
+- `seal-past-days` - seal one unsealed past-day daily note per run
+- `para-extract` - propagate one sealed note into PARA entities per run
 
-**Burst workers** (cron-driven, drain one unit per run, heartbeat toggles enable/disable)
-- `close-of-day` - seal one unsealed past-day daily note
-- `para-backfill` - propagate one sealed note through PARA
-
-**Fixed cron** (own schedule)
-- `weekly-para-align` - weekly PARA structural verification
-
-Each spec uses the same anatomy: authority, trigger, approval gate, escalation, execution steps, what NOT to do. `AGENTS.md` holds the catalog; `HEARTBEAT.md` coordinates each tick; individual specs are read on demand.
+Each spec follows the same anatomy: authority, trigger, approval gates, escalation, execution steps, reply format, install, verify. `AGENTS.md` holds the catalog; `HEARTBEAT.md` runs the orchestrator; individual specs are read on demand.
 
 ## How it runs
 
-- **Heartbeat** is the orchestrator. On a default 2-hour cadence, the coordinator in `HEARTBEAT.md` decides which programs need attention this tick, reads their specs fresh from `clawstodian/programs/`, executes, verifies, and reports once.
-- **Cron** handles bursts and fixed schedules. `close-of-day` and `para-backfill` start disabled and are enabled by heartbeat on demand when a queue exists; `weekly-para-align` runs Sunday 06:00.
-- **No package-owned state files.** Git, daily notes, PARA entities, and session transcripts are the ledger.
-- **Isolated heartbeat sessions.** Each tick runs in a fresh isolated session with no prior chat history. Workspace bootstrap (`AGENTS.md`, `MEMORY.md`, etc.) caches across ticks.
+- **Every routine runs as its own cron job.** Isolated session, light context, per-routine announcement to the logs channel. A quiet run replies `NO_REPLY` and stays silent.
+- **Heartbeat is the orchestrator, not an executor.** On its cadence it reads workspace state, toggles burst workers based on queues (sealed-notes pending, past-day notes unsealed), spot-checks configuration health, appends a trace line to `memory/heartbeat-trace.md`, and posts a one-line executive summary to the logs channel. It never goes silent: even a healthy no-change tick posts.
+- **Three-layer observability.** Per-routine announcements (detail on demand), heartbeat executive summary (ambient awareness), `memory/heartbeat-trace.md` (forensic record). If any of the three goes silent, that silence is itself informative.
+- **No package-owned state files.** Git, daily notes, PARA entities, session transcripts, and `memory/heartbeat-trace.md` are the ledger.
+- **Isolated sessions for every routine and every heartbeat tick.** Cross-tick memory lives in the workspace, not in session history.
 
 ## Co-creation, not automation
 
 The maintainer is a scribe, not an architect. Four rules:
 
 1. When placement is obvious, just act.
-2. When placement is ambiguous, ask in one short question.
-3. Signal in batches: one "filed / committed / surfaced" summary per tick, not per action.
+2. When placement is ambiguous, surface it in the routine's reply and wait.
+3. Announce per routine: each cron posts its own single-line summary.
 4. Surface problems with likely causes and one or two resolution paths. Do not just alert; collaborate.
 
 ## Manual install (without an agent)
@@ -66,19 +60,16 @@ clawstodian/
   README.md                          this file
   INSTALL_FOR_AGENTS.md              agent-driven install entry point
 
-  AGENTS-SECTION.md                  workspace charter + catalog of programs
-  HEARTBEAT-SECTION.md               pure-coordinator heartbeat dispatcher
+  AGENTS-SECTION.md                  workspace charter + catalog of routines
+  HEARTBEAT-SECTION.md               pure-orchestrator heartbeat
 
-  programs/
-    daily-notes-tend.md              heartbeat-direct
-    durable-insight.md               heartbeat-inline
-    para-tend.md                     heartbeat-direct
-    workspace-tidiness.md            heartbeat-direct
-    git-hygiene.md                   heartbeat-direct
-    health-sweep.md                  heartbeat-direct
-    close-of-day.md                  burst worker
-    para-backfill.md                 burst worker
-    weekly-para-align.md             fixed cron
+  routines/
+    daily-note.md                    always-on cron
+    workspace-tidy.md                always-on cron
+    git-hygiene.md                   always-on cron
+    para-align.md                    fixed cron (weekly) + heartbeat-wakeable
+    seal-past-days.md                heartbeat-toggled burst
+    para-extract.md                  heartbeat-toggled burst
 
   templates/
     para-structure.md                installable to memory/para-structure.md
@@ -88,9 +79,10 @@ clawstodian/
 
   docs/
     architecture.md                  first-principles design
-    writing-a-program.md             guide for adding new programs (heartbeat, burst, cron)
+    writing-a-routine.md             guide for adding new routines
     briefs/
       2026-04-16-realignment-brief.md        v0.2 scope brief
+      2026-04-18-v0.4-observability-brief.md v0.4 scope brief
 
   AGENTS.md                          this repo's own agent instructions
   CLAUDE.md                          symlink to AGENTS.md
@@ -107,8 +99,9 @@ clawstodian/
       heartbeat: {
         every: "2h",
         isolatedSession: true,
+        lightContext: true,
         includeReasoning: false,
-        target: "<your-maintainer-channel-id>",  // recommended: explicit channel ID; fallback: "last"
+        target: "<your-maintainer-channel-id>",
         activeHours: {
           start: "08:00",
           end: "22:00",
@@ -120,28 +113,27 @@ clawstodian/
   channels: {
     defaults: {
       heartbeat: {
-        showOk: false,      // suppress HEARTBEAT_OK acks
-        showAlerts: true,   // deliver real tick summaries
-        useIndicator: true  // emit UI indicator events
+        showAlerts: true,
+        useIndicator: true
       }
     }
   }
 }
 ```
 
-`isolatedSession: true` is deliberate: cross-tick memory lives in the workspace, not in session history. Every tick reads what it needs from files, acts, writes observations back, and forgets.
+`isolatedSession: true` and `lightContext: true` together keep per-tick cost low while the orchestrator does its observational work. Every tick posts a summary (the orchestrator never replies with `HEARTBEAT_OK` alone), so `showOk` is irrelevant in v0.4.
 
-**Recommended:** set `target` to a dedicated channel ID (Telegram chat ID, Slack channel ID, Discord channel ID) so maintainer updates land in one predictable place.
+**Recommended:** set `target` to a dedicated channel ID (Telegram chat ID, Slack channel ID, Discord channel ID) so maintainer updates land in one predictable place. The same channel receives per-routine announcements, keeping the operational thread in one place.
 
 ## Bootstrap sizing
 
-OpenClaw injects `AGENTS.md` into the system prompt each turn. Provider ceilings vary (e.g. the OpenAI Codex responses endpoint silently 400s when `instructions` exceeds ~32 KiB). clawstodian's catalog model keeps `AGENTS.md` lean - program specs live in `clawstodian/programs/` and are read on demand, not injected every turn.
+OpenClaw injects `AGENTS.md` into the system prompt each turn. Provider ceilings vary (e.g. the OpenAI Codex responses endpoint silently 400s when `instructions` exceeds ~32 KiB). clawstodian's catalog model keeps `AGENTS.md` lean - routine specs live in `clawstodian/routines/` and are read on demand by the cron runner, not injected every turn.
 
-If your workspace's AGENTS.md is pushing the per-file cap (`agents.defaults.bootstrapMaxChars`, default 12,000), the catalog model alone usually resolves it. If not, extract domain-specific sections into project READMEs or resource docs and leave pointers behind.
+If your workspace's `AGENTS.md` is pushing the per-file cap (`agents.defaults.bootstrapMaxChars`, default 12,000), the catalog model alone usually resolves it.
 
 ## Status
 
-Draft. See `VERSION` and `CHANGELOG.md`. The design is stable; install wiring and some program details are still firming up.
+Draft. See `VERSION` and `CHANGELOG.md`. v0.4 introduces the cron-per-routine model and three-layer observability; v0.4 drafts land alongside workspace evolution before stabilizing.
 
 ## License
 

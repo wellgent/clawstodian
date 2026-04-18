@@ -2,9 +2,9 @@
 
 ## Goal
 
-Deliver every job the `ops-daily` / `ops-para` / `ops-clean` packages did, through native OpenClaw primitives executed by the main-session agent, with no package-owned state and no worker choreography.
+Deliver every job the `ops-daily` / `ops-para` / `ops-clean` packages did, through native OpenClaw primitives, with no package-owned state and no worker choreography.
 
-The design target is a system an operator can monitor, audit, troubleshoot, and trust. Intelligence lives in markdown the agent reads; the harness is thin.
+The design target is a system an operator can monitor, audit, troubleshoot, and trust. Intelligence lives in markdown the agent reads; the harness is thin; every meaningful action is observable by default.
 
 ## Design principles
 
@@ -12,94 +12,112 @@ The design target is a system an operator can monitor, audit, troubleshoot, and 
 
 Use what OpenClaw ships:
 - `AGENTS.md` for standing authority (loaded first in context).
-- `HEARTBEAT.md` for the recurring execution loop.
-- Heartbeat for the quiet interval cadence.
-- Cron for wall-clock-bound bursts, only when they earn their keep.
+- `HEARTBEAT.md` for the orchestrator loop.
+- Heartbeat for the orchestrator's cadence.
+- Cron as the execution substrate for every routine.
 - Session transcripts for auditability.
 - Session tools (`sessions_list`, `sessions_history`) and raw disk JSONL for transcript access.
 
 Avoid building a parallel orchestration layer.
 
-### 2. Heartbeat is the orchestrator
+### 2. Cron is the execution substrate; heartbeat is the orchestrator
 
-The heartbeat runs always, on a cadence, and drives the six programs. Cron is optional. Two patterns ship:
+Every routine runs as its own cron job with `--session isolated --light-context`. Cron persists jobs to disk, supports wall-clock-absolute schedules, and emits one observable delivery path per job; these qualities make the execution layer resilient and self-observing by default.
 
-- **Demand-driven burst** (`close-of-day`): starts disabled, enabled by the heartbeat when work accumulates, processes one unit per run, self-disables when the queue is empty.
-- **Scheduled job** (`weekly-para-align`): plain cron, runs at its slot, done.
+The heartbeat does not execute routines. Each tick it:
 
-This inverts the ops-* model (scan cron as orchestrator, demand-driven worker crons). One loop, with bursts as exceptions.
+1. Reads workspace state fresh (daily notes, PARA, git status, cron last-run times).
+2. Toggles heartbeat-managed burst workers (`seal-past-days`, `para-extract`) based on their queue state.
+3. May `--wake now` `para-align` if mid-week structural drift was reported.
+4. Spot-checks health (config drift, missing crons, broken symlinks).
+5. Appends a trace line to `memory/heartbeat-trace.md`.
+6. Posts a one-line executive summary to the logs channel - never silent.
 
-### 3. The workspace is the ledger
+This inverts the v0.3 pure-prose dispatcher (which silently dropped ticks when any of seven heartbeat gates short-circuited) toward the `ops-daily` debuggability pattern: cron-per-job with per-job notifications.
 
-No package-owned state files. Git, daily notes, PARA entities, `MEMORY.md`, and session transcripts are the only state. Every heartbeat tick derives what it needs from those artifacts, acts, writes observations back to those artifacts, and forgets.
+### 3. Three observability layers
 
-This is why `isolatedSession: true` is correct: cross-tick memory does not live in a session history; it lives in files. The full workspace bootstrap (`AGENTS.md`, `MEMORY.md`, etc.) loads each tick and caches across ticks, so the agent always has its authorities and workspace map at the cost of a single cached bootstrap per cache window, not one reload per tick.
+A healthy install emits three streams, each serving a different reader:
 
-### 4. Co-create, do not guess
+- **Per-routine announcement** (detail on demand). Each cron routine posts a single-line reply to the logs channel on every run that changes something. Quiet runs reply `NO_REPLY` and stay silent.
+- **Heartbeat executive summary** (ambient awareness). Every tick posts one line summarizing queues, recent routine activity, and health. Never silent - a tick with nothing to do still posts.
+- **Tick trace file** (forensic record). `memory/heartbeat-trace.md` is an append-only log an operator can `grep` or `tail` to prove heartbeat fired and see what it observed.
 
-The agent has judgment but not taste. When placement, filing, or risk is obvious, it acts. When ambiguous, it asks the operator in one short question. Signalling is batched one summary per tick, not one message per action.
+Silence in any of the three is itself a signal. A dead heartbeat is not ambiguous.
 
-This is the hardest invariant to preserve as programs grow; it is the one that makes the difference between a quiet colleague and an over-eager robot.
+### 4. The workspace is the ledger
 
-### 5. Small reversible actions over broad audits
+No package-owned state files. Git, daily notes, PARA entities, `MEMORY.md`, session transcripts, and `memory/heartbeat-trace.md` are the only state. Every routine and every heartbeat tick derives what it needs from those artifacts, acts, writes observations back, and forgets.
+
+This is why `isolatedSession: true` and `lightContext: true` are correct for both heartbeat ticks and routine runs. Cross-tick memory lives in files, not session history. The workspace bootstrap (`AGENTS.md`, `MEMORY.md`) caches across ticks within OpenClaw's prompt-cache window; routine specs are read fresh on every run, so spec updates take effect without re-registering crons.
+
+Note the interaction: `lightContext: true` skips the full workspace bootstrap except `HEARTBEAT.md`. Routines that need `MEMORY.md`, `AGENTS.md`, or PARA reference docs must explicitly read them. Specs in this package do so where needed.
+
+### 5. Co-create, do not guess
+
+The agent has judgment but not taste. When placement, filing, or risk is obvious, it acts. When ambiguous, it surfaces the ambiguity in the routine's reply and leaves the state untouched.
+
+Per-routine announcements mean the operator sees ambiguities in the channel the same way they see completions. There is no "batch tick summary" to hide inside; every routine speaks for itself.
+
+### 6. Small reversible actions over broad audits
 
 The maintainer prefers one concrete small change over a theoretical sweep. It surfaces emerging projects or misfiled efforts but does not silently promote them. Escalates before anything destructive, risky, or ambiguous.
-
-### 6. Quiet by default
-
-If a tick produced no meaningful change, reply `HEARTBEAT_OK`. The maintainer earns operator trust by not being noisy.
 
 ## Primitive mapping
 
 ```
-standing authority       AGENTS.md         (charter + six programs)
-recurring execution      HEARTBEAT.md      (tasks block)
-interval cadence         heartbeat         (2h default, active hours, isolated session)
-wall-clock jobs          cron              (opt-in; demand-driven or plain scheduled)
-audit trail              session transcripts + git history
+standing authority       AGENTS.md             (charter + six routines)
+orchestrator loop        HEARTBEAT.md          (reads state, toggles bursts, posts summary)
+orchestrator cadence     heartbeat             (2h default, active hours, isolated session)
+routine execution        cron                  (every routine is its own cron job)
+audit trail              logs channel + session transcripts + git + heartbeat-trace.md
 workspace memory         memory/, projects/, areas/, resources/, archives/
 ```
 
-There is no "standing orders" primitive in the OpenClaw codebase; the term in OpenClaw's docs refers to rules written into `AGENTS.md`. clawstodian uses the standing-orders anatomy (authority / trigger / approval gate / escalation / execution steps / what NOT to do) to structure each program, but the mechanism remains the AGENTS.md file loaded at session bootstrap.
+There is no "standing orders" primitive in the OpenClaw codebase; the term in OpenClaw's docs refers to rules written into `AGENTS.md`. clawstodian uses the standing-orders anatomy (authority / trigger / approval gate / escalation / execution steps / what NOT to do) to structure each routine, but the mechanism remains the AGENTS.md file loaded at session bootstrap and the cron job that dispatches the routine with a `Read clawstodian/routines/<name>.md and execute.` message.
 
-## The nine programs
+## The six routines
 
-Each program has a single-page spec in `programs/`. `AGENTS-SECTION.md` catalogs them; `HEARTBEAT-SECTION.md` coordinates each tick; individual specs are read on demand when a program is about to run.
+Each routine has a single-page spec in `routines/`. `AGENTS-SECTION.md` catalogs them; individual specs are read on demand when a cron fires.
 
-| Program | Class | Cron | Replaces |
+| Routine | Class | Schedule | Replaces |
 | - | - | - | - |
-| `daily-notes-tend` | heartbeat-direct | - | ops-daily scan/capture |
-| `durable-insight` | heartbeat-inline | - | ops-daily polish editorial layer |
-| `para-tend` | heartbeat-direct | - | ops-para extract/distill |
-| `workspace-tidiness` | heartbeat-direct | - | ops-clean sweep |
-| `git-hygiene` | heartbeat-direct | - | ops-clean git |
-| `health-sweep` | heartbeat-direct | - | (new; distilled from all three) |
-| `close-of-day` | burst worker | opt-in, demand-driven | ops-daily polish scheduled layer |
-| `para-backfill` | burst worker | opt-in, demand-driven | ops-para verify/align scheduled layer |
-| `weekly-para-align` | fixed cron | opt-in, Sunday 06:00 | ops-para weekly structural check |
+| `daily-note` | always-on cron | every 30m | `daily-notes-tend` + `durable-insight` inline |
+| `workspace-tidy` | always-on cron | every 2h | `workspace-tidiness` (expanded: active filing) |
+| `git-hygiene` | always-on cron | every 30m | `git-hygiene` (unchanged in function) |
+| `para-align` | fixed cron | Sunday 06:00 UTC | `weekly-para-align` (expanded: cross-refs, naming, MEMORY.md) |
+| `seal-past-days` | heartbeat-toggled burst | every 30m while enabled | `close-of-day` |
+| `para-extract` | heartbeat-toggled burst | every 30m while enabled | `para-backfill` + `para-tend` + `durable-insight` PARA filing |
 
-The tidiness / git / health programs typically share a tick because they all inspect the workspace. They remain distinct programs for clarity of authority and boundaries; the heartbeat coordinator batches them when appropriate.
+Two execution classes:
+
+- **Always-on cron** - enabled at install time; fires on its schedule; quiet runs reply `NO_REPLY`.
+- **Heartbeat-toggled burst** - starts disabled; heartbeat enables when a queue exists and disables when empty.
 
 ## Observability and troubleshooting
 
 A working clawstodian install is debuggable from a small set of surfaces:
 
-1. `AGENTS.md` - program definitions and authority.
-2. `HEARTBEAT.md` - execution loop.
-3. `memory/crons.md` - cron routine state.
-4. Recent session transcripts.
-5. `openclaw cron list` - cron job status.
+1. **Logs channel** - per-routine announcements and heartbeat executive summaries arrive here.
+2. **`memory/heartbeat-trace.md`** - append-only tick log, greppable by date.
+3. **`openclaw cron list --all`** - which routines are registered, which are enabled, last-run timestamps.
+4. **`AGENTS.md`** - routine catalog and authority.
+5. **`HEARTBEAT.md`** - orchestrator loop.
+6. **`memory/crons.md`** - operator-readable cron dashboard.
 
 If an operator needs to look at more than that to explain routine behavior, the design has drifted.
 
 ## Non-goals
 
-- Full transcript-to-memory coverage. The daily-notes program does its best from `sessions_*` and git; it does not exhaustively reconstruct everything.
-- Automatic PARA rewrites. The PARA program creates and updates; it never reorganizes existing entities without operator direction.
+- Full transcript-to-memory coverage. `daily-note` does its best from `sessions_*` and git; it does not exhaustively reconstruct everything.
+- Automatic PARA rewrites. `para-extract` creates and updates obvious placements; `para-align` applies trivial structural fixes; neither reorganizes existing entities without operator direction.
 - Hidden state. Any persistent fact the package acts on is a file the operator can read.
-- Multi-worker pipelines. One loop, one agent per tick, no orchestration choreography.
+- Multi-worker pipelines. Each routine is one cron, one session, one single-line reply.
+- Auto-archive lifecycle. When inactive projects move from live PARA into `archives/` stays user-managed judgment.
 - Custom hooks in the default path. If a future feature needs hooks, it will be documented as opt-in, not baseline.
 
 ## Open questions
 
-- Should the install flow detect a workspace still using `ops-daily` / `ops-para` / `ops-clean` and offer a migration plan, or only support greenfield installs? (Current stance: surface the overlap, let the operator decide.)
+- Periodic workspace-audit routine: deferred. The install smoke test covers install-time correctness; an audit routine that verifies ongoing delivery is a separate iteration.
+- Fixed cron with heartbeat-wake for `para-align` is v0.4's pragmatic solution; a fully declarative "trigger when drift report matches X" would need a queue primitive the package does not have yet.
+- `MEMORY.md` + `lightContext: true` interaction: isolated sessions do not auto-load `MEMORY.md`; routines that need it read it explicitly. Worth a test before adding a routine that depends on it.
