@@ -127,23 +127,33 @@ Append-only. Never rewrite prior lines. The file is the forensic record that pro
 
 ### 6. Post a channel summary
 
-One message per tick. Never silent - even "nothing changed" gets a one-liner. Two shapes:
+One message per tick. Never silent - even "nothing changed" posts. Multi-line scannable format, one concern per line, matching the shape routines use.
 
 **Healthy no-change:**
 
 ```
-status <HH:MMZ> | queues: capture=0 seal=0 extract=0 | <N> routines reported quiet | health: ok
+status · <HH:MMZ> · ok
+Queues: capture=0 · seal=0 · extract=0
+Routines reported quiet since last tick
 ```
 
 **Something happened:**
 
 ```
-status <HH:MMZ> | queues: capture=<u>+<s>/seal=<n>/extract=<m> (toggled: <which> <enabled|disabled>) | recent: <routine>@<time> <summary>, ... | health: <ok|anomaly: <reason>>
+status · <HH:MMZ> · <ok | anomaly: <reason>>
+Queues: capture=<u>+<s> · seal=<n> · extract=<m>
+Toggled: <which> <enabled|disabled>
+Awaiting decision: <total> (<routine>: <n>, ...)
+Recent: <routine>@<time> <summary>, ...
 ```
 
-The `capture=<u>+<s>` notation encodes both gap kinds: `u` is un-admitted sessions, `s` is stale cursors. When both are zero, the healthy-no-change form `capture=0` is used instead.
+Conventions:
 
-Keep under 300 characters. Per-routine detail already arrived via each routine's own announce; this message is the orchestrator overview. Speak plainly.
+- `capture=<u>+<s>` encodes both gap kinds: `u` un-admitted sessions, `s` stale cursors. When both are zero, write `capture=0` instead.
+- Omit any line whose count is zero or whose content is empty (e.g. drop `Toggled:` on a tick that flipped no crons; drop `Awaiting decision:` when no items are outstanding; drop `Recent:` when no routine posted between ticks).
+- On days when `health` / `daily-retrospective` / `weekly-review` also fire, append their sections BELOW this status block in the same message, separated by blank lines.
+
+Per-routine detail already arrived via each routine's own channel post; this block is the orchestrator overview.
 
 ## Health task
 
