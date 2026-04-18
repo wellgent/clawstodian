@@ -15,7 +15,9 @@ The current workspace working tree and its remote-tracking branch.
 - Never `git add -A` or `git add .`. Stage by exact path.
 - Never `--no-verify`. If a pre-commit hook fails, fix the underlying issue and commit again.
 - Never `git reset --hard`, `git clean -f`, or force-push without explicit operator confirmation.
-- Never inline code through heredocs piped into shell interpreters.
+- Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
+- For multi-line script logic, write the script to `/tmp/clawstodian-git-<context>.sh` (or `.py`) and invoke it by path. Do not inline code via heredoc to an interpreter (`bash <<EOF ... EOF`); the safety layer blocks that as obfuscation.
+- `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
 
 ## Worker discipline
 

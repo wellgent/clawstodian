@@ -109,7 +109,19 @@ The single behavior covers every case: a brand-new operator session that just ap
 
 3. **Classify if new.** For an `un-admitted` target, apply the classification rules. Append a ledger entry. If classification is `skipped`, stop here; run report returns `NO_REPLY` because admitting a skipped session is not interesting enough to announce (cron / hook / subagent admissions are noisy during initial backfill).
 
-4. **Read JSONL tail.** For an `interactive` target (either newly admitted or `stale`), open `transcriptPath` with `Read` starting at `offset: lines_captured + 1`. For a newly-admitted interactive session, `lines_captured` is 0, so the full transcript is read. Parse each returned line as JSON.
+4. **Read JSONL tail, filtered.** Raw `Read` of a session transcript can blow context on active sessions: tool results and tool calls dominate transcript bytes (empirically ~88% in a large active session; user+assistant text is often under 3%). Pick the lightest reading layer that covers the unread span:
+
+   - **`sessions_history`** - cheapest for recent small spans. Safety-filtered (caps at 80 KB, strips tool content by default). Use when the unread span is a handful of recent messages and fidelity beyond the 80 KB cap is not needed.
+   - **Inline `jq` filter piped to `/tmp/`** - for larger unread spans. Reduces the JSONL tail to user + assistant text only, typically 100-200x smaller than the raw span:
+     ```bash
+     tail -n +$((lines_captured+1)) <transcriptPath> | \
+       jq -c 'select(.type=="message" and (.message.role=="user" or .message.role=="assistant")) | {ts: .timestamp, role: .message.role, content: (.message.content | if type == "string" then . else (map(select(.type=="text") | .text) | join("")) end | .[:2000])}' \
+       > /tmp/clawstodian-capture-<sid-prefix>.jsonl
+     ```
+     Then `Read` `/tmp/clawstodian-capture-<sid-prefix>.jsonl`. Each line is one filtered turn with timestamp, role, and text truncated to 2000 chars. Delete the temp file after processing.
+   - **Ad-hoc script in `/tmp/`** - only when the logic does not fit one jq pipe (joining two sessions' timelines, pre-computing bucket sizes, deduping against existing note sections). Write `/tmp/clawstodian-capture-<sid-prefix>.py`, invoke with `python3 /tmp/clawstodian-capture-<sid-prefix>.py`, read stdout or a result file, clean up.
+
+   Whichever layer is used, parse the output turn-by-turn. Record the source transcript's line count at time of read (`wc -l < <transcriptPath>`); that becomes the new `lines_captured` in step 9.
 
 5. **Filter turns.** Apply the turn-level filter rules above: skip cron-prefixed user turns and their assistant responses, skip heartbeat-matched user turns and their responses, skip hook payload turns, summarize tool calls inline rather than pasting raw output.
 
@@ -123,7 +135,7 @@ The single behavior covers every case: a brand-new operator session that just ap
 
 9. **File obvious durable insights.** If a decision, resolved bug, or reusable pattern clearly belongs in `resources/` or a project's `README.md`, file it now. Ambiguous insights surface instead.
 
-10. **Advance the ledger cursor.** Update `lines_captured` to the new line count, `last_activity` to the row's `updatedAt`, and extend `dates_touched` with any newly-affected dates. Edit in place via narrow `Edit` calls; never rewrite the whole ledger. For a newly-admitted session, set `status`: `done` if the session's `updatedAt` is more than 7 days old, otherwise `active`.
+10. **Advance the ledger cursor.** Update `lines_captured` to the source transcript's line count at time of read (captured in step 4), `last_activity` to the row's `updatedAt`, and extend `dates_touched` with any newly-affected dates. Edit in place via narrow `Edit` calls; never rewrite the whole ledger. For a newly-admitted session, set `status`: `done` if the session's `updatedAt` is more than 7 days old, otherwise `active`.
 
 11. **Update frontmatter** on each touched daily note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if not present), and `para_status` handling per the structure spec.
 

@@ -17,7 +17,9 @@ Selecting by newest `updatedAt` prioritizes live sessions over historical drain.
 
 ## Exec safety
 
-Run commands by exact path. Never inline code through heredocs piped into shell interpreters.
+- Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
+- For multi-line script logic, write the script to `/tmp/clawstodian-capture-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
+- `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
 
 ## Worker discipline
 
