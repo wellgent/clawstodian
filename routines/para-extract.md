@@ -34,10 +34,50 @@ openclaw cron disable para-extract
 
 ## Run report
 
-Single line delivered to the logs channel by the cron runner:
+Two artifacts per firing: a full report on disk and a one-line summary to the notifications channel.
+
+### File on disk
+
+Write to `memory/runs/para-extract/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
+
+File shape:
+
+```markdown
+# para-extract run report
+
+- timestamp: 2026-04-18T03:00:00Z
+- target: memory/2026-04-17.md
+- outcome: processed | skipped | failed
+- para_status transition: pending -> done
+
+## Entities
+
+- updated: 3
+  - areas/people/alice.md
+  - projects/vps-migration/README.md
+  - resources/1password-secrets-management.md
+- created: 1
+  - areas/companies/pulsy.md
+- ambiguous (surfaced, not acted on): 0
+
+## Queue after firing
+
+- remaining sealed notes with para_status: pending - N
+- cron state: enabled | disabled
+
+## Commit
+
+- <hash short> para: extract 2026-04-17 - <summary>
+
+## Channel summary
+
+para-extract 2026-04-17: processed | entities 3u/1c/0a | queue: 0 | cron: disabled | report: memory/runs/para-extract/2026-04-18T03-00-00Z.md
+```
+
+### Channel summary
 
 ```
-para-extract YYYY-MM-DD: <processed|skipped|failed> | entities <N updated, M created, K ambiguous> | queue: <remaining> | cron: <enabled|disabled>
+para-extract YYYY-MM-DD: <processed|skipped|failed> | entities <N>u/<M>c/<K>a | queue: <remaining> | cron: <enabled|disabled> | report: memory/runs/para-extract/<ts>.md
 ```
 
-Never return `NO_REPLY` on a processed note; each run carries state transition worth seeing.
+Counts are compact: `u` updated, `c` created, `a` ambiguous. Never return `NO_REPLY`; every firing produces both artifacts.

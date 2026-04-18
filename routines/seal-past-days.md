@@ -79,10 +79,50 @@ openclaw cron disable seal-past-days
 
 ## Run report
 
-Single line delivered to the logs channel by the cron runner:
+Two artifacts per firing: a full report written to disk and a single-line summary to the notifications channel.
+
+### File on disk
+
+Write to `memory/runs/seal-past-days/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
+
+File shape:
+
+```markdown
+# seal-past-days run report
+
+- timestamp: 2026-04-18T02:30:00Z
+- target: memory/2026-04-17.md
+- outcome: sealed | fast-path-sealed | skipped | failed
+- path: full | trivial-day-fast-path
+
+## What happened
+
+- Slug siblings merged: 0
+- Sections before: 7
+- Sections after: 5
+- Noise removed: 2 heartbeat digest blocks
+- Day summary written: yes
+- Frontmatter curated: topics (5), people (2), projects (3)
+- para_status set to: pending
+
+## Queue after firing
+
+- remaining past-day notes with status: active - N
+- cron state: enabled | disabled
+
+## Commit
+
+- <hash short> memory: seal 2026-04-17 - <topic>
+
+## Channel summary
+
+seal-past-days 2026-04-17: sealed | sections 7->5 | para_status: pending | queue: 2 | cron: enabled | report: memory/runs/seal-past-days/2026-04-18T02-30-00Z.md
+```
+
+### Channel summary
 
 ```
-seal-past-days YYYY-MM-DD: <sealed|skipped|failed> | sections N->N | para_status: pending | queue: <remaining> | cron: <enabled|disabled>
+seal-past-days YYYY-MM-DD: <sealed|skipped|failed> | sections N->N | para_status: pending | queue: <remaining> | cron: <enabled|disabled> | report: memory/runs/seal-past-days/<ts>.md
 ```
 
-Never return `NO_REPLY` on a seal attempt; even fast-path success is worth reporting.
+Never return `NO_REPLY` on a seal attempt; every firing produces both a file and a channel post. A target-selection miss (no candidate qualifies) writes an abbreviated file with `outcome: no-target` and a one-line channel note.

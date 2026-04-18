@@ -55,7 +55,7 @@ Two phases per firing.
 **Phase 2 - process interactive gaps, bounded.** Enumerate interactive gaps (both the `lines_captured: 0` admissions from Phase 1 AND pre-existing stale-cursor entries). Sort by `updatedAt` descending. Process one at a time per the unit-of-work procedure below. Continue to the next-newest gap until ANY of these hold:
 
 - No interactive gaps remain.
-- The firing is approaching its budget (stop once ~80 KB of JSONL has been read across all sessions processed, or when the agent's own context is past ~80 K tokens). Leave headroom for the self-disable check and run report.
+- The firing is approaching its budget. The cron session runs with a ~200K-token context window and compaction kicks in around 160-180K; target a soft stop at **~140K tokens of consumed context** to leave headroom for the self-disable check and run report. In JSONL terms, that roughly corresponds to **~500 KB of filtered content** read across all sessions processed this firing (each filtered session is typically 20-100 KB).
 - Five interactive sessions have been processed this firing (hard cap to prevent runaway on pathological queues).
 
 If Phase 2 runs out of budget with interactive gaps still remaining, the cron stays enabled and the next firing picks up from the newest remaining gap.
@@ -115,17 +115,65 @@ openclaw cron disable capture-sessions
 
 ## Run report
 
-Single line delivered to the logs channel by the cron runner:
+Two artifacts per meaningful firing: a full report written to disk and a single-line summary delivered to the notifications channel. The operator sees the scannable summary in the channel and can drill into the file when they want detail.
+
+### File on disk
+
+Write to `memory/runs/capture-sessions/<YYYY-MM-DD>T<HH-MM-SS>Z.md` (UTC, colons replaced with hyphens so the filename is filesystem-safe and sorts chronologically).
+
+File shape:
+
+```markdown
+# capture-sessions run report
+
+- timestamp: 2026-04-18T12:30:00Z
+- cron_state_before: enabled
+- cron_state_after: enabled
+
+## Phase 1 - admissions
+
+- admitted: 3
+  - 96a0c068 -> interactive (kind: main)
+  - 5f12bbdd -> skipped (kind: cron, reason: cron session)
+  - 7c83eeaa -> skipped (kind: cron, reason: cron session)
+
+## Phase 2 - captures
+
+- processed: 1
+  - 96a0c068: lines 142 -> 189 | dates: [2026-04-18] | sections appended: 2 | slugs merged: 0 | insights filed: 0 | bleed: 0
+
+## Bleed-over (if any)
+
+- (none)
+
+## Queue after firing
+
+- un-admitted: 0
+- stale: 0
+
+## Channel summary
+
+capture-sessions: admitted 3 (skipped=2, interactive=1) | captured 1 | dates [2026-04-18] | bleed 0 | queue: u=0/s=0 | cron: enabled | report: memory/runs/capture-sessions/2026-04-18T12-30-00Z.md
+```
+
+Keep each section tight. The file exists for post-mortem, not for narrative. Skip writing the file entirely on NO_REPLY firings (see below).
+
+### Channel summary
+
+Single line the cron runner delivers to the notifications channel:
 
 ```
-capture-sessions: admitted <N> (skipped=<s>, interactive=<i>) | captured <M> sessions | dates [YYYY-MM-DD, ...] | merged <X> slugs | filed <Y> insights | bleed <Z> sealed | queue: un-admitted=<u>/stale=<s2> | cron: <enabled|disabled>
+capture-sessions: admitted <N> (skipped=<s>, interactive=<i>) | captured <M> | dates [YYYY-MM-DD, ...] | bleed <Z> | queue: u=<u>/s=<s2> | cron: <enabled|disabled> | report: memory/runs/capture-sessions/<ts>.md
 ```
 
 - `admitted` - total ledger entries added this firing; `skipped` + `interactive` sum to it.
 - `captured` - interactive sessions whose cursor advanced (includes Phase 1 admissions that got a Phase 2 first-read).
-- `bleed` - sessions whose new content touched a sealed-date note. List affected sessions and dates inline if any.
-- `queue` - counts remaining after the firing; drives the heartbeat's next toggle decision.
+- `bleed` - count of sessions whose new content touched a sealed-date note. Detail lives in the file.
+- `queue: u=/s=` - un-admitted / stale counts remaining; drives the heartbeat's next toggle decision.
+- `report: ...` - relative path to the file so the operator can open it with one step.
 
-Return `NO_REPLY` when `admitted` is 0 OR all admissions were `skipped`, AND `captured` is 0, AND the cron state did not change.
+### NO_REPLY
 
-Always report when: any interactive capture happened (`captured > 0`), any bleed surfaced (`bleed > 0`), or the cron self-disabled (state transition).
+Return `NO_REPLY` (no channel post, no file on disk) when `admitted` is 0 OR all admissions were `skipped`, AND `captured` is 0, AND the cron state did not change. A no-op firing produces no artifacts.
+
+Always report (file + channel) when: any interactive capture happened (`captured > 0`), any bleed surfaced (`bleed > 0`), or the cron self-disabled (state transition).

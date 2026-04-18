@@ -24,10 +24,51 @@ The full PARA graph: all entities in `projects/`, `areas/`, `resources/`, `archi
 
 ## Run report
 
-Single line delivered to the logs channel by the cron runner:
+Two artifacts per firing: a full report on disk and a one-line summary to the notifications channel.
+
+### File on disk
+
+Write to `memory/runs/para-align/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
+
+File shape:
+
+```markdown
+# para-align run report
+
+- timestamp: 2026-04-20T06:00:00Z
+- week: 2026-W16
+- outcome: clean | fixes-applied | proposals-surfaced | failed
+
+## Verified
+
+- entities scanned: 48
+- frontmatter-ok: 47
+- frontmatter-violations: 1 (see proposals)
+- cross-references-ok: 48
+- broken cross-references: 0
+- MEMORY.md current: yes
+
+## Trivial fixes applied
+
+- 3
+  - projects/vps-migration/README.md - normalized `status` value `Active` -> `active`
+  - resources/1password-secrets-management.md - added missing `last_updated`
+  - areas/people/alice.md - removed stale `related` entry
+
+## Proposals (awaiting operator)
+
+- 1
+  - projects/unnamed-project/README.md - `type: project` but no `status` field and unclear ownership. Suggested action: ask operator whether to archive or promote.
+
+## Channel summary
+
+para-align 2026-W16: verified 48 entities | trivial fixes 3 | proposals 1 (awaiting operator) | report: memory/runs/para-align/2026-04-20T06-00-00Z.md
+```
+
+### Channel summary
 
 ```
-para-align YYYY-Www: verified <N> entities | trivial fixes <M> | proposals <K> (awaiting operator)
+para-align YYYY-Www: verified <N> entities | trivial fixes <M> | proposals <K> (awaiting operator) | report: memory/runs/para-align/<ts>.md
 ```
 
-Even a clean graph produces a report (no `NO_REPLY`); the weekly health signal is valuable.
+Even a clean graph produces both artifacts (no `NO_REPLY`); the weekly health signal is valuable.

@@ -62,7 +62,7 @@ Silence in any of the four is itself a signal. A dead heartbeat is not ambiguous
 
 ### 5. The workspace is the ledger
 
-No package-owned state files. Git, daily notes, PARA entities, `MEMORY.md`, session transcripts, `memory/session-ledger.md`, and `memory/heartbeat-trace.md` are the only state. Every routine and every heartbeat tick derives what it needs from those artifacts, acts, writes observations back, and forgets.
+No package-owned state files. Git, daily notes, PARA entities, `MEMORY.md`, session transcripts, `memory/session-ledger.md`, `memory/heartbeat-trace.md`, and per-routine run reports under `memory/runs/<routine>/` are the only state. Every routine and every heartbeat tick derives what it needs from those artifacts, acts, writes observations back, and forgets.
 
 The `daily-notes` program is the most state-dependent: it needs to know which sessions it has already captured, and how far into each transcript. That state lives in `memory/session-ledger.md` - one markdown section per session, cursor fields advanced in place via narrow `Edit` calls. Cursors advance only after the affected daily-note writes succeed; a partial failure leaves the cursor at the old position so the next tick retries from there. This replaces ops-daily's `capture-state.json` sidecar with a markdown-native file the agent edits with its normal tools.
 
@@ -91,6 +91,7 @@ maintainer cadence           heartbeat                 (2h, main session, active
 maintainer continuity        main session history      (conversation with the operator, host-wide compaction)
 scheduled invocations        routines/ + cron          (six routines; each a cron job in its own isolated session)
 capture state                memory/session-ledger.md  (per-session classification + read cursor)
+run reports                  memory/runs/<routine>/    (per-firing detail files; pruned by workspace-tidy after 30d)
 audit trail                  notifications channel + session transcripts + git + heartbeat-trace.md
 workspace memory             memory/, projects/, areas/, resources/, archives/
 ```
@@ -123,16 +124,17 @@ Three execution classes for routines:
 
 Three heartbeat-toggled bursts (`capture-sessions`, `seal-past-days`, `para-extract`) form a pipeline: `capture-sessions` populates daily notes from session transcripts that the agents did not write up in-session; `seal-past-days` closes past-day notes with `para_status: pending`; `para-extract` propagates those sealed notes into PARA entities. Each stage signals readiness via workspace state (ledger entries, frontmatter flags), not in-memory queues. The heartbeat reads those signals once per tick and flips the corresponding crons on or off.
 
-Agents in live sessions remain the primary writers of daily notes per `AGENTS.md` memory-maintenance rules; `capture-sessions` is the backstop that fires only when the session ledger shows un-admitted sessions or stale cursors. On a disciplined workspace where agents update their daily notes in-session, the cron may go days between firings.
+Agents in live sessions remain the primary writers of daily notes per `AGENTS.md` memory-maintenance rules; `capture-sessions` is the backstop. The cron fires whenever new sessions appear or existing sessions have unread activity, but each firing does minimal work when the agent was disciplined: Phase 1 admits the session cheaply, Phase 2 reads the transcript and finds most content already in the daily note (the per-date merge rule absorbs matches rather than duplicating).
 
 ## Observability and troubleshooting
 
 A working clawstodian install is debuggable from a small set of surfaces:
 
-1. **Logs channel** - per-routine run reports and heartbeat executive summaries arrive here.
-2. **`memory/heartbeat-trace.md`** - append-only tick log, greppable by date.
-3. **`openclaw cron list --all`** - which routines are registered, which are enabled, last-run timestamps.
-4. **`AGENTS.md` (programs catalog)** - domain authorities.
+1. **Logs channel** - per-routine run-report summaries and heartbeat executive summaries arrive here. Each summary points to the corresponding file on disk for drill-down.
+2. **`memory/runs/<routine>/`** - per-firing detailed run reports. Files named `<YYYY-MM-DD>T<HH-MM-SS>Z.md`, sorted chronologically. Pruned by `workspace-tidy` after 30 days.
+3. **`memory/heartbeat-trace.md`** - append-only tick log, greppable by date.
+4. **`openclaw cron list --all`** - which routines are registered, which are enabled, last-run timestamps.
+5. **`AGENTS.md` (programs catalog)** - domain authorities.
 5. **`HEARTBEAT.md`** - orchestrator loop.
 6. **`memory/crons.md`** - operator-readable cron dashboard.
 

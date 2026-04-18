@@ -54,6 +54,7 @@ Three layers give continuity across sessions:
 - Complete listings -> `projects/INDEX.md`, `areas/INDEX.md`, `resources/INDEX.md`.
 - Convention deep-dives -> `memory/para-structure.md`, `memory/daily-note-structure.md`, `memory/crons.md`.
 - Capture state (internal; written by `capture-sessions`) -> `memory/session-ledger.md`. Format spec lives in `memory/daily-note-structure.md` under the "Session Ledger" section.
+- Per-routine run reports -> `memory/runs/<routine-name>/<timestamp>.md`. Each cron firing that does meaningful work writes a detail file here; the channel summary always ends with a pointer. Pruned after 30 days by `workspace-tidy`.
 
 **Memory maintenance (applies to all agents in this workspace, not just clawstodian-driven runs):**
 

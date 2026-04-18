@@ -10,7 +10,7 @@ The workspace stays navigable: trash is removed, misplaced files land in their i
 
 ## Conventions
 
-- **Trash categories**: empty directories without `.gitkeep`, run-logs older than 30 days, scratch files the agent created and no longer references, broken symlinks.
+- **Trash categories**: empty directories without `.gitkeep`, run-report files under `memory/runs/<routine>/` older than 30 days, scratch files the agent created and no longer references, broken symlinks. The run-report directories themselves (`memory/runs/<routine>/`) always stay; only files older than 30 days inside them get pruned.
 - **Misplaced files**: files at workspace root that belong under `resources/`, `projects/<name>/`, or another PARA bucket per `memory/para-structure.md`.
 - **Anomalies**: broken symlinks, oversized files in unexpected places, unknown-origin files, permission outliers.
 - **Operator territory**: top-level directories not listed in `MEMORY.md` or the PARA folders; dotfiles the operator configured; anything in `.git/`, `.openclaw/`.
@@ -19,7 +19,7 @@ The workspace stays navigable: trash is removed, misplaced files land in their i
 ## Authority
 
 - Delete empty directories (no `.gitkeep`).
-- Prune run-logs older than 30 days.
+- Prune run-report files older than 30 days under `memory/runs/<routine>/`. Never delete the per-routine directories themselves, only aged files inside.
 - Remove scratch files the agent itself created and no longer references.
 - Move misplaced files to their intuitive location when the right home is obvious per `memory/para-structure.md`.
 - Edit `.gitignore` to cover ephemeral patterns that slipped in.
@@ -45,7 +45,7 @@ Surface with filename and observed state; do not auto-repair.
 
 1. Walk the workspace. Collect candidates in four buckets:
    - **Empty directories** (no `.gitkeep` sentinel).
-   - **Stale artifacts** (run-logs older than 30 days, scratch files the agent created).
+   - **Stale artifacts** (run-report files at `memory/runs/<routine>/*` older than 30 days; scratch files the agent created).
    - **Misplaced files** (files at workspace root that clearly belong under a PARA bucket per `memory/para-structure.md`).
    - **Anomalies** (broken symlinks, oversized files, unknown-origin files).
 2. For each candidate:

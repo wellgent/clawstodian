@@ -27,10 +27,42 @@ The current workspace working tree and its remote-tracking branch.
 
 ## Run report
 
-Single line delivered to the logs channel by the cron runner:
+On firings that committed or surfaced anything: a full report on disk plus a one-line summary to the notifications channel. On clean-tree firings: `NO_REPLY`, no file, no channel post.
+
+### File on disk
+
+Write to `memory/runs/git-hygiene/<YYYY-MM-DD>T<HH-MM-SS>Z.md` when there was work.
+
+File shape:
+
+```markdown
+# git-hygiene run report
+
+- timestamp: 2026-04-18T14:00:00Z
+- outcome: committed | surfaced-only | failed
+- branch: main
+- pushed: yes
+
+## Commits
+
+- 2
+  - <hash short> memory: append 2026-04-18 notes on VPS migration
+  - <hash short> projects/vps-migration: add provisioning steps
+
+## Awaiting operator decision (surfaced, not committed)
+
+- 1
+  - .env.new at workspace root - looks like secrets; ignored rather than committed. Operator to confirm.
+
+## Channel summary
+
+git-hygiene: 2 commits pushed | 1 awaiting operator decision | report: memory/runs/git-hygiene/2026-04-18T14-00-00Z.md
+```
+
+### Channel summary
 
 ```
-git-hygiene: <N> commits pushed | <M> awaiting operator decision
+git-hygiene: <N> commits pushed | <M> awaiting operator decision | report: memory/runs/git-hygiene/<ts>.md
 ```
 
-Return `NO_REPLY` when the tree was already clean, so no-change runs stay silent.
+Return `NO_REPLY` when the tree was already clean. No file is written in that case.

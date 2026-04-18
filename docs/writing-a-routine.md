@@ -58,11 +58,21 @@ openclaw cron disable <routine-name>
 
 ## Run report
 
-Single line delivered to the logs channel by the cron runner:
+Two artifacts on meaningful firings: a detail file on disk and a one-line summary delivered to the logs channel by the cron runner.
+
+### File on disk
+
+Write to `memory/runs/<routine-name>/<YYYY-MM-DD>T<HH-MM-SS>Z.md` (UTC, colons replaced with hyphens so the filename is filesystem-safe and sorts chronologically). File shape is per-routine but usually: frontmatter-style fields (timestamp, outcome, cron state), section per phase / action, a "Channel summary" section at the bottom with the exact line posted to the channel.
+
+Skip the file on `NO_REPLY` firings - no work means no artifact.
+
+### Channel summary
 
 \`\`\`
-<routine-name> <context>: <fields separated by pipes>
+<routine-name> <context>: <fields separated by pipes> | report: memory/runs/<routine-name>/<ts>.md
 \`\`\`
+
+Always end with `report: memory/runs/...` so the operator has a one-step drill-down path.
 
 <When to return NO_REPLY, if applicable.>
 ```
@@ -90,9 +100,9 @@ Shape:
 Examples:
 
 ```
-capture-sessions 96a0c068: captured | classification: interactive | lines: 142->189 | dates: [2026-04-18] | merged 1 slugs | filed 0 insights | bleed 0 sealed | queue: un-admitted=2/stale=0 | cron: enabled
-seal-past-days 2026-04-15: sealed | sections 7->5 | para_status: pending | queue: 2 | cron: enabled
-para-align 2026-W16: verified 48 entities | trivial fixes 3 | proposals 1 (awaiting operator)
+capture-sessions: admitted 3 (skipped=2, interactive=1) | captured 1 | dates [2026-04-18] | bleed 0 | queue: u=0/s=0 | cron: enabled | report: memory/runs/capture-sessions/2026-04-18T12-30-00Z.md
+seal-past-days 2026-04-15: sealed | sections 7->5 | para_status: pending | queue: 2 | cron: enabled | report: memory/runs/seal-past-days/2026-04-16T02-30-00Z.md
+para-align 2026-W16: verified 48 entities | trivial fixes 3 | proposals 1 (awaiting operator) | report: memory/runs/para-align/2026-04-20T06-00-00Z.md
 ```
 
 Keep reports greppable and scan-friendly. Prose belongs elsewhere.
