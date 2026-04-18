@@ -29,31 +29,3 @@ workspace-tidy: removed <N>, moved <M>, awaiting decision on <K>
 ```
 
 Return `NO_REPLY` when nothing changed, so no-change runs stay silent.
-
-## Install
-
-Prerequisite: `clawstodian/routines` and `clawstodian/programs` symlinks.
-
-```bash
-openclaw cron add \
-  --name workspace-tidy \
-  --every 2h \
-  --session isolated \
-  --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/workspace-tidy.md and execute."
-```
-
-Substitute `--no-deliver` for silent runs.
-
-## Verify
-
-```bash
-openclaw cron list | grep workspace-tidy
-```
-
-## Uninstall
-
-```bash
-openclaw cron remove workspace-tidy
-```

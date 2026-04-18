@@ -29,31 +29,3 @@ daily-note YYYY-MM-DD: appended <N> sections | merged <M> slug siblings | filed 
 ```
 
 Return `NO_REPLY` when nothing changed, so no-change runs stay silent.
-
-## Install
-
-Prerequisite: `clawstodian/routines` symlink to `~/clawstodian/routines` and `clawstodian/programs` symlink to `~/clawstodian/programs`.
-
-```bash
-openclaw cron add \
-  --name daily-note \
-  --every 30m \
-  --session isolated \
-  --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/daily-note.md and execute."
-```
-
-Substitute `--no-deliver` if the operator prefers silent runs.
-
-## Verify
-
-```bash
-openclaw cron list | grep daily-note
-```
-
-## Uninstall
-
-```bash
-openclaw cron remove daily-note
-```

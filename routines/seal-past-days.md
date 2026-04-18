@@ -41,34 +41,3 @@ seal-past-days YYYY-MM-DD: <sealed|skipped|failed> | sections N->N | para_status
 ```
 
 Never return `NO_REPLY` on a seal attempt; even fast-path success is worth reporting.
-
-## Install
-
-Prerequisite: `clawstodian/routines` and `clawstodian/programs` symlinks.
-
-```bash
-openclaw cron add \
-  --name seal-past-days \
-  --every 30m \
-  --disabled \
-  --session isolated \
-  --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/seal-past-days.md and execute."
-```
-
-Starts disabled; heartbeat enables on demand. Substitute `--no-deliver` for silent runs.
-
-## Verify
-
-```bash
-openclaw cron list --all | grep seal-past-days
-```
-
-Shows the job as disabled at install time.
-
-## Uninstall
-
-```bash
-openclaw cron remove seal-past-days
-```

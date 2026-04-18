@@ -28,31 +28,3 @@ para-align YYYY-Www: verified <N> entities | trivial fixes <M> | proposals <K> (
 ```
 
 Even a clean graph produces a report (no `NO_REPLY`); the weekly health signal is valuable.
-
-## Install
-
-Prerequisite: `clawstodian/routines` and `clawstodian/programs` symlinks.
-
-```bash
-openclaw cron add \
-  --name para-align \
-  --cron "0 6 * * 0" \
-  --session isolated \
-  --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/para-align.md and execute."
-```
-
-Runs Sunday 06:00 UTC. Starts enabled. Substitute `--no-deliver` for silent runs.
-
-## Verify
-
-```bash
-openclaw cron list | grep para-align
-```
-
-## Uninstall
-
-```bash
-openclaw cron remove para-align
-```

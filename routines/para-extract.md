@@ -41,34 +41,3 @@ para-extract YYYY-MM-DD: <processed|skipped|failed> | entities <N updated, M cre
 ```
 
 Never return `NO_REPLY` on a processed note; each run carries state transition worth seeing.
-
-## Install
-
-Prerequisite: `clawstodian/routines` and `clawstodian/programs` symlinks.
-
-```bash
-openclaw cron add \
-  --name para-extract \
-  --every 30m \
-  --disabled \
-  --session isolated \
-  --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/para-extract.md and execute."
-```
-
-Starts disabled; heartbeat enables on demand. Substitute `--no-deliver` for silent runs.
-
-## Verify
-
-```bash
-openclaw cron list --all | grep para-extract
-```
-
-Shows the job as disabled at install time.
-
-## Uninstall
-
-```bash
-openclaw cron remove para-extract
-```

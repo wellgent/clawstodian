@@ -32,31 +32,3 @@ git-hygiene: <N> commits pushed | <M> awaiting operator decision
 ```
 
 Return `NO_REPLY` when the tree was already clean, so no-change runs stay silent.
-
-## Install
-
-Prerequisite: `clawstodian/routines` and `clawstodian/programs` symlinks.
-
-```bash
-openclaw cron add \
-  --name git-hygiene \
-  --every 30m \
-  --session isolated \
-  --light-context \
-  --announce --channel discord --to "channel:<your-logs-channel-id>" \
-  --message "Read clawstodian/routines/git-hygiene.md and execute."
-```
-
-Substitute `--no-deliver` for silent runs.
-
-## Verify
-
-```bash
-openclaw cron list | grep git-hygiene
-```
-
-## Uninstall
-
-```bash
-openclaw cron remove git-hygiene
-```
