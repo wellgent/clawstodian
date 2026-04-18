@@ -1,7 +1,11 @@
 <!-- template: clawstodian/daily-note-structure 2026-04-18 -->
 # Daily Note Structure
 
-Single source of truth for the daily note model. The `capture-sessions`, `seal-past-days`, and `para-extract` routines (defined in `AGENTS.md` under clawstodian) read this file. Customize per workspace as needed.
+Single source of truth for the daily-notes pipeline: the daily note's format (frontmatter, structure, what to capture, what sealing does) and the session-ledger format that `capture-sessions` uses as its authoritative capture-state file. The `capture-sessions`, `seal-past-days`, and `para-extract` routines (defined in `AGENTS.md` under clawstodian) read this file. Customize per workspace as needed.
+
+Sections:
+- [Overview](#overview), [Frontmatter](#frontmatter), [Note Structure](#note-structure), [What to Capture](#what-to-capture), [What Sealing Does](#what-sealing-does) - the daily note model.
+- [Session Ledger](#session-ledger) - the capture-state file (`memory/session-ledger.md`) that the `capture-sessions` routine reads and writes.
 
 ## Overview
 
