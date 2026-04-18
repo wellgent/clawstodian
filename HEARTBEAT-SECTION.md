@@ -1,77 +1,93 @@
-<!-- template: clawstodian/heartbeat-section 2026-04-17 -->
-# Heartbeat coordinator
+<!-- template: clawstodian/heartbeat-section 2026-04-18 -->
+# Heartbeat orchestrator
 
-`AGENTS.md` defines the maintainer programs and their authority. `HEARTBEAT.md` is the dispatcher. On each tick, re-read durable workspace state, decide which programs need attention now, execute the direct programs, orchestrate burst workers, verify the result, and report once.
+The heartbeat does not execute maintenance routines. Each routine runs as its own cron job and announces its own summary. The heartbeat reads the workspace state, decides which burst workers need to be enabled or disabled, spot-checks health, appends a trace line, and posts one executive summary per tick.
 
-Assume heartbeat chat history is disposable. The workspace is the ledger: daily notes, PARA files, git history, session lists and transcripts, cron state, session metadata, and the live workspace tree.
+Silence is a failure signal. Every tick posts a summary to the logs channel, even when nothing changed. If the operator does not see a heartbeat post on schedule, something is broken.
 
 ## Spec discipline
 
-Programs own their steps; this file is the dispatcher. Before executing any program this tick, `read clawstodian/programs/<name>.md` and follow that spec. Do not work from remembered steps - the central spec is the authority and may have changed.
+Each routine owns its own steps; this file does not. If you need to inspect or understand a routine to make an orchestrator decision, `read clawstodian/routines/<name>.md`. Do not execute a routine's steps from here.
 
-## Execution model
+## Inputs each tick
 
-- **Heartbeat-direct** programs run in this heartbeat turn.
-- **Heartbeat-inline** programs run inside another direct program.
-- **Burst workers** are toggled by heartbeat and drain one queued unit per cron run until caught up.
-- **Fixed crons** run on their own schedule; heartbeat only verifies health, readiness, and fit.
+Read fresh every tick (heartbeat chat history is disposable):
 
-## On each heartbeat tick
+- `memory/YYYY-MM-DD.md` for today and recent past days - frontmatter `status`, `para_status`, `last_updated`.
+- `memory/YYYY-MM-DD-*.md` siblings for today (count only; `daily-note` handles the merge).
+- `git status` - tree state overview.
+- `openclaw cron list --all` - which crons exist, which are enabled, last-run timestamps.
+- `openclaw cron logs --name <routine> --limit 1` (or equivalent) for each clawstodian routine - the most recent reply text.
+- Heartbeat config in `~/.openclaw/openclaw.json` - `isolatedSession`, `lightContext`, `target`, `activeHours`, visibility flags.
+- Workspace symlinks under `clawstodian/` - resolve correctly.
 
-### 1. Run the Daily notes program
+## On each tick
 
-Keep today's canonical note current.
+### 1. Assess burst worker queues
 
-- Determine today's date in workspace local time. Target file: `memory/YYYY-MM-DD.md`.
-- Use today's note as the durable cursor. Read its frontmatter, latest section, and current body before appending.
-- Discover session activity fresh with `sessions_list`. Read `sessions_history` for sessions with new activity or missing note coverage. Use `git log` for the same window. When fidelity matters, read transcript JSONL from disk.
-- If the cursor is fuzzy, rescan a safe recent window and deduplicate against the note instead of guessing.
-- Append only net-new material. Do not rewrite existing sections cosmetically.
-- Update frontmatter, including `last_updated`, `topics`, `people`, `projects`, `sessions`, and the daily-note queue fields defined in `memory/daily-note-structure.md`.
+Decide whether the burst-worker crons should be enabled or disabled.
 
-### 2. Run Durable insight capture inline
+- **`seal-past-days`** - enable if any `memory/YYYY-MM-DD.md` for a past date has `status: active`, or a past date is missing but `git log` shows commits that day. Disable when none exist.
+- **`para-extract`** - enable if any `memory/YYYY-MM-DD.md` has `status: sealed` and `para_status: pending`. Disable when none exist.
 
-While tending today's note, file any clearly durable insight that should survive beyond the daily note.
+Toggle with `openclaw cron enable <name>` or `openclaw cron disable <name>`. Do not delete. The routines self-disable on empty queue too; re-disabling a disabled cron is a no-op and safe.
 
-- Obvious placement -> file it now.
-- Ambiguous placement -> batch for the tick summary and ask the operator.
-- Do not create new top-level structures without operator approval.
+### 2. Nudge `para-align` on mid-week drift
 
-### 3. Orchestrate burst workers
+If the most recent `para-extract` reply reports structural drift it could not safely resolve (frontmatter violations, orphaned pointers, renames needing cross-reference updates) and the current day is not Sunday, wake `para-align` now:
 
-Heartbeat is the supervisor. Burst workers do the queue draining.
+```bash
+openclaw cron wake para-align --now
+```
 
-- **`close-of-day`**: enable when older active or missing daily notes exist; disable when the queue is empty.
-- **`para-backfill`**: enable when sealed notes explicitly queued with `para_status: pending` exist; disable when the queue is empty.
+The weekly schedule still fires on Sunday regardless.
 
-Do not do backlog-drain work inline when a dedicated burst worker exists, unless the worker path is genuinely blocked and the operator asked for manual intervention.
+### 3. Health spot-checks
 
-### 4. Run the heartbeat-direct maintenance programs
+Inspect and report any anomaly. Do not repair from here:
 
-Run the smallest useful current-state pass of:
+- Heartbeat config matches recommended stance: `isolatedSession: true`, `lightContext: true`, `target` is a real channel, `activeHours` set, `showAlerts: true`.
+- All clawstodian cron entries exist: `daily-note`, `workspace-tidy`, `git-hygiene`, `para-align`, `seal-past-days`, `para-extract`.
+- Recent cron runs: any routine that has not reported in the last 2 expected intervals, or has failed-status replies in a row.
+- Installed reference docs (`memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`) match package template markers.
+- Workspace symlinks resolve: `clawstodian/routines` -> `~/clawstodian/routines`.
 
-- **Workspace tidiness**
-- **Git hygiene**
-- **Health sweep**
+Findings go into the executive summary. The heartbeat does not edit configs, restart services, or auto-repair symlinks. Anything requiring operator judgment surfaces as an anomaly line.
 
-Prefer small deterministic fixes over broad audits. Skip clean areas quickly.
+### 4. Append tick trace
 
-### 5. Verify and report
+Append one line to `memory/heartbeat-trace.md` (create the file if missing):
 
-- After any action, verify by reading the resulting state.
-- Produce exactly one short summary message across the tick.
-- If nothing meaningful changed, reply `HEARTBEAT_OK`.
+```
+YYYY-MM-DDTHH:MM:SSZ | seal=<0|1> extract=<0|1> | enabled: <routines toggled> | health: <ok|anomaly:reason> | summary: <one-line>
+```
+
+Append-only. Never rewrite prior lines. The file is the forensic record that proves heartbeat fired this tick.
+
+### 5. Post executive summary
+
+Exactly one message to the logs channel per tick. Never silent. Two shapes:
+
+**Healthy no-change:**
+
+```
+heartbeat <HH:MMZ> | queues: seal=0 extract=0 | <N> routines reported quiet | health: ok
+```
+
+**Something happened:**
+
+```
+heartbeat <HH:MMZ> | queues: seal=<n> extract=<m> (toggled: <which> <enabled|disabled>) | recent: <routine>@<time> <summary>, ... | health: <ok|anomaly: <reason>>
+```
+
+Keep under 300 characters. Per-routine detail already arrived via each routine's own announce; this message is the orchestrator overview.
 
 ## Additional instructions
 
-- Heartbeat is a coordinator, not a historian. Re-read the ledger each tick.
-- Continuity lives in files, git, daily notes, session transcripts, cron state, and session metadata, not in prior heartbeat chat.
-- Co-create: when placement, filing, or risk is ambiguous, ask the operator in one short message. When obvious, just do it.
-- Quiet by default: do not surface routine no-change checks. Only interrupt for meaningful progress, a real blocker, or a decision.
-- Use safe recent rescans plus deduplication when exact cursors are unavailable.
-- Surface emerging projects or workstreams in the tick summary with a proposed filing. Do not silently create them.
-- Escalate before destructive, risky, or ambiguous changes, see cross-program escalation rules in `AGENTS.md`.
-- Never commit with AI attribution (`Co-Authored-By`, `Generated by`, etc.).
+- The heartbeat is an observer and toggler, not a historian and not an executor.
+- Continuity lives in files (daily notes, PARA, git, session transcripts, `memory/heartbeat-trace.md`), not in prior heartbeat chat.
+- Escalate before any change beyond enable/disable of known routines. See cross-routine escalation rules in `AGENTS.md`.
+- Never commit with AI attribution (`Co-Authored-By`, `Generated by`, etc.) - though the heartbeat itself does not commit.
 - Never use `--no-verify`, `git reset --hard`, `git clean -f`, or force-push.
 
-<!-- /template: clawstodian/heartbeat-section 2026-04-17 -->
+<!-- /template: clawstodian/heartbeat-section 2026-04-18 -->
