@@ -18,7 +18,7 @@ Principle: **co-uninstall, don't automate**. Show the operator what each step re
 Disable first (stops future firings), then remove (deletes the job entry).
 
 ```bash
-for name in sessions-capture workspace-clean git-clean para-align daily-seal para-extract capture-sessions workspace-tidy git-hygiene seal-past-days daily-note backfill-sessions; do
+for name in sessions-capture workspace-clean git-clean para-align daily-seal para-extract health-check capture-sessions workspace-tidy git-hygiene seal-past-days daily-note backfill-sessions; do
   openclaw cron disable "$name" 2>/dev/null
   openclaw cron remove "$name" 2>/dev/null
 done
@@ -29,7 +29,7 @@ done
 Verify:
 
 ```bash
-openclaw cron list --all | grep -E " (sessions-capture|workspace-clean|git-clean|para-align|daily-seal|para-extract|capture-sessions|workspace-tidy|git-hygiene|seal-past-days|daily-note|backfill-sessions) "
+openclaw cron list --all | grep -E " (sessions-capture|workspace-clean|git-clean|para-align|daily-seal|para-extract|health-check|capture-sessions|workspace-tidy|git-hygiene|seal-past-days|daily-note|backfill-sessions) "
 ```
 
 Should return nothing.
@@ -126,7 +126,7 @@ Run these to confirm the removal:
 
 ```bash
 # Cron jobs gone
-openclaw cron list --all | grep -E " (sessions-capture|workspace-clean|git-clean|para-align|daily-seal|para-extract|capture-sessions|workspace-tidy|git-hygiene|seal-past-days|daily-note|backfill-sessions) " && echo "FAIL cron entries remain" || echo "OK  cron entries removed"
+openclaw cron list --all | grep -E " (sessions-capture|workspace-clean|git-clean|para-align|daily-seal|para-extract|health-check|capture-sessions|workspace-tidy|git-hygiene|seal-past-days|daily-note|backfill-sessions) " && echo "FAIL cron entries remain" || echo "OK  cron entries removed"
 
 # Workspace symlinks gone
 [ -e clawstodian/programs ] && echo "FAIL programs symlink still present" || echo "OK  programs symlink removed"

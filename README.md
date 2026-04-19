@@ -1,6 +1,6 @@
 # clawstodian
 
-A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. The package ships **four programs** (domain authorities for daily notes, PARA knowledge graph, workspace tidiness, git hygiene) and **six routines** (scheduled cron invocations of specific program behaviors) so the workspace stays in good shape whether the operator is actively working or not.
+A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. The package ships **four programs** (domain authorities for daily notes, PARA knowledge graph, workspace tidiness, git hygiene) and **seven routines** (scheduled cron invocations of specific program behaviors, including a daily self-check on the machinery itself) so the workspace stays in good shape whether the operator is actively working or not.
 
 Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenClaw primitives, and the observable-by-design execution pattern those packages got right.
 
@@ -33,12 +33,13 @@ The agent reads `INSTALL.md`, surveys your workspace, proposes a merge plan, ask
 - `workspace` - workspace tree outside PARA. Trash removal, misplaced-file relocation, `.gitignore` upkeep.
 - `repo` - git repository discipline. Stage-by-path commits, clear messages, immediate push.
 
-**Six routines** (`routines/`): the scheduled invocations.
+**Seven routines** (`routines/`): the scheduled invocations.
 
 Scheduled (wall-clock):
 - `para-align` (Sunday 06:00 UTC) - para: align PARA structure. Heartbeat may also `--wake now` on mid-week drift.
 - `workspace-clean` (Sunday 07:00 UTC) - workspace: walk and tidy.
 - `git-clean` (01:00 and 11:00 UTC daily) - repo: commit drift.
+- `health-check` (03:00 UTC daily) - observes the clawstodian machinery itself (heartbeat config, session visibility, cron registrations, stalled routines, long-running bursts, symlinks, template markers). Detection only; findings flow into the heartbeat's daily `reflect`.
 
 Heartbeat-toggled bursts (start disabled; orchestrator enables on demand):
 - `sessions-capture` - daily-notes: capture one session's unread JSONL into the appropriate daily notes. Prioritizes live operator sessions over historical drain. Backstop for the agents' in-session note writing, not the primary writer.
@@ -88,6 +89,7 @@ clawstodian/
     workspace-clean.md               scheduled; invokes workspace/walk-and-tidy
     git-clean.md                     scheduled; invokes repo/commit-drift
     para-align.md                    scheduled; invokes para/align
+    health-check.md                  scheduled; observes clawstodian machinery
     sessions-capture.md              burst; invokes daily-notes/capture
     daily-seal.md                    burst; invokes daily-notes/seal
     para-extract.md                  burst; invokes para/extract
@@ -118,7 +120,7 @@ clawstodian/
 
 ## Recommended heartbeat config
 
-Heartbeat runs in the agent's main session (where the operator already DMs with the agent). Mixed cadence via `tasks:` in `templates/HEARTBEAT.md` (2h status, daily retrospective, weekly review). Delivery goes to a **dedicated notifications channel** for observability - the same channel that cron routines announce into.
+Heartbeat runs in the agent's main session (where the operator already DMs with the agent). Mixed cadence via `tasks:` in `templates/HEARTBEAT.md`: `tend-sessions-capture` every 2h, plus `tend-daily-seal` / `tend-para-extract` / `reflect` once daily. Delivery goes to a **dedicated notifications channel** for observability - the same channel that cron routines announce into.
 
 ```json5
 {
@@ -154,7 +156,7 @@ Heartbeat runs in the agent's main session (where the operator already DMs with 
 Clean split of purpose:
 
 - **Main session (operator's DM with the agent)** = collaboration. The heartbeat inherits the full DM history, so the agent naturally remembers past ticks and your replies. This is the maintenance thread.
-- **Notifications channel** = observability. Heartbeat posts status/retrospective/review summaries here. Cron routines also post their completion lines here. One pane for all workspace-maintenance activity. Read-mostly; replies there don't route back to the main session.
+- **Notifications channel** = observability. Heartbeat posts a combined tick summary here (header + per-task lines + daily `reflect` narrative on the daily tick). Cron routines also post their completion lines here. One pane for all workspace-maintenance activity. Read-mostly; replies there don't route back to the main session.
 
 clawstodian deliberately does NOT set `session.maintenance`, `agents.defaults.contextPruning`, `session.dmScope`, or `session.reset` - those are host-wide policy choices the operator makes at the sessions-baseline level. The heartbeat config layers on top without overriding.
 

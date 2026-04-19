@@ -70,7 +70,7 @@ Before proposing any change, read what the operator already has. Specifically ch
 2. Workspace `HEARTBEAT.md` - does it exist? If yes, does it already contain a clawstodian section (template marker `clawstodian/heartbeat`)? What marker date? (Legacy markers: `clawstodian/heartbeat-section`.)
 3. Workspace `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md` - which already exist? Check marker dates.
 4. Workspace PARA folders - `projects/`, `areas/`, `resources/`, `archives/`. Which already exist, which are populated?
-5. Existing cron jobs - `openclaw cron list --all`. Note any clawstodian routine (`sessions-capture`, `daily-seal`, `para-extract`, `para-align`, `workspace-clean`, `git-clean`) already present, any earlier v0.4-draft routines being replaced (`capture-sessions`, `seal-past-days`, `workspace-tidy`, `git-hygiene` from pre-rename drafts; `daily-note`, `backfill-sessions` from even earlier drafts), and any legacy v0.3 routines (`daily-notes-tend`, `close-of-day`, `para-backfill`, `weekly-para-align`, `workspace-tidiness`, `para-tend`, `durable-insight`, `health-sweep`).
+5. Existing cron jobs - `openclaw cron list --all`. Note any clawstodian routine (`sessions-capture`, `daily-seal`, `para-extract`, `para-align`, `workspace-clean`, `git-clean`, `health-check`) already present, any earlier v0.4-draft routines being replaced (`capture-sessions`, `seal-past-days`, `workspace-tidy`, `git-hygiene` from pre-rename drafts; `daily-note`, `backfill-sessions` from even earlier drafts), and any legacy v0.3 routines (`daily-notes-tend`, `close-of-day`, `para-backfill`, `weekly-para-align`, `workspace-tidiness`, `para-tend`, `durable-insight`, `health-sweep`).
 6. Current heartbeat config in `~/.openclaw/openclaw.json` (or `config.toml`). Note current `every`, `session`, `isolatedSession`, `lightContext`, `target`, `activeHours`, and channel visibility flags. See `~/clawstodian/docs/heartbeat-config.md` for the recommended stance.
 7. **Session visibility config** - check `tools.sessions.visibility` in `~/.openclaw/openclaw.json`. If absent or set to `"tree"` (the default), the `sessions-capture` routine will silently capture zero content. clawstodian requires `"all"`. Note the current value so Step 4 can propose the right change.
 8. Identify the operator's intended notifications channel: which channel plugin (Discord/Slack/Telegram/...) and the channel-specific recipient (e.g. `"channel:<id>"`). Heartbeat posts and cron routine announcements both land here. Distinct from the operator's DM with the agent (where collaboration happens).
@@ -97,17 +97,17 @@ Produce a short, explicit plan for the operator. Items in the order the install 
   ln -s ~/clawstodian/routines clawstodian/routines
   ```
   One-time setup. Program specs become reachable at `clawstodian/programs/<name>.md` and routine specs at `clawstodian/routines/<name>.md` relative to workspace root. If a legacy single symlink from an earlier draft exists (either name), remove it before adding the pair.
-- **Cron routines** - install all six routines (exact commands in the **Cron install commands** section below). Scheduled (wall-clock): `para-align` (Sun 06:00 UTC), `workspace-clean` (Sun 07:00 UTC), `git-clean` (01:00 and 11:00 UTC daily). Heartbeat-toggled bursts (start disabled): `sessions-capture`, `daily-seal`, `para-extract`. Ask the operator which logs channel to deliver announcements to (Discord/Slack/Telegram channel id). Offer `--no-deliver` as alternative for workspaces that prefer silent runs.
+- **Cron routines** - install all seven routines (exact commands in the **Cron install commands** section below). Scheduled (wall-clock): `para-align` (Sun 06:00 UTC), `workspace-clean` (Sun 07:00 UTC), `git-clean` (01:00 and 11:00 UTC daily), `health-check` (03:00 UTC daily). Heartbeat-toggled bursts (start disabled): `sessions-capture`, `daily-seal`, `para-extract`. Ask the operator which logs channel to deliver announcements to (Discord/Slack/Telegram channel id). Offer `--no-deliver` as alternative for workspaces that prefer silent runs.
 - **Session visibility config** - set `tools.sessions.visibility: "all"` in `~/.openclaw/openclaw.json`. This is a **required prerequisite**, not optional: without it, the `sessions-capture` routine cannot see any session other than its own spawned children, so captured content is always zero. If the operator has an existing value (`"tree"`, `"agent"`, etc.), explain the trade-off before overwriting: `"all"` lets any isolated cron session in this agent see any session's transcripts. For single-operator workspaces this is the correct setting; shared-agent installs may want to scope differently and accept that clawstodian will not work out of the box.
 - **Heartbeat config** - the authoritative reference is `~/clawstodian/docs/heartbeat-config.md`. Recommended stance: `every: "2h"`, `target` set to a channel plugin (`discord`, `slack`, etc.) and `to` set to the channel-specific recipient (e.g. `"channel:<id>"`) pointing at the notifications channel, `activeHours` set. Leave `session`, `isolatedSession`, and `lightContext` at their defaults so heartbeat runs in the main session with full workspace bootstrap. Do NOT add `session.maintenance`, `agents.defaults.contextPruning`, or other host-wide policy fields - those are the operator's sessions-baseline choices. Show the operator the snippet from `~/clawstodian/docs/heartbeat-config.md` and propose merging it into their OpenClaw config. Apply this last.
 
 **If Step 3 detected legacy v0.3 routines** (programs not renamed), prepend this advisory to the plan:
 
-> The workspace has v0.3 clawstodian routines installed (`daily-notes-tend`, `close-of-day`, etc.). v0.4 renames and consolidates these into six routines with clear single responsibilities, and introduces `memory/session-ledger.md` as the authoritative capture-state file. After installing v0.4 crons, remove the v0.3 routines via `openclaw cron remove <name>`. This install does not touch them automatically.
+> The workspace has v0.3 clawstodian routines installed (`daily-notes-tend`, `close-of-day`, etc.). v0.4 renames and consolidates these into seven routines with clear single responsibilities, and introduces `memory/session-ledger.md` as the authoritative capture-state file. After installing v0.4 crons, remove the v0.3 routines via `openclaw cron remove <name>`. This install does not touch them automatically.
 
 **If Step 3 detected ops-* packages** (directories or legacy crons), prepend this advisory to the plan:
 
-> The workspace has `ops-daily` / `ops-para` / `ops-clean` installed. clawstodian covers the same goals via six routines. Running both pipelines in parallel is redundant but safe; you can keep ops-* running while clawstodian proves itself, then retire the legacy crons and AGENTS.md sections on your own timeline. This install will not touch ops-* state.
+> The workspace has `ops-daily` / `ops-para` / `ops-clean` installed. clawstodian covers the same goals via seven routines. Running both pipelines in parallel is redundant but safe; you can keep ops-* running while clawstodian proves itself, then retire the legacy crons and AGENTS.md sections on your own timeline. This install will not touch ops-* state.
 
 Present the full plan as a short bulleted list. For each item, state: current state, proposed action, why. Wait for operator approval before proceeding.
 
@@ -128,7 +128,7 @@ Apply one item at a time. After each, verify by reading the resulting file or ru
 
 Every routine runs as its own isolated-session cron job. Commands substitute `<your-logs-channel-id>` with the operator's logs channel id. Substitute `--no-deliver` for `--announce --channel --to ...` if the operator prefers silent runs.
 
-All six routines share these flags: `--session isolated`, `--light-context`, and `--message "Read clawstodian/routines/<name>.md and execute."` The routine spec is the authority; the cron payload is just dispatch.
+All seven routines share these flags: `--session isolated`, `--light-context`, and `--message "Read clawstodian/routines/<name>.md and execute."` The routine spec is the authority; the cron payload is just dispatch.
 
 **Scheduled crons** (enabled at install time, wall-clock schedules):
 
@@ -153,12 +153,20 @@ openclaw cron add \
   --session isolated --light-context \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
   --message "Read clawstodian/routines/git-clean.md and execute."
+
+openclaw cron add \
+  --name health-check \
+  --cron "0 3 * * *" \
+  --session isolated --light-context \
+  --announce --channel discord --to "channel:<your-logs-channel-id>" \
+  --message "Read clawstodian/routines/health-check.md and execute."
 ```
 
 Schedule rationale:
 - `para-align`: Sundays 06:00 UTC - weekly graph walk + MEMORY.md reconciliation at a quiet hour.
 - `workspace-clean`: Sundays 07:00 UTC - weekly tree sweep right after PARA align so tidying sees the reconciled structure.
 - `git-clean`: twice daily at 01:00 and 11:00 UTC - backstop for agents who commit themselves per the program's convention. Twice-daily catches anything they missed without the 30-minute always-on noise. Operators wanting different cadence (e.g. four times a day in their active hours) can adjust the cron expression.
+- `health-check`: 03:00 UTC daily - early enough that any anomaly is already reported before the operator's workday starts.
 
 **Heartbeat-toggled bursts** (start disabled; heartbeat enables on demand):
 
@@ -191,7 +199,7 @@ After install, verify each with:
 openclaw cron list --all | grep <routine-name>
 ```
 
-The smoke test in Step 6 verifies all six at once.
+The smoke test in Step 6 verifies all seven at once.
 
 ## Step 6 - Verify
 
@@ -199,9 +207,9 @@ After all selected items are applied, run the checks in `~/clawstodian/VERIFY.md
 
 - Section markers landed in `AGENTS.md` and `HEARTBEAT.md`.
 - Both workspace symlinks (`clawstodian/programs`, `clawstodian/routines`) resolve.
-- All four program specs and six routine specs reachable.
+- All four program specs and seven routine specs reachable.
 - All five reference templates installed (`para-structure`, `daily-note-structure`, `MEMORY`, `crons`, `session-ledger`).
-- All six cron jobs registered.
+- All seven cron jobs registered.
 - Heartbeat config sanity (`every`, `target` + `to`, `activeHours`, `showAlerts`).
 - `tools.sessions.visibility: "all"` set.
 - `memory/heartbeat-trace.md` present (or prepared for first tick).
@@ -239,7 +247,7 @@ Re-run this install flow. Step 3's survey detects which template markers are old
 - New workspace state file: `memory/session-ledger.md`. Install the template (near-empty at first). The `sessions-capture` routine populates it.
 - Dropped: `para-tend`, `durable-insight`, `health-sweep` (functions folded into programs and into the heartbeat orchestrator).
 - No more always-on crons; the two previously-always-on routines moved to wall-clock schedules: `workspace-clean` (Sun 07:00 UTC weekly), `git-clean` (01:00 and 11:00 UTC daily).
-- Programs vs routines: four programs (`daily-notes`, `para`, `workspace`, `repo`) under `programs/` are the domain authorities. Six routines under `routines/` are thin cron dispatchers that invoke specific behaviors from those programs.
+- Programs vs routines: four programs (`daily-notes`, `para`, `workspace`, `repo`) under `programs/` are the domain authorities. Seven routines under `routines/` dispatch specific procedures; the new `health-check` routine runs daily to observe the clawstodian machinery itself.
 - Heartbeat is a pure orchestrator: reads state, toggles bursts, posts summary. Does not execute programs directly.
 
 **Migrating between v0.4 drafts** (workspaces with `daily-note` and/or `backfill-sessions` crons from an earlier draft):

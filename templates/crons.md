@@ -1,4 +1,4 @@
-<!-- template: clawstodian/crons 2026-04-18 -->
+<!-- template: clawstodian/crons 2026-04-19 -->
 # Cron jobs
 
 Dashboard for this workspace's cron jobs. Authoritative state: `openclaw cron list --all`.
@@ -47,10 +47,17 @@ Invokes `para` program: extract PARA from a sealed note. Propagates one sealed d
 
 ## para-align
 
-Invokes `para` program: align PARA structure. Verifies structural and semantic health (cross-references, naming, MEMORY.md currency). Applies trivial fixes; surfaces the rest.
+Invokes `para` program: align PARA structure. Verifies structural and semantic health (cross-references, naming, MEMORY.md currency, semantic freshness, archive candidacy). Applies trivial fixes; surfaces the rest.
 
 - Schedule: `0 6 * * 0` (Sunday 06:00 UTC)
-- Scheduled (always enabled). Heartbeat may also `--wake now` mid-week on drift reported by `para-extract`.
+- Scheduled (always enabled).
+
+## health-check
+
+Invokes `workspace` program cross-cuttingly: self-check on clawstodian machinery. Observes heartbeat config, session visibility, cron registrations, stalled routines, long-running bursts, workspace symlinks, and template markers. Detection only; anomalies surface for operator decision via the heartbeat's `reflect` task.
+
+- Schedule: `0 3 * * *` (03:00 UTC daily)
+- Scheduled (always enabled, no self-disable). Runs early so any anomaly is already reported by the time the operator's workday starts.
 
 ## Schedule overview
 
@@ -59,6 +66,7 @@ SCHEDULED (always enabled)
 Sunday 06:00        para-align       (UTC, weekly)
 Sunday 07:00        workspace-clean  (UTC, weekly)
 Daily 01:00 + 11:00 git-clean        (UTC, twice daily)
+Daily 03:00         health-check     (UTC, daily)
 
 HEARTBEAT-TOGGLED BURSTS (start disabled; heartbeat enables on gap)
 every 30m           sessions-capture

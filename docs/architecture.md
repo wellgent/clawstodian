@@ -33,19 +33,20 @@ Avoid building a parallel orchestration layer.
 
 Every routine runs as its own cron job with `--session isolated --light-context`. Cron persists jobs to disk, supports wall-clock-absolute schedules, and emits one observable delivery path per job; these qualities make the execution layer resilient and self-observing by default.
 
-The heartbeat does not execute programs or routines. It is the collaborative maintenance thread between the operator and the agent. Each tick it:
+The heartbeat does not execute programs or routines. It is the collaborative maintenance thread between the operator and the agent, bounded to a narrow set of jobs only the orchestrator can do. Each tick it:
 
-1. Reads workspace state fresh (daily notes, PARA, git status, cron last-run times, recent cron replies).
-2. Toggles heartbeat-managed burst workers (`sessions-capture`, `daily-seal`, `para-extract`) based on their queue state.
-3. May `--wake now` `para-align` if mid-week structural drift was reported.
-4. Spot-checks health (config drift, missing crons, broken symlinks).
-5. Appends a trace line to `memory/heartbeat-trace.md`.
-6. Posts a brief status message to the notifications channel - never silent.
-7. On longer cadences (daily retrospective, weekly review), produces reflections and proposes improvements.
+1. Tends the three burst workers (`sessions-capture`, `daily-seal`, `para-extract`): detects each one's queue from its routine spec, toggles its cron to match.
+2. Sets `capture_status: done` on past-active daily notes when the ledger conditions hold - the gate that lets `daily-seal` fire.
+3. Reads new run reports from routines whose tending task is firing this tick and flags anomalies.
+4. Appends a trace line to `memory/heartbeat-trace.md`.
+5. Posts a brief combined summary to the notifications channel - never silent.
+6. Once per day, reflects: scans new run reports across all routines (including `health-check`), aggregates operator-surfaced items, writes a narrative directly to the operator in the DM.
 
-The heartbeat runs in the agent's main session (the operator's DM with the agent), so the maintenance thread is continuous with whatever the operator and the agent have been discussing. The notifications channel is a separate, read-mostly observability surface: heartbeat status summaries, retrospectives, reviews, and per-routine announcements all land there. Collaboration happens in the DM; observation happens in the channel.
+Machinery sanity checks (heartbeat-config drift, session visibility, cron registration, stalled routines, long-running bursts, workspace symlinks, template markers) are not done inline; they live in the `health-check` routine which fires daily and writes its own run report. The heartbeat observes those findings via the `reflect` task.
 
-Mixed cadence is managed through a `tasks:` YAML block in `templates/HEARTBEAT.md`: a 2h status sweep (matches the heartbeat interval and fires every tick), a 24h daily retrospective, and a weekly review. Only due tasks fire on a given tick, keeping cost bounded.
+The heartbeat runs in the agent's main session (the operator's DM with the agent), so the maintenance thread is continuous with whatever the operator and the agent have been discussing. The notifications channel is a separate, read-mostly observability surface: heartbeat summaries and per-routine announcements all land there. Collaboration happens in the DM; observation happens in the channel.
+
+Mixed cadence is managed through a `tasks:` YAML block in `templates/HEARTBEAT.md`: `tend-sessions-capture` fires every tick (2h interval matches the gateway `every: 2h`); `tend-daily-seal`, `tend-para-extract`, and `reflect` each fire once per day. Only due tasks fire on a given tick, keeping cost bounded. When multiple tasks fire in a single tick (e.g. the daily tick), they produce ONE combined channel post.
 
 This inverts the v0.3 pure-prose dispatcher (which silently dropped ticks when any of seven heartbeat gates short-circuited) toward the `ops-daily` debuggability pattern, and goes further: the agent is not only an orchestrator, it is a collaborative partner with memory. See `docs/heartbeat-config.md` for the rationale and recommended gateway config.
 
@@ -89,7 +90,7 @@ standing authority           AGENTS.md + programs/     (charter + four domain au
 collaborative maintainer     HEARTBEAT.md              (reads state, toggles bursts, reflects, converses)
 maintainer cadence           heartbeat                 (2h, main session, active hours, full bootstrap)
 maintainer continuity        main session history      (conversation with the operator, host-wide compaction)
-scheduled invocations        routines/ + cron          (six routines; each a cron job in its own isolated session)
+scheduled invocations        routines/ + cron          (seven routines; each a cron job in its own isolated session)
 capture state                memory/session-ledger.md  (per-session classification + read cursor)
 run reports                  memory/runs/<routine>/    (per-firing detail files; pruned by workspace-clean after 30d)
 audit trail                  notifications channel + session transcripts + git + heartbeat-trace.md
@@ -98,7 +99,7 @@ workspace memory             memory/, projects/, areas/, resources/, archives/
 
 There is no "standing orders" primitive in the OpenClaw codebase; the term in OpenClaw's docs refers to rules written into `AGENTS.md`. clawstodian uses the standing-orders anatomy to structure each program (conventions / authority / approval gates / escalation / behaviors / what NOT to do). The mechanism remains the AGENTS.md file loaded at bootstrap plus cron jobs that dispatch routines with `Read clawstodian/routines/<name>.md and execute.` messages.
 
-## Four programs, six routines
+## Four programs, seven routines
 
 Programs (authorities):
 
@@ -115,6 +116,7 @@ Routines (scheduled invocations):
 - **`para-align`** - para / Align PARA structure - scheduled, Sunday 06:00 UTC.
 - **`workspace-clean`** - workspace / Walk and tidy - scheduled, Sunday 07:00 UTC.
 - **`git-clean`** - repo / Commit drift - scheduled, 01:00 and 11:00 UTC daily.
+- **`health-check`** - workspace (cross-cutting) / observes the clawstodian machinery itself - scheduled, 03:00 UTC daily. Read-only; anomalies surface for operator decision via the heartbeat's daily `reflect`.
 
 Two execution classes for routines:
 
@@ -150,7 +152,7 @@ If an operator needs to look at more than that to explain routine behavior, the 
 
 ## Open questions
 
-- Periodic workspace-audit routine: deferred. The install-time smoke test in `VERIFY.md` covers install-time correctness; an audit routine that verifies ongoing delivery is a separate iteration.
-- Fixed cron with heartbeat-wake for `para-align` is v0.4's pragmatic solution; a fully declarative "trigger when drift report matches X" would need a queue primitive the package does not have yet.
+- Periodic install-time smoke test in `VERIFY.md` covers correctness at install. `health-check` covers ongoing machinery sanity (config drift, cron registration, stalled routines, symlinks, template markers). A richer audit routine that verifies ongoing delivery (queue drain rates, capture coverage) is deferred.
+- Mid-week drift detected by `para-extract` waits for the next weekly `para-align` firing unless the operator decides to run `para-align` ahead of schedule. A fully declarative "trigger when drift report matches X" would need a queue primitive the package does not have yet.
 - `MEMORY.md` + `lightContext: true` interaction: isolated cron sessions do not auto-load `MEMORY.md`; routines that need it read it explicitly. Worth a test before adding a routine that depends on it.
 - Notifications channel is intentionally read-mostly. Replies in the channel route to the channel's auto-derived session (OpenClaw routing behavior), not to the main session where the heartbeat runs. The operator collaborates with the agent in the DM, reads the channel for observability.

@@ -69,7 +69,7 @@ Add only the files you changed. Commit message: `para: align YYYY-Www - <summary
 - Apply only the trivial structural fixes the program authorizes. Everything else surfaces in the run report.
 - Semantic-freshness detection is read-only: grep and compare, never mutate entity content based on daily-note inference. That is `para-extract`'s (and in-session agents') territory.
 - Archive candidacy detection is read-only: compare timestamps and body signals, never move files between buckets, never change `status`. Archival is an operator decision.
-- No self-disable; this cron is scheduled, not queue-driven. The heartbeat orchestrator may `--wake now` this routine mid-week if `para-extract` reports drift it cannot safely resolve.
+- No self-disable; this cron is scheduled, not queue-driven.
 
 ## Run report
 

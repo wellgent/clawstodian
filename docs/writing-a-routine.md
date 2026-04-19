@@ -22,7 +22,7 @@ Two classes, distinguished by how the cron's enabled state is managed.
 
 ## Anatomy
 
-Canonical section order. All six routines follow this; stick to it so operators can scan any routine without relearning where to look.
+Canonical section order. All seven routines follow this; stick to it so operators can scan any routine without relearning where to look.
 
 ```markdown
 # <routine-name> (routine)

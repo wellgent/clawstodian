@@ -11,15 +11,15 @@ Verify covers install correctness and current state:
 - Section markers landed in `AGENTS.md` and `HEARTBEAT.md`.
 - Both workspace symlinks (`clawstodian/programs`, `clawstodian/routines`) resolve.
 - All four program specs reachable at `clawstodian/programs/<name>.md`.
-- All six routine specs reachable at `clawstodian/routines/<name>.md`.
+- All seven routine specs reachable at `clawstodian/routines/<name>.md`.
 - All five reference templates installed under `memory/` and at workspace root.
-- All six cron jobs registered (`openclaw cron list --all`).
+- All seven cron jobs registered (`openclaw cron list --all`).
 - Heartbeat config matches the recommended stance.
 - `tools.sessions.visibility: "all"` is set (required for session capture).
 - `memory/heartbeat-trace.md` exists (or will on first tick).
 - `memory/session-ledger.md` exists (daily-notes authoritative capture-state file).
 
-Verify does NOT check that routines are delivering work over time; that is a separate audit concern and deferred.
+Verify does NOT check that routines are delivering work over time; ongoing machinery sanity (cron registrations, stalled routines, long-running bursts, symlinks, template markers) is covered by the `health-check` routine which fires daily once installed.
 
 ## Quick verify
 
@@ -43,8 +43,8 @@ for name in daily-notes para workspace repo; do
   [ -f "clawstodian/programs/${name}.md" ] && echo "OK  program ${name}" || echo "FAIL program ${name}"
 done
 
-# Routine specs reachable (six scheduled dispatchers)
-for name in sessions-capture daily-seal para-extract para-align workspace-clean git-clean; do
+# Routine specs reachable (seven scheduled dispatchers)
+for name in sessions-capture daily-seal para-extract para-align workspace-clean git-clean health-check; do
   [ -f "clawstodian/routines/${name}.md" ] && echo "OK  routine ${name}" || echo "FAIL routine ${name}"
 done
 
@@ -54,7 +54,7 @@ for f in memory/para-structure.md memory/daily-note-structure.md MEMORY.md memor
 done
 
 # Cron jobs registered
-for name in sessions-capture workspace-clean git-clean para-align daily-seal para-extract; do
+for name in sessions-capture workspace-clean git-clean para-align daily-seal para-extract health-check; do
   openclaw cron list --all 2>/dev/null | grep -q " ${name} " && echo "OK  cron ${name}" || echo "FAIL cron ${name}"
 done
 
@@ -125,7 +125,7 @@ tail -n 5 memory/heartbeat-trace.md
 Each line is a tick record in the shape:
 
 ```
-YYYY-MM-DDTHH:MM:SSZ | seal=<0|1> extract=<0|1> | enabled: <routines toggled> | health: <ok|anomaly:reason> | summary: <one-line>
+YYYY-MM-DDTHH:MM:SSZ | fired: <task names> | toggled: <cron changes> | notable: <one-line>
 ```
 
 If `memory/heartbeat-trace.md` is still empty long after install, the heartbeat is not firing. Check:

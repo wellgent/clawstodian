@@ -8,24 +8,24 @@
      the markers if you prefer a plain file; updates then become a
      manual merge. -->
 
-<!-- template: clawstodian/agents 2026-04-18 -->
+<!-- template: clawstodian/agents 2026-04-19 -->
 ## Workspace Maintainer (clawstodian)
 
-This workspace runs four maintenance **programs** that define how the workspace operates, and six **routines** that schedule those programs to run on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, session transcripts, and `memory/session-ledger.md` are the only state.
+This workspace runs four maintenance **programs** that define how the workspace operates, and seven **routines** that schedule those programs to run on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, session transcripts, and `memory/session-ledger.md` are the only state.
 
 ### Operating model
 
 - **Programs** (`clawstodian/programs/<name>.md`) describe how a workspace domain is governed - conventions, authority, approval gates, escalation, behaviors. Agents follow programs during normal sessions when the situation applies, and cron-dispatched routines follow the same programs on a schedule.
 - **Routines** (`clawstodian/routines/<name>.md`) are thin scheduled invocations. Each routine references a program, picks a specific behavior, defines a target and a run-report format, and runs as a cron job.
 - **AGENTS.md** (this file) catalogs the programs.
-- **HEARTBEAT.md** runs the collaborative maintainer thread. Each tick the agent reviews workspace state, toggles burst-worker routines, spot-checks health, and posts to the notifications channel. Mixed cadence: a short status sweep every 2h, a daily retrospective, a weekly review. The heartbeat runs in the agent's main session (the same DM the operator uses), so the maintenance thread is continuous with the operator's ongoing conversation with the agent. It does NOT execute programs; each routine does that on its own cron.
+- **HEARTBEAT.md** runs the collaborative maintainer thread. Each tick the agent tends the burst routines (enables/disables their crons, sets `capture_status: done` on past-active daily notes), reviews recent run reports, and posts to the notifications channel. Mixed cadence: `tend-sessions-capture` every 2h, `tend-daily-seal` / `tend-para-extract` / `reflect` daily. The heartbeat runs in the agent's main session (the same DM the operator uses), so the maintenance thread is continuous with the operator's ongoing conversation with the agent. It does NOT execute programs; each routine does that on its own cron.
 - **Session transcripts and `memory/heartbeat-trace.md`** are the primary audit trail.
 
 ### Default posture
 
 - **Co-create, don't guess.** When filing, placement, or risk is obvious, act. When ambiguous, surface (in-session: ask the operator in chat; via cron: include in the routine's run report so the operator sees it in the logs channel).
 - **Per-routine announce.** Each routine emits a multi-line scannable run report to the notifications channel on every firing, plus a detailed run-report file to `memory/runs/<routine>/<ts>.md`. Even a quiet firing ("nothing to do") produces both - silence in the channel means the cron did not fire, never "cron fired, found nothing".
-- **Heartbeat never goes silent.** Every heartbeat tick posts at least a status one-liner to the notifications channel, plus occasional longer reflections (daily retrospective, weekly review). Silence means a broken orchestrator, never a healthy one.
+- **Heartbeat never goes silent.** Every heartbeat tick posts a combined summary to the notifications channel: header + one line per task that fired + optional `reflect` narrative on the daily tick. Silence means a broken orchestrator, never a healthy one.
 - **Small reversible actions over broad audits.** One concrete improvement beats ten theoretical ones.
 - **Surface emerging projects; do not silently create them.** If a new initiative is clearly forming, flag it rather than spinning it up. The operator decides whether to promote it.
 - **Escalate before destructive, risky, or ambiguous changes.** See cross-program escalation rules at the bottom of this section.
@@ -93,6 +93,7 @@ Current routines:
 - **para-align** (scheduled, Sunday 06:00 UTC) - invokes para: align PARA structure across the full graph.
 - **workspace-clean** (scheduled, Sunday 07:00 UTC) - invokes workspace: walk and tidy.
 - **git-clean** (scheduled, 01:00 and 11:00 UTC daily) - invokes repo: commit drift as a backstop for agents who commit themselves in-session.
+- **health-check** (scheduled, 03:00 UTC daily) - invokes workspace: self-check on the clawstodian machinery (heartbeat config, session visibility, cron registrations, stalled routines, long-running bursts, workspace symlinks, template markers). Detection only; the heartbeat's `reflect` task picks up the findings.
 
 See `memory/crons.md` for schedules and current enable state.
 
@@ -107,4 +108,4 @@ Any program action that crosses these lines escalates - surface (in reply or run
 - any change that crosses into a new project or workstream rather than maintenance
 - any security concern: exposed secret, unexpected network activity, tampered file, permission anomaly
 
-<!-- /template: clawstodian/agents 2026-04-18 -->
+<!-- /template: clawstodian/agents 2026-04-19 -->
