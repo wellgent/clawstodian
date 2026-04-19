@@ -24,6 +24,19 @@ Removed:
 - Cross-check of ledger entries against on-disk transcripts. Orphan ledger entries (session id gone from `sessions_list`) are ignored - they are history with pruned transcripts, not work items.
 - Phase 1 / Phase 2 split in `routines/sessions-capture.md`.
 
+### Update-propagation surfacing
+
+Added `routines/health-check.md` package-freshness step (new step 8). The routine already observed the workspace's install-time contract; now it also observes the package itself. Daily, it:
+
+- Resolves the clawstodian clone path from the `clawstodian/scripts` symlink (self-configuring - no hardcoded paths, survives forks).
+- Runs a bounded `git fetch` (15s hard cap, tolerates network failures silently) and compares `HEAD` to `@{u}` to detect when the local clone is behind upstream.
+- Compares each installed template's marker date against the package's template marker date to detect when the workspace install is behind the local clone.
+- Reads `CHANGELOG.md`'s top `## X.Y.Z - YYYY-MM-DD` line to record the current package version in the run report.
+
+All detection-only. No `git pull`, no template rewrite, no INSTALL re-run. Findings flow into the heartbeat's `reflect` task like any other health-check anomaly; the operator applies updates via the existing `INSTALL.md` diff-and-propose flow when they're ready. Channel summary grows one line: `Package: <version> (up to date | N behind upstream | K stale templates)`.
+
+Rationale captured in `docs/architecture.md` design principle #8 ("Queue derivation over queue storage"): the same pattern that makes the sessions-capture queue a function rather than a file applies here - package-freshness state is derived from workspace artifacts + remote refs on demand, not cached or tracked in a VERSION file.
+
 ## 0.4.0 - 2026-04-18
 
 Program/routine split, cron-per-routine inversion, four-layer observability. v0.3 kept the heartbeat executing five routines in a pure-prose dispatcher; in live use a gateway restart produced a silent heartbeat failure with no detectable signal. v0.4 separates domain authorities (programs) from scheduled invocations (routines), pushes execution onto cron (the self-observing substrate), and shrinks the heartbeat to a tending orchestrator that never goes silent.
