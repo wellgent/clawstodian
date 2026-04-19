@@ -8,8 +8,11 @@ The fix reshapes where classification happens. Skipped classifications (cron, ho
 
 Added:
 - `scripts/scan-sessions.py` (new) - deterministic classifier + queue source. Invokes `openclaw sessions --json`, parses `memory/session-ledger.md`, classifies every session by key prefix + optional first-200-lines transcript peek, emits structured JSON: `{counts, queue, missing_transcripts}`. `queue` is sorted newest-first with `status: new | stale`. Supports `--next` for single-target output and `--sessions-json <path>` for offline testing. Python (stdlib only), no package dependencies. Shared primitive: the heartbeat's `tend-sessions-capture` uses it to decide enable/disable; the burst routine uses it to pick the next target.
-- `scripts/migrate-session-ledger.py` (new) - one-off ledger migration from v0.4.0 shape. Drops every H2 block whose body contains `- classification: skipped`, strips the `- classification: interactive` field line from surviving entries, writes atomically via a temp file in the same directory. Idempotent (second run reports "no changes"). Supports `--dry-run` to preview to `/tmp/session-ledger-migrated.md` without touching the workspace file. Migration is optional - `scan-sessions.py` already ignores the legacy field - but cleans up the ledger's size (wellgent ledger shrank 3178 → 544 lines / 427 → 59 entries in testing).
 - Workspace install now creates a third symlink: `clawstodian/scripts -> ~/clawstodian/scripts`. `INSTALL.md`, `VERIFY.md`, `UNINSTALL.md`, and `routines/health-check.md` all updated to include the scripts symlink in their per-artifact loops.
+
+Migration note for workspaces upgrading from v0.4.0:
+
+The ledger shape changed - `classification: skipped` entries are no longer written and the `classification:` field on interactive entries is gone. No migration is required; `scan-sessions.py` ignores the legacy field and works on an unmigrated ledger. Ledgers will organically converge to the new shape as cursors advance and pruned transcripts retire. Operators who want a one-shot cleanup can delete every H2 block whose body contains `- classification: skipped` and strip `- classification: interactive` lines from what remains.
 
 Changed:
 - `routines/sessions-capture.md` rewritten around the new shape. The two-phase split is gone: one loop that pulls the queue from the script once, processes one session at a time (up to five per firing, or ~140K token / ~500 KB content soft stop), re-scans before self-disable, writes one run report. Per-firing budgets are explicit. `sessions_list` is not called directly in the agent - the script is the authoritative source.
@@ -18,7 +21,6 @@ Changed:
 - `templates/session-ledger.md` marker and inner comment updated to reference the new shape.
 - `templates/AGENTS.md` routines catalog entry for `sessions-capture` now names the scan script as the queue source. Template marker bumped to `2026-04-19`.
 - `docs/architecture.md` ledger-state and daily-notes-pipeline paragraphs updated to match the interactive-only / script-queue model.
-- `INSTALL.md` "Updating an existing install" section gains a "Migrating ledger shape (pre-0.4.1 installs)" sub-section pointing at the new `scripts/migrate-session-ledger.py`. Migration is optional - `scan-sessions.py` ignores the legacy `classification` field.
 
 Removed:
 - Admission as a distinct routine step. Creating a ledger entry is now always part of capturing actual content from an interactive session, never a standalone "mark this session so we do not re-examine it" write.
@@ -69,7 +71,7 @@ Removed from `VERIFY.md`:
 Removed from `README.md`:
 - The `## Status` section's v0.4-specific paragraph, replaced with a version-agnostic pointer at the CHANGELOG.
 
-Release scripts like `scripts/migrate-session-ledger.py` stay in place - they are idempotent tools an operator can run whenever they want. The CHANGELOG entry for the release that introduces them points at them; `INSTALL.md` does not. Future releases follow the same pattern: if a release ships a one-off migration, the release note says so and points at the script; `INSTALL.md` stays unchanged.
+If a future release needs a one-off migration step, the CHANGELOG entry for that release describes it in full (including any shell snippet or bundled script). `INSTALL.md` stays unchanged. Migration scripts, if any, live under `scripts/`; long-running tools stay indefinitely (idempotent by construction), short-lived cleanup scripts get deleted once the transition is complete and git history preserves them.
 
 ## 0.4.0 - 2026-04-18
 
