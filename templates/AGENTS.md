@@ -11,12 +11,12 @@
 <!-- template: clawstodian/agents 2026-04-19 -->
 ## Workspace Maintainer (clawstodian)
 
-This workspace runs four maintenance **programs** that define how the workspace operates, and seven **routines** that schedule those programs to run on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, session transcripts, and `memory/session-ledger.md` are the only state.
+This workspace runs four maintenance **programs** that define how the workspace operates, and seven **routines** that schedule work on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, session transcripts, `memory/session-ledger.md`, `memory/heartbeat-trace.md`, and per-routine run reports under `memory/runs/<routine>/` are the only state.
 
 ### Operating model
 
-- **Programs** (`clawstodian/programs/<name>.md`) describe how a workspace domain is governed - conventions, authority, approval gates, escalation, behaviors. Agents follow programs during normal sessions when the situation applies, and cron-dispatched routines follow the same programs on a schedule.
-- **Routines** (`clawstodian/routines/<name>.md`) are thin scheduled invocations. Each routine references a program, picks a specific behavior, defines a target and a run-report format, and runs as a cron job.
+- **Programs** (`clawstodian/programs/<name>.md`) describe how a workspace domain is governed: conventions, authority, approval gates, escalation, and what-NOT-to-do. Agents follow programs during normal sessions when the situation applies, and cron-dispatched routines follow the same programs on a schedule.
+- **Routines** (`clawstodian/routines/<name>.md`) carry their own procedures. Each routine references a program for the conventions it must obey, defines a target, spells out numbered steps, and posts a run-report on every firing.
 - **AGENTS.md** (this file) catalogs the programs.
 - **HEARTBEAT.md** runs the collaborative maintainer thread. Each tick the agent tends the burst routines (enable / disable their crons based on queue state), sets `capture_status: done` on past-active daily notes, reviews new run reports, and posts a combined tick summary to the notifications channel. Mixed cadence: `tend-sessions-capture` every 2h; `tend-daily-seal` / `tend-para-extract` / `reflect` once daily. The heartbeat runs in the agent's main session (the same DM the operator uses), so the maintenance thread is continuous with the operator's ongoing conversation. Machinery-sanity checks live in the separate `health-check` routine; the heartbeat observes those findings via `reflect`.
 - **Session transcripts and `memory/heartbeat-trace.md`** are the primary audit trail.
@@ -36,7 +36,7 @@ Every program action follows the same loop:
 
 1. **Execute** the smallest next step.
 2. **Verify** the outcome by reading the resulting state (file contents, `git status`, `sessions_list`, etc.). Do not assume success.
-3. **Report** - during a session, to the user in chat; via cron, in the routine's single-line run report. Silent failures are unacceptable; surface them.
+3. **Report** - during a session, to the user in chat; via cron, in the routine's multi-line run report. Silent failures are unacceptable; surface them.
 
 ### Memory and navigation
 
@@ -67,12 +67,12 @@ Three layers give continuity across sessions:
 
 Programs are the domain authorities for this workspace. Each is a canonical spec under `clawstodian/programs/<name>.md`; this section is the catalog. **Before acting in a domain, read the program's spec first.** Do not work from memory of older versions.
 
-- **daily-notes** - canonical daily notes: one `memory/YYYY-MM-DD.md` per calendar day capturing activity, decisions, and context. Covers tending today's note, merging slug siblings, sealing past-day notes, and frontmatter discipline. Spec: `clawstodian/programs/daily-notes.md`.
-- **para** - the PARA knowledge graph: `projects/`, `areas/`, `resources/`, `archives/` extracted from daily activity and aligned against `memory/para-structure.md`. Covers entity extraction from sealed notes, structural and semantic alignment, and MEMORY.md dashboard currency. Spec: `clawstodian/programs/para.md`.
-- **workspace** - workspace tree outside PARA: trash removal, misplaced file relocation, `.gitignore` maintenance for ephemeral artifacts, 30-day run-report pruning. Spec: `clawstodian/programs/workspace.md`.
+- **daily-notes** - canonical daily notes at `memory/YYYY-MM-DD.md`, one per calendar day. Defines the note lifecycle (`active -> sealed`), `capture_status` / `para_status` queue markers, frontmatter fields, and what lands in a note vs what stays out. Format spec: `memory/daily-note-structure.md`. Program spec: `clawstodian/programs/daily-notes.md`.
+- **para** - the PARA knowledge graph: `projects/`, `areas/`, `resources/`, `archives/`. Defines entity types, creation thresholds, naming conventions, `INDEX.md` and `MEMORY.md` upkeep, and the update-existing-first / create-new-when-thresholds-clear discipline. Format spec: `memory/para-structure.md`. Program spec: `clawstodian/programs/para.md`.
+- **workspace** - workspace tree outside PARA. Detects trash, misplaced files, stale top-level content, orphaned-looking dotfiles, and anomalies; applies trivial fixes (trash sweep, obvious PARA moves, `.gitignore` hygiene) and surfaces the rest for operator decision. Spec: `clawstodian/programs/workspace.md`.
 - **repo** - git repository discipline: stage-by-path commits with clear messages, immediate push, `.gitignore` maintenance, and a working tree never left in a surprising state. Spec: `clawstodian/programs/repo.md`.
 
-Any agent in this workspace follows a program whenever the situation in that domain applies - committing work after a session, tending today's daily note, filing an insight into PARA. Routines (below) schedule the same programs to run as cron-dispatched catch-up.
+Any agent in this workspace follows a program whenever the situation in that domain applies - committing work after a session, appending to today's daily note, **updating an existing PARA entity** as new context arrives, filing a new PARA entity when the thresholds clear. Routines (below) schedule the same programs to run as cron-dispatched catch-up.
 
 ### Routines
 
@@ -93,7 +93,7 @@ Current routines:
 - **para-align** (scheduled, Sunday 06:00 UTC) - invokes para: align PARA structure across the full graph.
 - **workspace-clean** (scheduled, Sunday 07:00 UTC) - invokes workspace: walk and tidy.
 - **git-clean** (scheduled, 01:00 and 11:00 UTC daily) - invokes repo: commit drift as a backstop for agents who commit themselves in-session.
-- **health-check** (scheduled, 03:00 UTC daily) - invokes workspace: self-check on the clawstodian machinery (heartbeat config, session visibility, cron registrations, stalled routines, long-running bursts, workspace symlinks, template markers). Detection only; the heartbeat's `reflect` task picks up the findings.
+- **health-check** (scheduled, 03:00 UTC daily) - cross-cutting observation: self-check on the clawstodian machinery (heartbeat config, session visibility, cron registrations, stalled routines, long-running bursts, workspace symlinks, template markers). Read-only; the heartbeat's `reflect` task picks up the findings.
 
 See `memory/crons.md` for schedules and current enable state.
 
