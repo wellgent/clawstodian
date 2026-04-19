@@ -1,4 +1,4 @@
-<!-- template: clawstodian/daily-note-structure 2026-04-19 -->
+<!-- template: clawstodian/daily-note-structure 2026-04-20 -->
 # Daily Note Structure
 
 Single source of truth for the daily-notes pipeline: the daily note's format (frontmatter, structure, what to capture, what sealing does) and the session-ledger format that `sessions-capture` uses as its authoritative capture-state file. In-session agents read this file when appending to today's note; the `sessions-capture`, `daily-seal`, and `para-extract` routines (specs at `clawstodian/routines/`) read it too. Customize per workspace as needed.
@@ -182,7 +182,6 @@ The cursor advances only after the affected daily notes have been written succes
 - last_activity: 2026-04-18T14:30Z
 - lines_captured: 142
 - dates_touched: 2026-04-15, 2026-04-16, 2026-04-17, 2026-04-18
-- status: active
 ```
 
 One H2 section per interactive session, in append order. Update cursor fields in place via narrow `Edit`. Never reorder existing sections.
@@ -195,7 +194,8 @@ One H2 section per interactive session, in append order. Update cursor fields in
 - **last_activity** - the session's `updatedAt` at the most recent firing that captured from it. Mirrors the `sessions_list` row at capture time.
 - **lines_captured** - the JSONL line count already processed. Next read starts at line `lines_captured + 1`.
 - **dates_touched** - comma-separated `YYYY-MM-DD` list of daily notes this session has contributed to.
-- **status** - `active` (session still receiving activity) | `dormant` (no activity for 7+ days but transcript still exists) | `done` (fully captured, session closed or more than 7 days old at admission time).
+
+Liveness ("is this session still active") is not stored. It's derived on demand from `sessions_list` (presence + `updatedAt`) whenever anyone needs to know.
 
 ### Update rules
 

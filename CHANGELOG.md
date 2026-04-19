@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.2 - 2026-04-19
+
+Drop the dead `status` field on ledger entries. The session-ledger format spec declared a three-value field (`active | dormant | done`) but nothing ever read it; `sessions-capture` only ever wrote `active` or `done` at entry-creation time (based on an arbitrary 7-day threshold) and never transitioned the value. `dormant` existed only in the field's type definition. Liveness - the only question the field might have answered - is authoritative in `sessions_list` (row presence + `updatedAt`), so storing a stale snapshot of it in the ledger was exactly the caching anti-pattern `docs/architecture.md` principle #8 warns against.
+
+Changed:
+- `templates/daily-note-structure.md` "Session Ledger" section: `status` field removed from the File shape example and the Fields list. One short sentence replaces it: "Liveness is not stored. It's derived on demand from `sessions_list` whenever anyone needs to know." Template marker bumped to `2026-04-20` to distinguish 0.4.2 content from 0.4.1 content (both released on 2026-04-19; same-date markers would defeat the per-template-marker-date detection in `health-check` and `INSTALL.md` Step 3).
+- `routines/sessions-capture.md` step 6 of the unit-of-work procedure: new-entry creation no longer writes a `status` line on the fresh H2 block.
+
+Pre-0.4.2 ledger cruft:
+
+Workspaces on 0.4.1 have existing ledger entries with `- status: active` or `- status: done` lines. `scan-sessions.py` has always parsed all `- key: value` lines indiscriminately and only ever read `lines_captured`, so stale `status` lines are ignored and harmless. `sessions-capture` advances cursors via narrow `Edit` calls on specific lines and never rewrites entire blocks, so stale lines persist indefinitely on existing entries. This is intentional - rewriting blocks to drop a field is more risk than leaving cruft. Operators who want a clean ledger can run `grep -v '^- status:' memory/session-ledger.md > /tmp/ledger-clean.md && mv /tmp/ledger-clean.md memory/session-ledger.md` once; new entries will never carry the field.
+
+This release is also a live test of the update-propagation mechanism added in 0.4.1: `health-check` should surface "0.4.2 available" (via CHANGELOG top-entry + git-fetch) and "daily-note-structure.md marker 2026-04-19 → 2026-04-20 (stale)" on the next daily run. The operator re-runs `INSTALL.md` to apply the template update.
+
 ## 0.4.1 - 2026-04-19
 
 sessions-capture restructure: interactive-only ledger + deterministic scan script. Rooted in a 2026-04-19 wellgent incident where the first cold-start `sessions-capture` firing ballooned to 793K tokens and failed with context overflow. Root cause was a three-way reconciliation loop (sessions_list vs ledger vs on-disk transcripts) driven by a routine spec that told the agent to classify hundreds of sessions using `sessions_history` tool calls with limit=200. A later firing on the same day succeeded in under a minute because by then the inconsistency had been cleaned up - the failure was cold-start-inconsistency-specific, not Codex-specific.

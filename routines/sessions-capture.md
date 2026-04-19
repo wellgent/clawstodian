@@ -103,7 +103,7 @@ Applied to each queue entry:
 
 **6. Advance the ledger cursor.** Update the session's ledger entry per `memory/daily-note-structure.md` > "Session Ledger":
 
-- New session (`status: new` in the queue): append a new H2 block at the end of `memory/session-ledger.md` with `kind`, `first_seen` (= now in ISO UTC), `last_activity` (= the row's `updatedAt` converted to ISO), `lines_captured` (= the transcript line count captured in step 1), `dates_touched`, `status` (`done` if the session's `updatedAt` is more than 7 days old, otherwise `active`).
+- New session (`status: new` in the queue): append a new H2 block at the end of `memory/session-ledger.md` with `kind`, `first_seen` (= now in ISO UTC), `last_activity` (= the row's `updatedAt` converted to ISO), `lines_captured` (= the transcript line count captured in step 1), `dates_touched`.
 - Existing session (`status: stale`): update `lines_captured`, `last_activity`, and `dates_touched` in place via narrow `Edit` calls. Do not reorder entries.
 
 **7. Update daily-note frontmatter** on each touched note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if absent). Do not touch `para_status` here; it's set by `daily-seal`.
