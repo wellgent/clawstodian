@@ -2,7 +2,7 @@
 
 ## Goal
 
-Deliver every job the `ops-daily` / `ops-para` / `ops-clean` packages did, through native OpenClaw primitives, with no package-owned state and no worker choreography.
+Keep a workspace in good shape via native OpenClaw primitives, with no package-owned state and no worker choreography.
 
 The design target is a system an operator can monitor, audit, troubleshoot, and trust. Intelligence lives in markdown the agent reads; the harness is thin; every meaningful action is observable by default.
 
@@ -48,7 +48,7 @@ The heartbeat runs in the agent's main session (the operator's DM with the agent
 
 Mixed cadence is managed through a `tasks:` YAML block in `templates/HEARTBEAT.md`: `tend-sessions-capture` fires every tick (2h interval matches the gateway `every: 2h`); `tend-daily-seal`, `tend-para-extract`, and `reflect` each fire once per day. Only due tasks fire on a given tick, keeping cost bounded. When multiple tasks fire in a single tick (e.g. the daily tick), they produce ONE combined channel post.
 
-This inverts the v0.3 pure-prose dispatcher (which silently dropped ticks when any of seven heartbeat gates short-circuited) toward the `ops-daily` debuggability pattern, and goes further: the agent is not only an orchestrator, it is a collaborative partner with memory. See `docs/heartbeat-config.md` for the rationale and recommended gateway config.
+See `docs/heartbeat-config.md` for the rationale and recommended gateway config, and `docs/crons-config.md` for the cron-job flag stack.
 
 ### 4. Four continuity layers
 
@@ -65,7 +65,7 @@ Silence in any of the four is itself a signal. A dead heartbeat is not ambiguous
 
 No package-owned state files. Git, daily notes, PARA entities, `MEMORY.md`, session transcripts, `memory/session-ledger.md`, `memory/heartbeat-trace.md`, and per-routine run reports under `memory/runs/<routine>/` are the only state. Every routine and every heartbeat tick derives what it needs from those artifacts, acts, writes observations back, and forgets.
 
-The `daily-notes` program is the most state-dependent: it needs to know which sessions it has already captured, and how far into each transcript. That state lives in `memory/session-ledger.md` - one markdown section per session, cursor fields advanced in place via narrow `Edit` calls. Cursors advance only after the affected daily-note writes succeed; a partial failure leaves the cursor at the old position so the next tick retries from there. This replaces ops-daily's `capture-state.json` sidecar with a markdown-native file the agent edits with its normal tools.
+The `daily-notes` program is the most state-dependent: it needs to know which sessions it has already captured, and how far into each transcript. That state lives in `memory/session-ledger.md` - one markdown section per session, cursor fields advanced in place via narrow `Edit` calls. Cursors advance only after the affected daily-note writes succeed; a partial failure leaves the cursor at the old position so the next tick retries from there.
 
 This is why `isolatedSession: true` and `lightContext: true` are correct for routine runs. Cross-tick memory lives in files, not session history. The workspace bootstrap (`AGENTS.md`, `MEMORY.md`) caches across ticks within OpenClaw's prompt-cache window; program and routine specs are read fresh on every run, so spec updates take effect without re-registering crons.
 
@@ -96,8 +96,6 @@ run reports                  memory/runs/<routine>/    (per-firing detail files;
 audit trail                  notifications channel + session transcripts + git + heartbeat-trace.md
 workspace memory             memory/, projects/, areas/, resources/, archives/
 ```
-
-There is no "standing orders" primitive in the OpenClaw codebase; the term in OpenClaw's docs refers to rules written into `AGENTS.md`. clawstodian uses the standing-orders anatomy to structure each program (conventions / authority / approval gates / escalation / behaviors / what NOT to do). The mechanism remains the AGENTS.md file loaded at bootstrap plus cron jobs that dispatch routines with `Read clawstodian/routines/<name>.md and execute.` messages.
 
 ## Four programs, seven routines
 
@@ -146,7 +144,7 @@ If an operator needs to look at more than that to explain routine behavior, the 
 - Full transcript-to-memory coverage. The daily-notes program does its best from `sessions_*` and git; it does not exhaustively reconstruct everything.
 - Automatic PARA rewrites. The para program creates and updates obvious placements in extract, applies trivial structural fixes in align; neither reorganizes existing entities without operator direction.
 - Hidden state. Any persistent fact the package acts on is a file the operator can read.
-- Multi-worker pipelines. Each routine is one cron, one session, one single-line report.
+- Multi-worker pipelines. Each routine is one cron, one session, one multi-line scannable report.
 - Auto-archive lifecycle. When inactive projects move from live PARA into `archives/` stays user-managed judgment.
 - Custom hooks in the default path. If a future feature needs hooks, it will be documented as opt-in, not baseline.
 

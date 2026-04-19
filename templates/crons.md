@@ -8,7 +8,7 @@ Every clawstodian routine runs as its own cron job. Two execution classes:
 - **Scheduled** - fires on a wall-clock schedule; stays enabled; no self-disable.
 - **Heartbeat-toggled burst** - starts disabled; the heartbeat enables it when a queue forms; the routine self-disables when it drains the queue.
 
-Every firing in either class writes `memory/runs/<routine>/<ts>.md` and posts a channel summary. Install commands live in `clawstodian/INSTALL.md`; routine specs in `clawstodian/routines/`; config rationale (timeouts, flags) in `clawstodian/docs/crons-config.md`.
+Every firing in either class writes `memory/runs/<routine>/<ts>.md` and posts a channel summary. Routine specs live at `clawstodian/routines/<name>.md` (via the workspace symlink).
 
 ## clawstodian routines
 

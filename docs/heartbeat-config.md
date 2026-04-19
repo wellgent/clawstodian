@@ -178,7 +178,7 @@ Expected. Channel replies route to the channel's auto-derived session, not the m
 
 ## See also
 
-- `templates/HEARTBEAT.md` - the workspace-level file the heartbeat reads. Includes the `tasks:` block, the orchestrator mental model, the `capture_status: done` rule, and channel / trace conventions. Task prompts are light; procedure lives in the referenced routine specs.
+- `templates/HEARTBEAT.md` - the workspace-level file the heartbeat reads. Includes the `tasks:` block, the orchestrator mental model, and the channel / trace conventions. Task prompts are light; procedure lives in the referenced routine specs.
 - `INSTALL.md` - install flow; Step 4 wires this config into the operator's OpenClaw gateway.
 - `VERIFY.md` - post-install checks.
 - `UNINSTALL.md` - removal flow.

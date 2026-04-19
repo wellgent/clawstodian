@@ -4,7 +4,7 @@ Instructions for any agent working on the clawstodian repo itself (not for works
 
 ## Purpose
 
-`clawstodian` is a sharable OpenClaw agent package that ships **programs** (domain authorities) and **routines** (scheduled invocations) for workspace maintenance, plus a lightweight heartbeat orchestrator. Successor to the `ops-daily` / `ops-para` / `ops-clean` packages.
+`clawstodian` is a sharable OpenClaw agent package that ships **programs** (domain authorities) and **routines** (scheduled invocations) for workspace maintenance, plus a lightweight heartbeat orchestrator.
 
 Keep the repo focused on:
 - clear program definitions an operator can read in one pass

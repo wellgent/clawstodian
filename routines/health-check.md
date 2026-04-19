@@ -18,7 +18,7 @@ Clawstodian's install-time contract and runtime state, across three surfaces:
 
 ## Steps
 
-1. **Check heartbeat config.** Load `~/.openclaw/openclaw.json`. For each of `every`, `target`, `to`, `activeHours`, and `showAlerts` under `agents.defaults.heartbeat`, record observed value + pass/fail against the recommended stance in `docs/heartbeat-config.md`. Deviation is flagged, not enforced.
+1. **Check heartbeat config.** Load `~/.openclaw/openclaw.json`. For each of `every`, `target`, `to`, `activeHours`, and `showAlerts` under `agents.defaults.heartbeat`, record the observed value. Recommended stance: `every: "2h"`, `target` set to a channel plugin (`discord` / `slack` / `telegram` / ...), `to` set to `"channel:<id>"`, `activeHours` set with `start` / `end` / `timezone`, `showAlerts: true`. Deviations are flagged, not enforced.
 
 2. **Check session visibility.** Confirm `tools.sessions.visibility: "all"` in the same config file. Pass/fail, not a recommendation - anything else silently captures zero content for `sessions-capture`, which is the single most load-bearing config for the daily-notes pipeline.
 

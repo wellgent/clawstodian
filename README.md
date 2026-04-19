@@ -2,8 +2,6 @@
 
 A sharable OpenClaw agent package that turns a workspace into a cron-driven maintenance system with a lightweight heartbeat orchestrator. The package ships **four programs** (domain authorities for daily notes, PARA knowledge graph, workspace tidiness, git hygiene) and **seven routines** (scheduled cron invocations of specific program behaviors, including a daily self-check on the machinery itself) so the workspace stays in good shape whether the operator is actively working or not.
 
-Successor to `ops-daily`, `ops-para`, and `ops-clean`. Same jobs, native OpenClaw primitives, and the observable-by-design execution pattern those packages got right.
-
 ## Programs and routines
 
 **Programs** are the authorities for how the workspace is operated in a domain. Each program spec describes conventions, authority, approval gates, escalation rules, and the behaviors the agent can perform. Programs are read at session bootstrap via `AGENTS.md` so any agent in the workspace knows how the domain is governed. Routines (below) and agents in normal sessions both follow the same programs.
@@ -36,7 +34,7 @@ The agent reads `INSTALL.md`, surveys your workspace, proposes a merge plan, ask
 **Seven routines** (`routines/`): the scheduled invocations.
 
 Scheduled (wall-clock):
-- `para-align` (Sunday 06:00 UTC) - para: align PARA structure. Heartbeat may also `--wake now` on mid-week drift.
+- `para-align` (Sunday 06:00 UTC) - para: align PARA structure.
 - `workspace-clean` (Sunday 07:00 UTC) - workspace: walk and tidy.
 - `git-clean` (01:00 and 11:00 UTC daily) - repo: commit drift.
 - `health-check` (03:00 UTC daily) - observes the clawstodian machinery itself (heartbeat config, session visibility, cron registrations, stalled routines, long-running bursts, symlinks, template markers). Detection only; findings flow into the heartbeat's daily `reflect`.
@@ -50,9 +48,9 @@ Heartbeat-toggled bursts (start disabled; orchestrator enables on demand):
 
 ## How it runs
 
-- **Each routine runs as its own cron job.** Isolated session, light context, per-routine announcement to the logs channel on every firing - including quiet firings (the cron fired, nothing was wrong, worth confirming). Silent routines hide failure.
-- **Heartbeat is the orchestrator, not an executor.** On its cadence it reads workspace state, toggles burst workers based on queues (sealed-notes pending, past-day notes unsealed), spot-checks configuration health, appends a trace line to `memory/heartbeat-trace.md`, and posts a one-line executive summary. It never goes silent: even a healthy no-change tick posts.
-- **Three-layer observability.** Per-routine run reports (detail on demand), heartbeat executive summary (ambient awareness), `memory/heartbeat-trace.md` (forensic record). Silence in any of the three is itself informative.
+- **Each routine runs as its own cron job.** Isolated session, light context, per-routine announcement to the notifications channel on every firing - including quiet firings (the cron fired, nothing was wrong, worth confirming). Silent routines hide failure.
+- **Heartbeat is the orchestrator, not an executor.** On its cadence it tends the three burst routines (toggle crons based on queues), sets `capture_status: done` on past-active daily notes, reviews new run reports, appends a trace line to `memory/heartbeat-trace.md`, and posts a combined tick summary. The daily `reflect` task adds a narrative to the operator in the DM. Machinery-sanity checks live in the separate `health-check` routine. It never goes silent: even a no-change tick posts.
+- **Four-layer observability.** Per-routine run reports (detail on demand), heartbeat channel summary (ambient awareness), main session history (collaborative memory in the operator's DM), `memory/heartbeat-trace.md` (forensic record). Silence in any of the four is itself informative.
 - **No package-owned state files.** Git, daily notes, PARA entities, session transcripts, `memory/session-ledger.md` (authoritative capture state for daily-notes), and `memory/heartbeat-trace.md` are the only state.
 - **In-session agents and cron dispatch share the same programs.** An agent finishing a work session can follow the `repo` program to commit drift; the `git-clean` routine fires twice daily to catch anything missed. Both read the same program spec.
 
@@ -62,7 +60,7 @@ The maintainer is a scribe, not an architect. Four rules:
 
 1. When placement is obvious, just act.
 2. When placement is ambiguous, surface (in-session: ask the user; via cron: include in run report).
-3. Each routine announces its own run: one single-line report per cron firing.
+3. Each routine announces its own run: a multi-line scannable report per cron firing.
 4. Surface problems with likely causes and one or two resolution paths. Do not just alert; collaborate.
 
 ## Manual install (without an agent)
@@ -171,7 +169,7 @@ If your workspace's `AGENTS.md` is pushing the per-file cap (`agents.defaults.bo
 
 ## Status
 
-Draft. See `VERSION` and `CHANGELOG.md`. v0.4 introduces the program/routine split, the cron-per-routine execution model, and three-layer observability; v0.4 drafts land alongside workspace evolution before stabilizing.
+Draft. See `VERSION` and `CHANGELOG.md`. v0.4 introduces the program/routine split, the cron-per-routine execution model, and four-layer observability; v0.4 drafts land alongside workspace evolution before stabilizing.
 
 ## License
 

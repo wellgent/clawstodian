@@ -234,7 +234,7 @@ Ask the operator whether to:
 
 If they choose manual trigger, observe the first tick's output with them. The first tick should:
 
-- Post a one-line executive summary to the logs channel (never silent).
+- Post a combined tick summary to the notifications channel (never silent) - header line + one line per task that fired this tick.
 - Append one line to `memory/heartbeat-trace.md`.
 - Correctly identify any pending `sessions-capture`, `daily-seal`, or `para-extract` queues and toggle those bursts accordingly. On a workspace with existing session history, `sessions-capture` will be enabled on the first tick because the ledger lags `sessions_list`; on a fresh workspace it will stay disabled until the first new session appears.
 - Surface any anomalies detected in health spot-checks (including `tools.sessions.visibility` drift).

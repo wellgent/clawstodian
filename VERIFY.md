@@ -84,7 +84,7 @@ The heartbeat lives in `~/.openclaw/openclaw.json` (or `config.toml`), not in th
 - `channels.defaults.heartbeat.showAlerts` is `true`.
 - `agents.defaults.heartbeat.session`, `isolatedSession`, and `lightContext` are either omitted (defaults) or set to: no `session` override, `isolatedSession: false`, `lightContext: false`. These defaults mean heartbeat runs in the agent's main session with full workspace bootstrap.
 
-A config that passes every other check but has an unregistered `target` plugin, a malformed `to` recipient, or `showAlerts: false` will produce a silent heartbeat. That is the failure mode v0.4 is designed to prevent; catch it here.
+A config that passes every other check but has an unregistered `target` plugin, a malformed `to` recipient, or `showAlerts: false` will produce a silent heartbeat. That is the silent-heartbeat failure mode the package is designed to prevent; catch it here.
 
 **Not checked here:** `session.maintenance`, `agents.defaults.contextPruning`, `session.dmScope`, `session.reset`. These are host-wide policy choices from the operator's sessions baseline; clawstodian does not prescribe them.
 
