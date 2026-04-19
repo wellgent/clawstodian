@@ -1,6 +1,10 @@
 # AGENTS.md
 
-Instructions for any agent working on the clawstodian repo itself (not for workspaces that install clawstodian; that content lives in `templates/AGENTS.md`).
+Instructions for agents **developing the clawstodian package itself** - editing programs, routines, templates, docs, install flow. Three related-but-distinct audiences:
+
+- **This file (`AGENTS.md`)** - you, working inside the `clawstodian/` repo.
+- **`INSTALL.md` (+ `VERIFY.md`, `UNINSTALL.md`)** - an agent running the install / verify / uninstall flow inside an operator's workspace. Different concerns: co-create with the operator, don't edit package internals.
+- **`templates/AGENTS.md`** - the workspace charter that gets installed to the operator's workspace root. Read by in-session agents doing day-to-day work in that workspace. Don't treat this file's rules as applying there; the template is the authority for workspace agents.
 
 ## Purpose
 
@@ -18,14 +22,14 @@ Keep the repo focused on:
 clawstodian targets OpenClaw exclusively. OpenClaw is a distinct runtime - NOT Claude Code, Codex CLI, or any IDE harness. Conflating them will produce wrong paths, wrong flag names, and wrong tool semantics.
 
 - Repo: https://github.com/openclaw/openclaw
-- Docs: https://github.com/openclaw/openclaw/tree/main/docs
-- Key subsystems this package relies on:
-  - **Heartbeat gateway** (`docs/gateway/heartbeat.md`) - the `tasks:` primitive and `activeHours` config.
-  - **Cron jobs** (`docs/automation/cron-jobs.md` conceptually, `docs/cli/cron.md` for the CLI, `openclaw cron --help` for live flags) - the scheduled-agent subsystem every routine registers with.
-  - **Session tools** (`docs/concepts/session-tool.md`) - `sessions_list` and `sessions_history`. Each row carries a `transcriptPath` field; transcripts live at `$OPENCLAW_STATE_DIR/agents/<agentId>/sessions/<sessionId>.jsonl` (default `$OPENCLAW_STATE_DIR` is `~/.openclaw`). This is NOT `~/.claude/projects/` - that's Claude Code.
-  - **Auto-memory** (`docs/concepts/memory.md`) - operator-facing memory system clawstodian composes with but does not replace.
+- Docs tree: https://github.com/openclaw/openclaw/tree/main/docs
+- Key upstream subsystems this package relies on (paths below are relative to the openclaw repo's `docs/` tree, NOT this repo):
+  - **Heartbeat gateway** (upstream `docs/gateway/heartbeat.md`) - the `tasks:` primitive and `activeHours` config.
+  - **Cron jobs** (upstream `docs/automation/cron-jobs.md` conceptually, `docs/cli/cron.md` for the CLI, `openclaw cron --help` for live flags) - the scheduled-agent subsystem every routine registers with.
+  - **Session tools** (upstream `docs/concepts/session-tool.md`) - `sessions_list` and `sessions_history`. Each row carries a `transcriptPath` field; transcripts live at `$OPENCLAW_STATE_DIR/agents/<agentId>/sessions/<sessionId>.jsonl` (default `$OPENCLAW_STATE_DIR` is `~/.openclaw`). This is NOT `~/.claude/projects/` - that's Claude Code.
+  - **Auto-memory** (upstream `docs/concepts/memory.md`) - operator-facing memory system clawstodian composes with but does not replace.
 
-Prefer fetching upstream docs for current flag names and config shapes; training data can lag. Do not reference any specific filesystem clone of the openclaw repo - that path is per-machine and will not exist on operator or CI hosts.
+Prefer fetching from the upstream repo for current flag names and config shapes; training data can lag. Do not reference any specific filesystem clone of the openclaw repo in package docs - clone paths are per-machine and will not exist on operator or CI hosts.
 
 ## Working rules
 
