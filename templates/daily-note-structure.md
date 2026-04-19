@@ -1,4 +1,4 @@
-<!-- template: clawstodian/daily-note-structure 2026-04-20 -->
+<!-- template: clawstodian/daily-note-structure 2026-04-19 -->
 # Daily Note Structure
 
 Single source of truth for the daily-notes pipeline: the daily note's format (frontmatter, structure, what to capture, what sealing does) and the session-ledger format that `sessions-capture` uses as its authoritative capture-state file. In-session agents read this file when appending to today's note; the `sessions-capture`, `daily-seal`, and `para-extract` routines (specs at `clawstodian/routines/`) read it too. Customize per workspace as needed.
@@ -172,7 +172,7 @@ The cursor advances only after the affected daily notes have been written succes
 ### File shape
 
 ```markdown
-<!-- template: clawstodian/session-ledger 2026-04-20 -->
+<!-- template: clawstodian/session-ledger 2026-04-19 -->
 # Session ledger
 
 ## 96a0c068-a1b2-c3d4-e5f6-7890abcdef12

@@ -1,4 +1,4 @@
-<!-- template: clawstodian/session-ledger 2026-04-20 -->
+<!-- template: clawstodian/session-ledger 2026-04-19 -->
 # Session ledger
 
 <!-- Authoritative cursor store for interactive sessions.
@@ -12,4 +12,4 @@
      Format spec, field definitions, and update rules live in
      memory/daily-note-structure.md under "Session Ledger". -->
 
-<!-- /template: clawstodian/session-ledger 2026-04-20 -->
+<!-- /template: clawstodian/session-ledger 2026-04-19 -->

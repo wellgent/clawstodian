@@ -1,4 +1,4 @@
-<!-- template: clawstodian/agents 2026-04-20 -->
+<!-- template: clawstodian/agents 2026-04-19 -->
 ## Workspace Maintainer (clawstodian)
 
 This workspace runs four maintenance **programs** that define how the workspace operates, and seven **routines** that schedule work on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, session transcripts, `memory/session-ledger.md`, `memory/heartbeat-trace.md`, and per-routine run reports under `memory/runs/<routine>/` are the only state.
@@ -98,4 +98,4 @@ Any program action that crosses these lines escalates - surface (in reply or run
 - any change that crosses into a new project or workstream rather than maintenance
 - any security concern: exposed secret, unexpected network activity, tampered file, permission anomaly
 
-<!-- /template: clawstodian/agents 2026-04-20 -->
+<!-- /template: clawstodian/agents 2026-04-19 -->
