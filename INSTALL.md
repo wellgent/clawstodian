@@ -115,7 +115,7 @@ Present the full plan as a short bulleted list. For each item, state: current st
 
 When the operator approves a specific item, apply it:
 
-- **Installing `AGENTS.md` / `HEARTBEAT.md` templates**: copy from `~/clawstodian/templates/AGENTS.md` to workspace `AGENTS.md` (same for HEARTBEAT.md). If the workspace file already exists with other content, insert the clawstodian-marked block (everything between the `<!-- template: clawstodian/... -->` comments) at the appropriate location, preserving everything else.
+- **Installing `AGENTS.md` / `HEARTBEAT.md` templates**: if the workspace file does not exist, copy the template verbatim to the workspace path (`~/clawstodian/templates/AGENTS.md` -> workspace `AGENTS.md`; same for HEARTBEAT.md). The whole template file is the clawstodian-delivered content - no install-time preamble to strip. If the workspace file already exists with other content, insert the clawstodian-marked block (the opening `<!-- template: clawstodian/<name> YYYY-MM-DD -->` line, all content below it, and the closing `<!-- /template: clawstodian/<name> YYYY-MM-DD -->` line - inclusive of both markers) at the appropriate location, preserving everything else.
 - **Installing reference templates**: copy from `~/clawstodian/templates/<file>` to the workspace path. Preserve the template marker.
 - **Creating PARA folders**: create the folders and add an empty `INDEX.md` in each with just `# <folder name> INDEX` as the header.
 - **Creating `clawstodian/` workspace directory**: run the two-symlink commands above. Verify with `readlink clawstodian/programs` and `readlink clawstodian/routines`.

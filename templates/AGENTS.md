@@ -1,13 +1,3 @@
-<!-- Template for a workspace AGENTS.md that adopts clawstodian.
-     Copy this to the workspace root as AGENTS.md, or merge its
-     content into an existing AGENTS.md. Add persona, project-
-     specific rules, and anything else above or below the
-     clawstodian section as fits your workspace.
-     The <!-- template: ... --> marker lets the install flow detect
-     whether the clawstodian section is up to date. You can drop
-     the markers if you prefer a plain file; updates then become a
-     manual merge. -->
-
 <!-- template: clawstodian/agents 2026-04-19 -->
 ## Workspace Maintainer (clawstodian)
 

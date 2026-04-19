@@ -1,16 +1,3 @@
-<!-- Template for a workspace HEARTBEAT.md that adopts clawstodian.
-     Copy this to the workspace root as HEARTBEAT.md, or merge its
-     content into an existing HEARTBEAT.md. The clawstodian
-     orchestrator content below is usually the entire file for most
-     workspaces; add workspace-specific heartbeat notes above or
-     below only if needed.
-     The <!-- template: ... --> marker lets the install flow detect
-     whether the orchestrator content is up to date. You can drop
-     the markers if you prefer a plain file.
-     Gateway-level config (session model, cadence, delivery) lives
-     in ~/.openclaw/openclaw.json. See docs/heartbeat-config.md in
-     the clawstodian repo for the recommended shape. -->
-
 <!-- template: clawstodian/heartbeat 2026-04-19 -->
 # Heartbeat - workspace organization assistant
 
