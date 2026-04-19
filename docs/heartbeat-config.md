@@ -55,7 +55,7 @@ clawstodian deliberately does NOT set `session.maintenance`, `agents.defaults.co
 - **`lightContext`** (omitted, default `false`) - full workspace bootstrap loads each tick: `AGENTS.md` (programs catalog), `MEMORY.md` (dashboard), daily notes, any other bootstrap files the workspace uses. The maintainer is fully workspace-aware every tick.
 - **`target`** - channel plugin name (`discord`, `slack`, `telegram`, `whatsapp`, `bluebubbles`, ...), or `"last"` for last-contact, or `"none"` to run internally without delivery. For the notifications channel, use the plugin that hosts it.
 - **`to`** - channel-specific recipient within `target`. For Discord/Slack/Telegram channels, this is typically `"channel:<channel-id>"`. For SMS/iMessage it is a phone number. Match whatever shape the cron routines use for `--to` so heartbeat and routines land in the same place. One pane for all maintenance observability.
-- **`activeHours`** - the agent's working window. Ticks outside skip silently. Match the operator's actual availability.
+- **`activeHours`** - the agent's working window. Ticks outside skip silently. Match the operator's actual availability, AND see "Aligning active hours with scheduled crons" below - the start time should sit after the overnight scheduled routines finish so the first daily tick sees their fresh reports.
 - **`showAlerts: true`** - deliver substantive replies.
 - **`useIndicator: true`** - emit UI indicator events.
 
@@ -81,7 +81,29 @@ The logic: clawstodian layers a maintenance pattern onto whatever session postur
 
 Task last-run timestamps survive across ticks in session state.
 
-The prose content in `HEARTBEAT.md` below the `tasks:` block is appended as "Additional context" on every tick. It carries the orchestrator mental model, the `capture_status: done` rule (the single write only the heartbeat can make), the channel post shape, and the tick-trace format. Each task prompt is light and references the routine spec it tends; the routine owns its own procedure.
+The prose content in `HEARTBEAT.md` below the `tasks:` block is appended as "Additional context" on every tick. It carries the orchestrator mental model, the channel post shape, and the tick-trace format. Each task prompt is light and references the routine spec it tends; the routine owns its own procedure.
+
+## Aligning active hours with scheduled crons
+
+OpenClaw's heartbeat task intervals are **elapsed-time** (`24h`, `2h`), not wall-clock cron expressions. A 24h-interval task fires on the first active-hours tick after 24h has passed since its last fire; once a task has fired, its daily slot stays at (roughly) the same wall-clock time until the gateway goes down and re-anchors.
+
+This means `tend-daily-seal`, `tend-para-extract`, and `reflect` each land at some fixed time of day - determined by when the task first fired, not by operator preference. The important question is **whether that fixed time sits upstream or downstream of the scheduled routines** whose reports those tasks consume.
+
+Recommended stance: **set `activeHours.start` at least 30-60 minutes after the latest overnight scheduled cron's wall-clock time.** With clawstodian's defaults:
+
+- `git-clean`: 01:00 UTC
+- `health-check`: 03:00 UTC
+- `git-clean`: 11:00 UTC (second firing, during active hours)
+- `para-align`: Sunday 06:00 UTC
+- `workspace-clean`: Sunday 07:00 UTC
+
+`activeHours.start: "04:00"` (or `"08:00"` for a later workday) guarantees the first daily tick always has the overnight `git-clean` and `health-check` reports ready for `reflect` / `tend-*` to scan. On Sundays, the weekly routines finish before a typical 08:00 start too.
+
+Why this matters: `reflect` scans "new memory/runs/*/*.md since the previous reflect", so in absolute terms no data is missed - but if `reflect` fires at 02:00 UTC it reports on yesterday and catches up the overnight cron reports only on the next day's firing. A later `activeHours.start` keeps the daily narrative aligned with the calendar day it summarizes.
+
+Why not fight this with wall-clock scheduling of heartbeat tasks: OpenClaw does not accept cron expressions in `interval:` (see the parser at `src/auto-reply/heartbeat.ts:196` - it accepts duration strings like `30m`, `2h`, `24h`). The first fire of each 24h task anchors its daily slot; there is no way to pin a task to, say, `"08:00 UTC"` declaratively. Operator config (active-hours + scheduled-cron times) is the only lever.
+
+Operators with unusual workflows can adjust either side: move `health-check` earlier (e.g. `"0 0 * * *"` at midnight) to widen the alignment window, or push `activeHours.start` later to match a night-owl schedule. The invariant to preserve is: **`activeHours.start` sits at or after the last overnight scheduled cron's finish time.**
 
 ## How collaboration actually works
 
