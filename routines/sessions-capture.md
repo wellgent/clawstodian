@@ -4,7 +4,7 @@ Backstop for the daily-notes program. Admits new sessions to `memory/session-led
 
 ## Program
 
-`clawstodian/programs/daily-notes.md` - follow its conventions, authority, approval gates, escalation rules, and what-NOT-to-do constraints. The program defines the workspace's convention for daily notes; this routine describes the cron's procedure for capturing session content into them.
+`clawstodian/programs/daily-notes.md` - conventions, authority, approval gates, and escalation. The program defines the daily-note lifecycle and what lands in a note; this routine describes the cron's procedure for draining session content into those notes.
 
 See `memory/daily-note-structure.md` for the session-ledger format (field definitions, update rules) and the daily-note format.
 
@@ -17,7 +17,7 @@ All capture gaps in `sessions_list` vs. `memory/session-ledger.md`:
 
 Within each kind, prioritize by newest `updatedAt` so live sessions capture before historical drain.
 
-## Classification
+## Classification rules
 
 Every session observed by this routine is classified exactly once and the result is stored in the ledger:
 
@@ -29,7 +29,7 @@ Every session observed by this routine is classified exactly once and the result
 
 Classification is idempotent. Once `skipped`, a session is not re-examined except to confirm the reason on demand.
 
-## Turn-level filtering inside an interactive session
+## Turn-level filtering rules
 
 An `interactive` classification means the session carries human content overall, not that every turn does. When reading the JSONL, filter turn-by-turn:
 
@@ -40,19 +40,17 @@ An `interactive` classification means the session carries human content overall,
 
 The filter output is what lands in the daily note. Everything else stays in the JSONL but does not appear in the human timeline.
 
-## Exec safety
-
-- Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
-- For multi-line script logic, write the script to `/tmp/clawstodian-sessions-capture-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
-- `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
-
-## Worker discipline
+## Steps
 
 Two phases per firing.
 
-**Phase 1 - admit all un-admitted sessions.** Classification is cheap (check `kind`, look for user messages). For every session in `sessions_list` with no ledger entry, classify and append an entry. No per-firing cap on Phase 1: if there are 40 un-admitted cron sessions, admit all 40. A single append of multiple H2 blocks at the end of the ledger is fine; narrow per-line edits are unnecessary for brand-new entries. Skipped admissions get `classification: skipped` and a short `reason`; interactive admissions get `classification: interactive` with `lines_captured: 0` and await Phase 2 for their first read.
+### Phase 1 - admit un-admitted sessions
 
-**Phase 2 - process interactive gaps, bounded.** Enumerate interactive gaps (both the `lines_captured: 0` admissions from Phase 1 AND pre-existing stale-cursor entries). Sort by `updatedAt` descending. Process one at a time per the unit-of-work procedure below. Continue to the next-newest gap until ANY of these hold:
+Classification is cheap (check `kind`, look for user messages). For every session in `sessions_list` with no ledger entry, classify per the classification rules and append an entry. No per-firing cap: if there are 40 un-admitted cron sessions, admit all 40. A single append of multiple H2 blocks at the end of the ledger is fine; narrow per-line edits are unnecessary for brand-new entries. Skipped admissions get `classification: skipped` and a short `reason`; interactive admissions get `classification: interactive` with `lines_captured: 0` and await Phase 2 for their first read.
+
+### Phase 2 - process interactive gaps, bounded
+
+Enumerate interactive gaps (both the `lines_captured: 0` admissions from Phase 1 AND pre-existing stale-cursor entries). Sort by `updatedAt` descending. Process one at a time per the unit-of-work procedure below. Continue to the next-newest gap until ANY of these hold:
 
 - No interactive gaps remain.
 - The firing is approaching its budget. The cron session runs with a ~200K-token context window and compaction kicks in around 160-180K; target a soft stop at **~140K tokens of consumed context** to leave headroom for the self-disable check and run report. In JSONL terms, that roughly corresponds to **~500 KB of filtered content** read across all sessions processed this firing (each filtered session is typically 20-100 KB).
@@ -60,14 +58,7 @@ Two phases per firing.
 
 If Phase 2 runs out of budget with interactive gaps still remaining, the cron stays enabled and the next firing picks up from the newest remaining gap.
 
-**Discipline across phases:**
-
-- Read JSONL with `Read` from `lines_captured + 1`, or from offset 0 for a newly-admitted interactive session. Do not re-read from 0 when the ledger has a cursor.
-- Write daily-note updates FIRST, then advance the ledger cursor for that session. If either step fails, leave the cursor at its old position so the next firing retries.
-- Never mutate a sealed daily note. Content for a sealed date goes into the `bleed_over` accumulator for the run report (per the program's approval-gate rule).
-- Cursor edits to `memory/session-ledger.md` are narrow `Edit` calls on the matching lines, not full rewrites.
-
-## Unit-of-work procedure (one session)
+### Unit-of-work procedure (one session)
 
 Applied to each interactive gap selected in Phase 2:
 
@@ -99,9 +90,20 @@ Applied to each interactive gap selected in Phase 2:
 
 7. **Update daily-note frontmatter** on each touched note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if absent), `para_status` per the structure spec.
 
-PARA entity writes are not this routine's job. Durable insights that in-session agents did not file propagate to PARA later, when `para-extract` processes the sealed note.
+## Exec safety
 
-Cursor idempotency: if a cursor advance fails (note write succeeded but ledger edit failed, or vice versa), the next firing retries from the old cursor. The per-date merge rule makes any re-ingestion a no-op in terms of final note state.
+- Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
+- For multi-line script logic, write the script to `/tmp/clawstodian-sessions-capture-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
+- `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
+
+## Worker discipline
+
+- Read JSONL with `Read` from `lines_captured + 1`, or from offset 0 for a newly-admitted interactive session. Do not re-read from 0 when the ledger has a cursor.
+- Write daily-note updates FIRST, then advance the ledger cursor for that session. If either step fails, leave the cursor at its old position so the next firing retries.
+- Never mutate a sealed daily note. Content for a sealed date goes into the `bleed_over` accumulator for the run report (per the program's approval-gate rule).
+- Cursor edits to `memory/session-ledger.md` are narrow `Edit` calls on the matching lines, not full rewrites.
+- PARA entity writes are not this routine's job. Durable insights that in-session agents did not file propagate to PARA later, when `para-extract` processes the sealed note.
+- Cursor idempotency: if a cursor advance fails (note write succeeded but ledger edit failed, or vice versa), the next firing retries from the old cursor. The per-date merge rule makes any re-ingestion a no-op in terms of final note state.
 
 ## Self-disable on empty queue
 

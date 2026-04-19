@@ -1,10 +1,10 @@
 # daily-seal (routine)
 
-Closes and finalizes one unsealed past-day note per firing per the daily-notes program. Editorial pass with disk-fidelity.
+Closes and finalizes one unsealed past-day note per firing. Editorial pass with disk-fidelity.
 
 ## Program
 
-`clawstodian/programs/daily-notes.md` - follow its conventions, authority, approval gates, escalation rules, and what-NOT-to-do constraints. The program defines the workspace's daily-note lifecycle (`status: active -> sealed`, `para_status: pending`); this routine describes the cron's sealing procedure.
+`clawstodian/programs/daily-notes.md` - conventions, authority, approval gates, and escalation. The program defines the daily-note lifecycle (`status: active -> sealed`, `para_status: pending`); this routine describes the cron's sealing procedure.
 
 See `memory/daily-note-structure.md` for the format, frontmatter fields, and what the editorial pass keeps vs. removes.
 
@@ -16,33 +16,24 @@ See `memory/daily-note-structure.md` for the format, frontmatter fields, and wha
 
 No time-based heuristics, no midnight grace. Sealing happens when the orchestrator has marked the day capture-complete. If the heartbeat is not running, `capture_status: done` does not get set and this routine does not fire - which is the correct behavior.
 
-## Exec safety
+## Steps
 
-- Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
-- For multi-line script logic, write the script to `/tmp/clawstodian-daily-seal-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
-- `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
+Daily-seal branches on body size: tiny days take the fast-path; everything else takes the full seal. Both paths end with a flipped `status: sealed` and `para_status: pending`.
 
-## Worker discipline
+### Trivial-day fast-path
 
-- One note per firing. Do not loop.
-- Do not merge multiple days' content into one operation.
-- If the program's approval gates say "surface" on a note, do not seal; surface the issue and stop.
+Before the full seal, inspect the note body (excluding frontmatter). If **<=2 sections and <=1 KB body**, take this path:
 
-## Trivial-day fast-path
-
-Before the full seal, inspect the note body (excluding frontmatter). If **<=2 sections and <=1 KB body**:
-
-- Standardize frontmatter per `memory/daily-note-structure.md`.
-- Curate `topics`, `people`, `projects` from whatever content the note does have - a short day still has identifiable themes and people worth indexing, and missing them costs us searchability later.
-- Write a 1-2 sentence day summary if missing.
-- Flip `status: active` -> `status: sealed`.
-- Leave or set `para_status: pending`.
-- Update `last_updated`.
-- Commit and push.
+1. Standardize frontmatter per `memory/daily-note-structure.md`.
+2. Curate `topics`, `people`, `projects` from whatever content the note does have - a short day still has identifiable themes and people worth indexing, and missing them costs us searchability later.
+3. Write a 1-2 sentence day summary if missing.
+4. Flip `status: active` -> `status: sealed`. Set or leave `para_status: pending`. Update `last_updated`.
 
 Skip the merge and full-organize steps. The point of the fast-path is to avoid expensive editorial compute on a "quiet day" note - not to skip curation.
 
-## Full seal
+### Full seal
+
+Default path. Applied when the body exceeds the trivial-day threshold:
 
 1. **Merge topic-suffixed variants.** Check for `memory/YYYY-MM-DD-*.md`. Read, merge into canonical, delete the variants. If none, skip.
 2. **Read the full daily note** and understand it before changing anything.
@@ -63,11 +54,22 @@ Skip the merge and full-organize steps. The point of the fast-path is to avoid e
 7. **Thread continuity.** When a section clearly continues work from a previous day, add `(continued from YYYY-MM-DD)` in the section body. Only when the continuation is unambiguous.
 8. **Flip `status: active` -> `status: sealed`.** Set `para_status: pending`. Update `last_updated` to the current ISO timestamp.
 
-Do not perform PARA extraction here; that is `clawstodian/programs/para.md`'s domain (dispatched by the `para-extract` routine).
-
 ## Commit
 
 Add only the files you changed - never `git add -A` or `git add .`. Commit message: `memory: seal YYYY-MM-DD - <topic summary>`. Push immediately.
+
+## Exec safety
+
+- Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
+- For multi-line script logic, write the script to `/tmp/clawstodian-daily-seal-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
+- `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
+
+## Worker discipline
+
+- One note per firing. Do not loop.
+- Do not merge multiple days' content into one operation.
+- If the program's approval gates say "surface" on a note, do not seal; surface the issue and stop.
+- Do not perform PARA extraction here; that is `clawstodian/programs/para.md`'s domain (dispatched by the `para-extract` routine).
 
 ## Self-disable on empty queue
 
