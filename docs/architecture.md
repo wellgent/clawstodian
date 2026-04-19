@@ -85,6 +85,25 @@ Per-routine announcements mean the operator sees ambiguities in the channel the 
 
 The maintainer prefers one concrete small change over a theoretical sweep. It surfaces emerging projects or misfiled efforts but does not silently promote them. Escalates before anything destructive, risky, or ambiguous.
 
+### 8. Queue derivation over queue storage
+
+The daily-notes pipeline does not store its work queue. It stores cursors (in `memory/session-ledger.md`), and derives the queue on demand from `clawstodian/scripts/scan-sessions.py`. The script combines three inputs - live `sessions_list`, the ledger, and on-disk transcript line counts - and emits the interactive-session queue as JSON.
+
+The script is the queue function; the ledger is one of its three inputs, not a drop-in replacement. Two independent consumers use the same function at their own cadence:
+
+- **Heartbeat `tend-sessions-capture`** (every 2h) - invokes the script, reads `.queue` length, enables or disables the burst cron. Writes nothing.
+- **`sessions-capture` burst** (every 30m while enabled) - invokes the script, processes items from the queue, advances cursors in the ledger.
+
+Neither hands data to the other. Each runs the script fresh because:
+
+- Time gap - up to 30 minutes between the orchestrator's decision and the burst firing. New sessions appear, existing ones gain activity. A frozen snapshot would be stale.
+- No handoff channel - OpenClaw cron dispatches a fixed prompt; there is no way to pass a JSON payload from orchestrator to burst.
+- Self-correcting - if orchestrator and reality disagree (race between enable and fire, or an in-session agent closed the gap), the burst re-scans and no-ops gracefully.
+
+The script runs in milliseconds even against hundreds of sessions. Re-derivation is cheaper than any coordination mechanism.
+
+This is the general pattern: **where state can be derived cheaply from workspace artifacts, derive it each time instead of caching it.** Caches introduce invalidation logic; derivation is stateless. The ledger stores only what cannot be derived (cursors into transcripts the agent has already read).
+
 ## Primitive mapping
 
 ```
