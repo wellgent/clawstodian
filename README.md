@@ -106,6 +106,7 @@ clawstodian/
   docs/
     architecture.md                  first-principles design
     heartbeat-config.md              heartbeat gateway config reference
+    crons-config.md                  cron job flag-stack reference (timeouts, retries, delivery)
     writing-a-program.md             guide for adding new programs (domain authorities)
     writing-a-routine.md             guide for adding new routines (scheduled invocations)
     briefs/

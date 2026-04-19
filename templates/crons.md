@@ -3,61 +3,74 @@
 
 Dashboard for this workspace's cron jobs. Authoritative state: `openclaw cron list --all`.
 
-Every clawstodian routine runs as its own cron job. Each routine invokes a behavior from a program in `clawstodian/programs/`. Two execution classes: **scheduled** routines fire on a wall-clock schedule (stay enabled, no self-disable); **heartbeat-toggled bursts** start disabled and the heartbeat turns them on when a gap is detected, off when drained.
+Every clawstodian routine runs as its own cron job. Two execution classes:
 
-Every firing in either class produces a run-report file at `memory/runs/<routine>/<ts>.md` and a channel post. The heartbeat is the orchestrator: it toggles bursts based on workspace state, watches run reports for items the routines surfaced to the operator, and posts an executive summary each tick.
+- **Scheduled** - fires on a wall-clock schedule; stays enabled; no self-disable.
+- **Heartbeat-toggled burst** - starts disabled; the heartbeat enables it when a queue forms; the routine self-disables when it drains the queue.
 
-Install commands live in `~/clawstodian/INSTALL.md` under "Cron install commands". Verification is in `~/clawstodian/VERIFY.md`. Removal is in `~/clawstodian/UNINSTALL.md`. Routine specs under `~/clawstodian/routines/` are thin dispatchers; program specs under `~/clawstodian/programs/` are the domain authorities.
+Every firing in either class writes `memory/runs/<routine>/<ts>.md` and posts a channel summary. Install commands live in `clawstodian/INSTALL.md`; routine specs in `clawstodian/routines/`; config rationale (timeouts, flags) in `clawstodian/docs/crons-config.md`.
 
-## sessions-capture
+## clawstodian routines
 
-Invokes `daily-notes` program: capture one session's unread JSONL into the appropriate daily notes. Picks the session with the newest `updatedAt` among those with a gap (un-admitted in ledger, or stale cursor). Classifies if new, reads JSONL from `lines_captured + 1` to end, buckets by timestamp into daily notes, advances the cursor. Merges slug siblings when today's bucket is touched. Self-disables when no gaps remain.
+### sessions-capture
 
-- Schedule: `every 30m` (while enabled)
-- Starts disabled. Heartbeat enables it when the ledger has un-admitted sessions or stale cursors.
-- Backstop only: agents in live sessions are the primary writers of daily notes per `AGENTS.md` memory rules; this cron catches what they miss.
+Captures session transcripts into daily notes; self-disables on empty queue.
 
-## workspace-clean
+- **Schedule:** `every 30m` (while enabled)
+- **State:** starts disabled; heartbeat toggles
+- **Spec:** `clawstodian/routines/sessions-capture.md`
 
-Invokes `workspace` program: walk and tidy. Removes trash, moves misplaced files to intuitive homes, maintains `.gitignore` for ephemeral files, prunes run-report files older than 30 days.
+### daily-seal
 
-- Schedule: `0 7 * * 0` (Sunday 07:00 UTC, right after `para-align`)
-- Scheduled (always enabled, no self-disable). Every firing produces a run-report file + channel post (quiet firings post `outcome: clean`).
+Seals one unsealed past-day note per run; self-disables on empty queue.
 
-## git-clean
+- **Schedule:** `every 30m` (while enabled)
+- **State:** starts disabled; heartbeat toggles
+- **Spec:** `clawstodian/routines/daily-seal.md`
 
-Invokes `repo` program: commit drift. Backstop for agents who commit themselves per the program's convention. Commits meaningful changes stage-by-path, pushes, maintains `.gitignore`.
+### para-extract
 
-- Schedule: `0 1,11 * * *` (01:00 and 11:00 UTC daily)
-- Scheduled (always enabled, no self-disable). Twice-daily cadence is the safety net; agents commit their own work in-session. Operators with specific preferences can adjust the cron expression.
+Propagates one sealed daily note into PARA entities per run; self-disables on empty queue.
 
-## daily-seal
+- **Schedule:** `every 30m` (while enabled)
+- **State:** starts disabled; heartbeat toggles
+- **Spec:** `clawstodian/routines/para-extract.md`
 
-Invokes `daily-notes` program: seal a past-day note. Seals one unsealed past-day daily note per run. Self-disables when the queue is empty.
+### para-align
 
-- Schedule: `every 30m` (while enabled)
-- Starts disabled. Heartbeat enables it when past-day notes with `status: active` AND `capture_status: done` exist.
+Weekly PARA health walk: structural integrity, cross-refs, semantic freshness, archive candidacy.
 
-## para-extract
+- **Schedule:** `0 6 * * 0` (Sunday 06:00 UTC)
+- **State:** enabled
+- **Spec:** `clawstodian/routines/para-align.md`
 
-Invokes `para` program: extract PARA from a sealed note. Propagates one sealed daily note into PARA entities per run. Self-disables when the queue is empty.
+### workspace-clean
 
-- Schedule: `every 30m` (while enabled)
-- Starts disabled. Heartbeat enables it when sealed notes with `para_status: pending` exist.
+Weekly tree sweep: trash, misplaced files, orphaned dotfiles, `.gitignore` hygiene.
 
-## para-align
+- **Schedule:** `0 7 * * 0` (Sunday 07:00 UTC)
+- **State:** enabled
+- **Spec:** `clawstodian/routines/workspace-clean.md`
 
-Invokes `para` program: align PARA structure. Verifies structural and semantic health (cross-references, naming, MEMORY.md currency, semantic freshness, archive candidacy). Applies trivial fixes; surfaces the rest.
+### git-clean
 
-- Schedule: `0 6 * * 0` (Sunday 06:00 UTC)
-- Scheduled (always enabled).
+Backstop commits for agents that did not commit themselves; twice daily.
 
-## health-check
+- **Schedule:** `0 1,11 * * *` (01:00 and 11:00 UTC daily)
+- **State:** enabled
+- **Spec:** `clawstodian/routines/git-clean.md`
 
-Invokes `workspace` program cross-cuttingly: self-check on clawstodian machinery. Observes heartbeat config, session visibility, cron registrations, stalled routines, long-running bursts, workspace symlinks, and template markers. Detection only; anomalies surface for operator decision via the heartbeat's `reflect` task.
+### health-check
 
-- Schedule: `0 3 * * *` (03:00 UTC daily)
-- Scheduled (always enabled, no self-disable). Runs early so any anomaly is already reported by the time the operator's workday starts.
+Daily self-check on clawstodian machinery (heartbeat config, cron registrations, symlinks, markers).
+
+- **Schedule:** `0 3 * * *` (03:00 UTC daily)
+- **State:** enabled
+- **Spec:** `clawstodian/routines/health-check.md`
+
+## Other active jobs
+
+Non-clawstodian cron jobs (memory indexing, release watchers, workspace-specific scheduled tasks) go here. `openclaw cron list --all` is authoritative; this section is a narrative dashboard for the operator.
 
 ## Schedule overview
 

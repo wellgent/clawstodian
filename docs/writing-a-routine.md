@@ -167,10 +167,13 @@ Install commands live in `INSTALL.md` under "Cron install commands", not in the 
 - **`--disabled`** on heartbeat-toggled bursts only. Omit for Scheduled.
 - **`--session isolated`** always. Do not use `--session current` - it captures an ephemeral session key that drifts.
 - **`--light-context`** always. Bootstrap files are not needed; the routine reads its spec (and the program it references) on demand.
+- **`--timeout-seconds <n>`** always, sized to the routine's workload. The OpenClaw `--timeout` default (30s) fails every agent-driven routine. Pick a ceiling generous enough to absorb the worst real firing; see `docs/crons-config.md` > "Timeouts" for current per-routine values and rationale.
 - **`--announce --channel --to`** routes the run report to the notifications channel. Substitute `--no-deliver` if the operator prefers silent runs.
 - **`--message`** is always `"Read clawstodian/routines/<name>.md and execute."`
 
 For maintenance crons, **do not set a sessionKey**. `--session isolated` alone produces a session-store entry named `agent:<agentId>:cron:<jobId>` automatically. Isolated per job, stable across runs, no conversation context inherited.
+
+Clawstodian deliberately does NOT set `--thinking`, `--model`, `--tz`, `--stagger`, or `--best-effort-deliver` in install commands - those are operator judgment calls after install. See `docs/crons-config.md` > "Flags clawstodian deliberately does NOT set" for why.
 
 ## Catalog integration
 

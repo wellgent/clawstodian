@@ -43,6 +43,7 @@ v0.4-draft. See `docs/briefs/2026-04-18-v0.4-observability-brief.md` for the act
 - `routines/` - seven scheduled dispatchers. Scheduled crons: `para-align.md` (Sun 06:00 UTC), `workspace-clean.md` (Sun 07:00 UTC), `git-clean.md` (01:00 and 11:00 UTC daily), `health-check.md` (03:00 UTC daily, observes the clawstodian machinery itself). Heartbeat-toggled bursts: `sessions-capture.md`, `daily-seal.md`, `para-extract.md`. Each routine references a program for conventions and carries its own full operational procedure.
 - `docs/architecture.md` - first-principles design.
 - `docs/heartbeat-config.md` - authoritative reference for the heartbeat gateway config.
+- `docs/crons-config.md` - authoritative reference for the cron-job flag stack (timeouts, delivery, retries, per-routine ceilings).
 - `docs/writing-a-program.md` - guide for adding a new program (domain authority).
 - `docs/writing-a-routine.md` - guide for adding a new routine (scheduled invocation).
 - `docs/briefs/` - scope briefs.

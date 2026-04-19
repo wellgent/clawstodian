@@ -128,7 +128,7 @@ Apply one item at a time. After each, verify by reading the resulting file or ru
 
 Every routine runs as its own isolated-session cron job. Commands substitute `<your-logs-channel-id>` with the operator's logs channel id. Substitute `--no-deliver` for `--announce --channel --to ...` if the operator prefers silent runs.
 
-All seven routines share these flags: `--session isolated`, `--light-context`, and `--message "Read clawstodian/routines/<name>.md and execute."` The routine spec is the authority; the cron payload is just dispatch.
+All seven routines share these flags: `--session isolated`, `--light-context`, and `--message "Read clawstodian/routines/<name>.md and execute."` Each routine also gets a tailored `--timeout-seconds <n>` (OpenClaw's default `--timeout 30000` ms is far too short for agent-driven work - see `docs/crons-config.md` > "Timeouts" for per-routine rationale). The routine spec is the authority; the cron payload is just dispatch. Full config reference: `docs/crons-config.md`.
 
 **Scheduled crons** (enabled at install time, wall-clock schedules):
 
@@ -137,6 +137,7 @@ openclaw cron add \
   --name para-align \
   --cron "0 6 * * 0" \
   --session isolated --light-context \
+  --timeout-seconds 1800 \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
   --message "Read clawstodian/routines/para-align.md and execute."
 
@@ -144,6 +145,7 @@ openclaw cron add \
   --name workspace-clean \
   --cron "0 7 * * 0" \
   --session isolated --light-context \
+  --timeout-seconds 900 \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
   --message "Read clawstodian/routines/workspace-clean.md and execute."
 
@@ -151,6 +153,7 @@ openclaw cron add \
   --name git-clean \
   --cron "0 1,11 * * *" \
   --session isolated --light-context \
+  --timeout-seconds 600 \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
   --message "Read clawstodian/routines/git-clean.md and execute."
 
@@ -158,6 +161,7 @@ openclaw cron add \
   --name health-check \
   --cron "0 3 * * *" \
   --session isolated --light-context \
+  --timeout-seconds 300 \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
   --message "Read clawstodian/routines/health-check.md and execute."
 ```
@@ -175,6 +179,7 @@ openclaw cron add \
   --name sessions-capture \
   --every 30m --disabled \
   --session isolated --light-context \
+  --timeout-seconds 1800 \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
   --message "Read clawstodian/routines/sessions-capture.md and execute."
 
@@ -182,6 +187,7 @@ openclaw cron add \
   --name daily-seal \
   --every 30m --disabled \
   --session isolated --light-context \
+  --timeout-seconds 1200 \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
   --message "Read clawstodian/routines/daily-seal.md and execute."
 
@@ -189,6 +195,7 @@ openclaw cron add \
   --name para-extract \
   --every 30m --disabled \
   --session isolated --light-context \
+  --timeout-seconds 1200 \
   --announce --channel discord --to "channel:<your-logs-channel-id>" \
   --message "Read clawstodian/routines/para-extract.md and execute."
 ```
