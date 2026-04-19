@@ -27,17 +27,26 @@ Removed:
 
 ### Update-propagation surfacing
 
-`routines/health-check.md` gains an install-currency step that observes the package itself, not just the install artifacts. The old "check template markers" step folded into it - marker presence and marker freshness against the package are the same question. Daily, the merged step:
+`routines/health-check.md` gains two related additions:
+
+**Install currency** (new step 7, absorbs the old "check template markers" step - marker presence and marker freshness against the package are the same question). Daily, this step:
 
 - Resolves the clawstodian clone path from the `clawstodian/scripts` symlink (self-configuring - no hardcoded paths, survives forks).
 - For each installed template: checks marker presence AND compares its date against the package's template marker. Missing or stale → surface.
 - Runs a bounded `git fetch` (15s hard cap, tolerates network failures silently) and compares `HEAD` to `@{u}` to detect when the local clone is behind upstream.
 - Reads `CHANGELOG.md`'s top `## X.Y.Z - YYYY-MM-DD` line to record the current package version in the run report.
-- Greps `memory/session-ledger.md` for the legacy `- classification:` field. Any match → surface "ledger migration pending - run `clawstodian/scripts/migrate-session-ledger.py`".
 
-All detection-only. No `git pull`, no template rewrite, no INSTALL re-run, no auto-migration. Findings flow into the heartbeat's `reflect` task like any other health-check anomaly; the operator applies updates via the existing `INSTALL.md` diff-and-propose flow (or runs the migration script directly) when they're ready. Channel summary gets one `Install:` line covering version + upstream delta + marker freshness + ledger status in a single grouping.
+**Ledger and session state** (new step 8). Observational - runs `scan-sessions.py` once, records the counts (ledger entries, interactive in sessions_list, queue length, missing_transcripts, skipped breakdown), and surfaces only durable anomalies:
 
-Rationale captured in `docs/architecture.md` design principle #8 ("Queue derivation over queue storage"): the same pattern that makes the sessions-capture queue a function rather than a file applies here - install-currency state is derived from workspace artifacts + remote refs on demand, not cached or tracked in a VERSION file.
+- Queue > 0 with `sessions-capture` enabled for >24h without draining - stuck burst.
+- Ledger entries > 2x live-interactive count - orphans accumulating.
+- `missing_transcripts` growing week over week - registry drift.
+
+Generic and durable; no one-release narrow detection. Channel summary gains one `Ledger:` line alongside the `Install:` line.
+
+All detection-only. No `git pull`, no template rewrite, no INSTALL re-run, no auto-migration. Findings flow into the heartbeat's `reflect` task like any other health-check anomaly; the operator applies updates via the existing `INSTALL.md` diff-and-propose flow (or runs the migration script directly) when they're ready.
+
+Rationale captured in `docs/architecture.md` design principle #8 ("Queue derivation over queue storage"): the same pattern that makes the sessions-capture queue a function rather than a file applies here - install-currency and session-state are derived from workspace artifacts + remote refs on demand, not cached or tracked in a VERSION file.
 
 ## 0.4.0 - 2026-04-18
 

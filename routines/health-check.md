@@ -35,11 +35,25 @@ Clawstodian's install-time contract and runtime state, across three surfaces:
    - **Per-template marker.** For each installed reference doc (workspace `AGENTS.md`, `HEARTBEAT.md`, `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`): read the `<!-- template: clawstodian/<name> YYYY-MM-DD -->` marker line. Missing → surface "marker absent for <path>". Present but strictly older than the matching package file's marker (`$REPO/templates/<name>.md` line 1) → surface "template <name> is stale (<workspace-date> → <package-date>); re-run `~/clawstodian/INSTALL.md`".
    - **Local clone vs upstream.** `timeout 15 git -C "$REPO" fetch --quiet` (15s hard cap; tolerate failures silently - network / auth issues are not anomalies). Compute `git -C "$REPO" rev-list --count HEAD..@{u}` for the number of upstream commits not present locally. Non-zero → surface "local clone behind upstream by <N> commits; run `git -C <REPO> pull`".
    - **CHANGELOG top entry.** Read the first `## X.Y.Z - YYYY-MM-DD` line in `$REPO/CHANGELOG.md` - that is the current package version. Record it in the report for operator context. First non-empty paragraph under that header is the one-paragraph release summary; surface it alongside any stale-template finding.
-   - **Ledger migration pending.** Grep `memory/session-ledger.md` for `^- classification:`. Any match means the ledger is in the pre-0.4.1 shape. Surface: "ledger migration pending - run `clawstodian/scripts/migrate-session-ledger.py`". Informational; `scan-sessions.py` ignores the legacy field, so this is a size cleanup, not a functional blocker.
 
-   Detection only. Do NOT `git pull`, do NOT re-run INSTALL, do NOT touch the workspace templates, do NOT run the migration script. The operator decides when to apply updates via `INSTALL.md`'s existing diff-and-propose flow (or the migration script directly).
+   Detection only. Do NOT `git pull`, do NOT re-run INSTALL, do NOT touch the workspace templates. The operator decides when to apply updates via `INSTALL.md`'s existing diff-and-propose flow.
 
-8. **Aggregate.** Sum findings into the run report. No auto-repair - detection is the entire action.
+8. **Observe ledger and session-state.** Run the authoritative queue source for a daily pulse on the daily-notes pipeline:
+
+   ```bash
+   clawstodian/scripts/scan-sessions.py > /tmp/clawstodian-health-scan.json
+   ```
+
+   Read `.counts` from the output. Also count ledger entries directly: `grep -c '^## ' memory/session-ledger.md`. Record in the run report: `ledger entries: <N>`, `sessions_list interactive: <counts.interactive>`, `queue: <len(queue)>`, `missing_transcripts: <counts.missing_transcript>`, full skipped breakdown.
+
+   Surface only durable anomalies (thresholds are rules of thumb; refine when patterns emerge):
+   - **Queue > 0 on a daily-scheduled firing** where `sessions-capture` cron has been enabled for >24h without draining. Signals a stuck burst (sessions-capture firing but not making progress).
+   - **Ledger entries > 2x `counts.interactive`** suggests orphan accumulation beyond what the natural attrition of transcript pruning explains. Informational; not actionable until operator decides to prune.
+   - **`counts.missing_transcript` growing week over week.** Registry drift (sessions in `sessions_list` whose jsonl files are gone). Usually benign when small, worth surfacing when consistent.
+
+   All observational. No migration triggers, no narrow one-release checks. This block stays useful as long as the daily-notes pipeline exists.
+
+9. **Aggregate.** Sum findings into the run report. No auto-repair - detection is the entire action.
 
 ## Exec safety
 
@@ -118,7 +132,13 @@ Write to `memory/runs/health-check/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
   - memory/crons.md: clawstodian/crons 2026-04-19 (ok)
   - memory/session-ledger.md: clawstodian/session-ledger 2026-04-19 (ok)
 - stale templates: (none)
-- ledger migration: not needed (no `classification:` fields in memory/session-ledger.md)
+
+### Ledger and session state
+
+- ledger entries: 59
+- sessions_list interactive: 14 · queue: 0 · missing_transcripts: 2
+- skipped: cron=36 · hook=0 · subagent=5 · dreaming=294 · empty=12
+- anomalies: (none - ledger size consistent with interactive count; queue drained; missing_transcripts stable)
 
 ## Commits
 
@@ -134,7 +154,8 @@ health-check · 2026-04-19 · ok
 Config: ok · visibility: all
 Crons: 7/7 registered · 0 stalled · 0 long-running
 Symlinks: ok
-Install: 0.4.1 · up to date · markers 7/7 fresh · ledger ok
+Install: 0.4.1 · up to date · markers 7/7 fresh
+Ledger: 59 entries · interactive=14 · queue=0 · missing_transcripts=2
 Report: memory/runs/health-check/2026-04-19T03-00-00Z.md
 ```
 
@@ -149,7 +170,8 @@ health-check · <date> · <outcome>
 Config: <ok|drift:<N>> · visibility: <all|tree|other>
 Crons: <R>/7 registered · <S> stalled · <L> long-running
 Symlinks: <ok|<B> broken>
-Install: <version> · <up to date | N behind upstream> · markers <F>/7 fresh · ledger <ok|migration pending>
+Install: <version> · <up to date | N behind upstream> · markers <F>/7 fresh
+Ledger: <N> entries · interactive=<I> · queue=<Q> · missing_transcripts=<M>
 Report: memory/runs/health-check/<ts>.md
 ```
 
