@@ -14,7 +14,13 @@ The current workspace working tree and its remote-tracking branch.
 
 1. **Run `git status`.** If the tree is clean and no commits are waiting to be pushed, emit the quiet-firing channel post and stop.
 2. **Push first if the only work is unpushed commits.** `git status` reports a clean tree but `git log @{u}..HEAD` shows commits: push them, then stop.
-3. **Group dirty files into logical commits.** Walk `git status --porcelain` and `git diff` output; cluster files by concern (e.g. daily-note edits, PARA entity changes, config changes). One concern per commit.
+3. **Group dirty files into logical commits.** Walk `git status --porcelain` and `git diff` output and cluster into a small set of topic-coherent commits. Useful axes, combined as needed:
+
+   - **Role** - workspace charter (`AGENTS.md`, `HEARTBEAT.md`, `MEMORY.md`, `memory/*-structure.md`, `memory/crons.md`), daily notes (`memory/YYYY-MM-DD*.md`), PARA entities (`projects/`, `areas/`, `resources/`, `archives/`), run reports (`memory/runs/<routine>/`), state files (`memory/session-ledger.md`, `memory/heartbeat-trace.md`), config / install artifacts (`.gitignore`, `clawstodian/` symlinks).
+   - **Topic** - when one work unit touches multiple roles (e.g. a project kickoff that creates `projects/foo/`, updates `MEMORY.md`, and mentions foo in today's note), one topic-scoped commit captures the unit better than splitting by role.
+   - **Time window** - a historical mass-edit (e.g. a format upgrade touching dozens of past daily notes) goes in one commit, separate from today's note edits.
+
+   Aim for a handful of commits that each tell a story - typically 2-6 on a dirty-tree firing. One giant commit of many mixed files is too coarse; a commit per file is too fine. If no axis clusters the tree cleanly (genuinely mixed, unrelated changes with no theme), surface the tree in the run report and let the operator direct rather than guessing.
 4. **For each group, in order:**
    - Stage files by exact path. Never `git add -A` or `git add .`.
    - Compose a commit message per the `<topic>: <short description>` convention in `programs/repo.md`.
