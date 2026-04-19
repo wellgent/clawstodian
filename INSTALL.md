@@ -277,40 +277,18 @@ In the v0.4.0 ledger shape, every session observed by `sessions-capture` was wri
 
 The new `sessions-capture` reads its queue from `clawstodian/scripts/scan-sessions.py`, which classifies skipped sessions deterministically and never stores them. The ledger now contains interactive sessions only.
 
-For an existing install, drop the skipped entries from `memory/session-ledger.md`. Each block to remove looks like:
-
-```markdown
-## <session-id>
-
-- classification: skipped
-- kind: <cron|hook|node|other>
-- first_seen: <ts>
-- reason: <one line>
-```
-
-Leave `classification: interactive` entries exactly as they are - their cursors are still authoritative. A safe mechanical approach:
+Run the bundled migration script from the workspace root:
 
 ```bash
-python3 - <<'PY' >/tmp/session-ledger-new.md
-import re
-src = open("memory/session-ledger.md").read()
-# Split on H2 headings, keeping the heading with its block
-blocks = re.split(r'^(## [0-9a-f-]{36}\s*\n)', src, flags=re.M)
-out = [blocks[0]]  # preamble
-for heading, body in zip(blocks[1::2], blocks[2::2]):
-    if re.search(r'^- classification: skipped\s*$', body, flags=re.M):
-        continue
-    # strip the now-redundant "classification: interactive" line
-    body = re.sub(r'^- classification: interactive\s*\n', '', body, flags=re.M)
-    out.append(heading + body)
-print("".join(out), end="")
-PY
-mv /tmp/session-ledger-new.md memory/session-ledger.md
+clawstodian/scripts/migrate-session-ledger.py --dry-run   # preview to /tmp/session-ledger-migrated.md
+clawstodian/scripts/migrate-session-ledger.py             # apply in place, atomic write
 ```
 
-This is a one-off migration; verify by comparing the before/after entry counts (`grep -c '^## ' memory/session-ledger.md`) and confirm only interactive cursors remain. Commit the resulting ledger with a `memory: drop skipped ledger entries - migrate to interactive-only ledger` message.
+The script drops every block whose body contains `- classification: skipped`, strips the now-redundant `- classification: interactive` field from entries that remain (their classification is implicit), and rewrites `memory/session-ledger.md` atomically. One-line summary to stderr: `entries=<N> dropped_skipped=<X> kept_interactive=<Y> classification_lines_stripped=<Y>`. Idempotent: a second run is a no-op with a "ledger already in v0.4.1 shape" message.
 
-Agents running on workspaces that haven't migrated will still work - `scan-sessions.py` ignores the old `classification` field and re-derives everything from `sessions_list`. The migration is a size cleanup, not a functional requirement.
+Commit the resulting ledger with a `memory: drop skipped ledger entries - migrate to interactive-only ledger` message.
+
+Workspaces that skip the migration still work - `scan-sessions.py` ignores the legacy `classification` field and re-derives everything from `sessions_list`. Migration is a size cleanup (one wellgent ledger shrank from 3178 lines / 427 entries to 544 lines / 59 entries), not a functional requirement. The `health-check` routine surfaces "ledger migration pending" daily as long as legacy entries exist, so the operator sees the reminder until the migration is applied.
 
 If a workspace has customized its `AGENTS.md` clawstodian block, leave the customization alone and only bump the marker date to match the package. Surface the customization in the plan so the operator knows their diff is preserved.
 

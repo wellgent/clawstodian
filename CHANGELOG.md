@@ -8,6 +8,7 @@ The fix reshapes where classification happens. Skipped classifications (cron, ho
 
 Added:
 - `scripts/scan-sessions.py` (new) - deterministic classifier + queue source. Invokes `openclaw sessions --json`, parses `memory/session-ledger.md`, classifies every session by key prefix + optional first-200-lines transcript peek, emits structured JSON: `{counts, queue, missing_transcripts}`. `queue` is sorted newest-first with `status: new | stale`. Supports `--next` for single-target output and `--sessions-json <path>` for offline testing. Python (stdlib only), no package dependencies. Shared primitive: the heartbeat's `tend-sessions-capture` uses it to decide enable/disable; the burst routine uses it to pick the next target.
+- `scripts/migrate-session-ledger.py` (new) - one-off ledger migration from v0.4.0 shape. Drops every H2 block whose body contains `- classification: skipped`, strips the `- classification: interactive` field line from surviving entries, writes atomically via a temp file in the same directory. Idempotent (second run reports "no changes"). Supports `--dry-run` to preview to `/tmp/session-ledger-migrated.md` without touching the workspace file. Migration is optional - `scan-sessions.py` already ignores the legacy field - but cleans up the ledger's size (wellgent ledger shrank 3178 → 544 lines / 427 → 59 entries in testing).
 - Workspace install now creates a third symlink: `clawstodian/scripts -> ~/clawstodian/scripts`. `INSTALL.md`, `VERIFY.md`, `UNINSTALL.md`, and `routines/health-check.md` all updated to include the scripts symlink in their per-artifact loops.
 
 Changed:
@@ -17,7 +18,7 @@ Changed:
 - `templates/session-ledger.md` marker and inner comment updated to reference the new shape.
 - `templates/AGENTS.md` routines catalog entry for `sessions-capture` now names the scan script as the queue source. Template marker bumped to `2026-04-19`.
 - `docs/architecture.md` ledger-state and daily-notes-pipeline paragraphs updated to match the interactive-only / script-queue model.
-- `INSTALL.md` "Updating an existing install" section gains a "Migrating ledger shape (pre-0.4.1 installs)" sub-section with a mechanical one-off python pipe that drops `classification: skipped` blocks and strips the now-redundant `classification: interactive` line from remaining entries. Migration is optional - `scan-sessions.py` ignores the old `classification` field and re-derives everything from `sessions_list`.
+- `INSTALL.md` "Updating an existing install" section gains a "Migrating ledger shape (pre-0.4.1 installs)" sub-section pointing at the new `scripts/migrate-session-ledger.py`. Migration is optional - `scan-sessions.py` ignores the legacy `classification` field.
 
 Removed:
 - Admission as a distinct routine step. Creating a ledger entry is now always part of capturing actual content from an interactive session, never a standalone "mark this session so we do not re-examine it" write.
@@ -32,8 +33,9 @@ Removed:
 - For each installed template: checks marker presence AND compares its date against the package's template marker. Missing or stale → surface.
 - Runs a bounded `git fetch` (15s hard cap, tolerates network failures silently) and compares `HEAD` to `@{u}` to detect when the local clone is behind upstream.
 - Reads `CHANGELOG.md`'s top `## X.Y.Z - YYYY-MM-DD` line to record the current package version in the run report.
+- Greps `memory/session-ledger.md` for the legacy `- classification:` field. Any match → surface "ledger migration pending - run `clawstodian/scripts/migrate-session-ledger.py`".
 
-All detection-only. No `git pull`, no template rewrite, no INSTALL re-run. Findings flow into the heartbeat's `reflect` task like any other health-check anomaly; the operator applies updates via the existing `INSTALL.md` diff-and-propose flow when they're ready. Channel summary gets one `Install:` line covering version + upstream delta + marker freshness in a single grouping.
+All detection-only. No `git pull`, no template rewrite, no INSTALL re-run, no auto-migration. Findings flow into the heartbeat's `reflect` task like any other health-check anomaly; the operator applies updates via the existing `INSTALL.md` diff-and-propose flow (or runs the migration script directly) when they're ready. Channel summary gets one `Install:` line covering version + upstream delta + marker freshness + ledger status in a single grouping.
 
 Rationale captured in `docs/architecture.md` design principle #8 ("Queue derivation over queue storage"): the same pattern that makes the sessions-capture queue a function rather than a file applies here - install-currency state is derived from workspace artifacts + remote refs on demand, not cached or tracked in a VERSION file.
 

@@ -35,8 +35,9 @@ Clawstodian's install-time contract and runtime state, across three surfaces:
    - **Per-template marker.** For each installed reference doc (workspace `AGENTS.md`, `HEARTBEAT.md`, `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`): read the `<!-- template: clawstodian/<name> YYYY-MM-DD -->` marker line. Missing → surface "marker absent for <path>". Present but strictly older than the matching package file's marker (`$REPO/templates/<name>.md` line 1) → surface "template <name> is stale (<workspace-date> → <package-date>); re-run `~/clawstodian/INSTALL.md`".
    - **Local clone vs upstream.** `timeout 15 git -C "$REPO" fetch --quiet` (15s hard cap; tolerate failures silently - network / auth issues are not anomalies). Compute `git -C "$REPO" rev-list --count HEAD..@{u}` for the number of upstream commits not present locally. Non-zero → surface "local clone behind upstream by <N> commits; run `git -C <REPO> pull`".
    - **CHANGELOG top entry.** Read the first `## X.Y.Z - YYYY-MM-DD` line in `$REPO/CHANGELOG.md` - that is the current package version. Record it in the report for operator context. First non-empty paragraph under that header is the one-paragraph release summary; surface it alongside any stale-template finding.
+   - **Ledger migration pending.** Grep `memory/session-ledger.md` for `^- classification:`. Any match means the ledger is in the pre-0.4.1 shape. Surface: "ledger migration pending - run `clawstodian/scripts/migrate-session-ledger.py`". Informational; `scan-sessions.py` ignores the legacy field, so this is a size cleanup, not a functional blocker.
 
-   Detection only. Do NOT `git pull`, do NOT re-run INSTALL, do NOT touch the workspace templates. The operator decides when to apply updates via `INSTALL.md`'s existing diff-and-propose flow.
+   Detection only. Do NOT `git pull`, do NOT re-run INSTALL, do NOT touch the workspace templates, do NOT run the migration script. The operator decides when to apply updates via `INSTALL.md`'s existing diff-and-propose flow (or the migration script directly).
 
 8. **Aggregate.** Sum findings into the run report. No auto-repair - detection is the entire action.
 
@@ -117,6 +118,7 @@ Write to `memory/runs/health-check/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
   - memory/crons.md: clawstodian/crons 2026-04-19 (ok)
   - memory/session-ledger.md: clawstodian/session-ledger 2026-04-19 (ok)
 - stale templates: (none)
+- ledger migration: not needed (no `classification:` fields in memory/session-ledger.md)
 
 ## Commits
 
@@ -132,7 +134,7 @@ health-check · 2026-04-19 · ok
 Config: ok · visibility: all
 Crons: 7/7 registered · 0 stalled · 0 long-running
 Symlinks: ok
-Install: 0.4.1 · up to date · markers 7/7 fresh
+Install: 0.4.1 · up to date · markers 7/7 fresh · ledger ok
 Report: memory/runs/health-check/2026-04-19T03-00-00Z.md
 ```
 
@@ -147,7 +149,7 @@ health-check · <date> · <outcome>
 Config: <ok|drift:<N>> · visibility: <all|tree|other>
 Crons: <R>/7 registered · <S> stalled · <L> long-running
 Symlinks: <ok|<B> broken>
-Install: <version> · <up to date | N behind upstream> · markers <F>/7 fresh
+Install: <version> · <up to date | N behind upstream> · markers <F>/7 fresh · ledger <ok|migration pending>
 Report: memory/runs/health-check/<ts>.md
 ```
 
