@@ -46,10 +46,6 @@ Prefer fetching from the upstream repo for current flag names and config shapes;
 - Never use `--no-verify`, `git reset --hard`, `git clean -f`, or force-push.
 - Never use em-dashes in any file this repo ships. Use a regular hyphen-dash with spaces around it.
 
-## Current phase
-
-v0.4-draft. See `docs/briefs/2026-04-18-v0.4-observability-brief.md` for the active scope.
-
 ## Key files
 
 - `README.md` - package overview and install invocation.
