@@ -26,16 +26,16 @@ Removed:
 
 ### Update-propagation surfacing
 
-Added `routines/health-check.md` package-freshness step (new step 8). The routine already observed the workspace's install-time contract; now it also observes the package itself. Daily, it:
+`routines/health-check.md` gains an install-currency step that observes the package itself, not just the install artifacts. The old "check template markers" step folded into it - marker presence and marker freshness against the package are the same question. Daily, the merged step:
 
 - Resolves the clawstodian clone path from the `clawstodian/scripts` symlink (self-configuring - no hardcoded paths, survives forks).
+- For each installed template: checks marker presence AND compares its date against the package's template marker. Missing or stale → surface.
 - Runs a bounded `git fetch` (15s hard cap, tolerates network failures silently) and compares `HEAD` to `@{u}` to detect when the local clone is behind upstream.
-- Compares each installed template's marker date against the package's template marker date to detect when the workspace install is behind the local clone.
 - Reads `CHANGELOG.md`'s top `## X.Y.Z - YYYY-MM-DD` line to record the current package version in the run report.
 
-All detection-only. No `git pull`, no template rewrite, no INSTALL re-run. Findings flow into the heartbeat's `reflect` task like any other health-check anomaly; the operator applies updates via the existing `INSTALL.md` diff-and-propose flow when they're ready. Channel summary grows one line: `Package: <version> (up to date | N behind upstream | K stale templates)`.
+All detection-only. No `git pull`, no template rewrite, no INSTALL re-run. Findings flow into the heartbeat's `reflect` task like any other health-check anomaly; the operator applies updates via the existing `INSTALL.md` diff-and-propose flow when they're ready. Channel summary gets one `Install:` line covering version + upstream delta + marker freshness in a single grouping.
 
-Rationale captured in `docs/architecture.md` design principle #8 ("Queue derivation over queue storage"): the same pattern that makes the sessions-capture queue a function rather than a file applies here - package-freshness state is derived from workspace artifacts + remote refs on demand, not cached or tracked in a VERSION file.
+Rationale captured in `docs/architecture.md` design principle #8 ("Queue derivation over queue storage"): the same pattern that makes the sessions-capture queue a function rather than a file applies here - install-currency state is derived from workspace artifacts + remote refs on demand, not cached or tracked in a VERSION file.
 
 ## 0.4.0 - 2026-04-18
 

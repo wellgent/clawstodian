@@ -10,12 +10,11 @@ This routine is cross-cutting: it observes clawstodian's own install-time contra
 
 ## Target
 
-Clawstodian's install-time contract and runtime state, across four surfaces:
+Clawstodian's install-time contract and runtime state, across three surfaces:
 
 - **Gateway config** - `~/.openclaw/openclaw.json` (heartbeat stance + session visibility).
 - **Cron registrations** - `openclaw cron list --all` output.
-- **Workspace install artifacts** - `clawstodian/programs`, `clawstodian/routines`, and `clawstodian/scripts` symlinks; `clawstodian/scripts/scan-sessions.py` executable; template markers on installed reference docs.
-- **Package freshness** - the clawstodian clone resolved via the workspace's `clawstodian/scripts` symlink: local-clone-vs-upstream drift (from `git fetch`), workspace-vs-clone template marker drift, CHANGELOG top version vs installed version.
+- **Install currency** - workspace symlinks (`clawstodian/programs`, `routines`, `scripts`), `scan-sessions.py` executable, per-template marker presence + freshness against the package, local clone vs upstream, CHANGELOG top version.
 
 ## Steps
 
@@ -31,17 +30,15 @@ Clawstodian's install-time contract and runtime state, across four surfaces:
 
 6. **Verify workspace symlinks.** `readlink -e clawstodian/programs`, `readlink -e clawstodian/routines`, and `readlink -e clawstodian/scripts` each resolve to a package directory. Record the resolved paths. Additionally confirm `clawstodian/scripts/scan-sessions.py` is present and executable.
 
-7. **Check template markers.** Grep each installed reference doc for its expected `<!-- template: clawstodian/... -->` line: workspace `AGENTS.md`, workspace `HEARTBEAT.md`, `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`. Marker presence only; content drift against the package is covered by step 8.
+7. **Check install currency.** Compare the workspace install against the package clone it's pinned to. Resolve the clone root first: `REPO=$(dirname "$(readlink -e clawstodian/scripts)")`. Then:
 
-8. **Check package freshness.** Resolve the clawstodian clone root from the symlink: `REPO=$(dirname "$(readlink -e clawstodian/scripts)")`. Then three sub-checks:
-
+   - **Per-template marker.** For each installed reference doc (workspace `AGENTS.md`, `HEARTBEAT.md`, `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`): read the `<!-- template: clawstodian/<name> YYYY-MM-DD -->` marker line. Missing → surface "marker absent for <path>". Present but strictly older than the matching package file's marker (`$REPO/templates/<name>.md` line 1) → surface "template <name> is stale (<workspace-date> → <package-date>); re-run `~/clawstodian/INSTALL.md`".
    - **Local clone vs upstream.** `timeout 15 git -C "$REPO" fetch --quiet` (15s hard cap; tolerate failures silently - network / auth issues are not anomalies). Compute `git -C "$REPO" rev-list --count HEAD..@{u}` for the number of upstream commits not present locally. Non-zero → surface "local clone behind upstream by <N> commits; run `git -C <REPO> pull`".
-   - **Workspace markers vs package markers.** For each installed template listed in step 7, compare the workspace file's marker date against the package file's marker date (e.g. `$REPO/templates/HEARTBEAT.md` line 1). Any workspace marker strictly older than the package marker → surface "template <name> is stale (<workspace-date> → <package-date>); re-run `~/clawstodian/INSTALL.md`".
-   - **CHANGELOG top entry.** Read the first `## X.Y.Z - YYYY-MM-DD` line in `$REPO/CHANGELOG.md` - that is the current package version. Record it in the report for operator context. First non-empty paragraph under that header is the one-paragraph summary of what changed; surface it alongside any stale-template finding.
+   - **CHANGELOG top entry.** Read the first `## X.Y.Z - YYYY-MM-DD` line in `$REPO/CHANGELOG.md` - that is the current package version. Record it in the report for operator context. First non-empty paragraph under that header is the one-paragraph release summary; surface it alongside any stale-template finding.
 
    Detection only. Do NOT `git pull`, do NOT re-run INSTALL, do NOT touch the workspace templates. The operator decides when to apply updates via `INSTALL.md`'s existing diff-and-propose flow.
 
-9. **Aggregate.** Sum findings into the run report. No auto-repair - detection is the entire action.
+8. **Aggregate.** Sum findings into the run report. No auto-repair - detection is the entire action.
 
 ## Exec safety
 
@@ -106,21 +103,19 @@ Write to `memory/runs/health-check/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 - clawstodian/programs -> /home/operator/clawstodian/programs (ok)
 - clawstodian/routines -> /home/operator/clawstodian/routines (ok)
 
-### Template markers
-
-- AGENTS.md: clawstodian/agents (ok)
-- HEARTBEAT.md: clawstodian/heartbeat (ok)
-- memory/para-structure.md: clawstodian/para-structure (ok)
-- memory/daily-note-structure.md: clawstodian/daily-note-structure (ok)
-- MEMORY.md: clawstodian/memory (ok)
-- memory/crons.md: clawstodian/crons (ok)
-- memory/session-ledger.md: clawstodian/session-ledger (ok)
-
-### Package freshness
+### Install currency
 
 - clone: /home/operator/clawstodian
-- installed version: 0.4.1 (from CHANGELOG.md top entry)
+- package version: 0.4.1 (from CHANGELOG.md top entry)
 - upstream: HEAD == @{u} (up to date)
+- template markers:
+  - AGENTS.md: clawstodian/agents 2026-04-19 (ok)
+  - HEARTBEAT.md: clawstodian/heartbeat 2026-04-19 (ok)
+  - memory/para-structure.md: clawstodian/para-structure 2026-04-18 (ok)
+  - memory/daily-note-structure.md: clawstodian/daily-note-structure 2026-04-19 (ok)
+  - MEMORY.md: clawstodian/memory 2026-04-18 (ok)
+  - memory/crons.md: clawstodian/crons 2026-04-19 (ok)
+  - memory/session-ledger.md: clawstodian/session-ledger 2026-04-19 (ok)
 - stale templates: (none)
 
 ## Commits
@@ -136,8 +131,8 @@ Write to `memory/runs/health-check/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 health-check · 2026-04-19 · ok
 Config: ok · visibility: all
 Crons: 7/7 registered · 0 stalled · 0 long-running
-Symlinks: ok · markers: 7/7
-Package: 0.4.1 (up to date)
+Symlinks: ok
+Install: 0.4.1 · up to date · markers 7/7 fresh
 Report: memory/runs/health-check/2026-04-19T03-00-00Z.md
 ```
 
@@ -151,11 +146,11 @@ Multi-line. One concern per line, matching the shape routines share:
 health-check · <date> · <outcome>
 Config: <ok|drift:<N>> · visibility: <all|tree|other>
 Crons: <R>/7 registered · <S> stalled · <L> long-running
-Symlinks: <ok|<B> broken> · markers: <M>/7
-Package: <version> (<up to date | N behind upstream | <K> stale templates>)
+Symlinks: <ok|<B> broken>
+Install: <version> · <up to date | N behind upstream> · markers <F>/7 fresh
 Report: memory/runs/health-check/<ts>.md
 ```
 
 - `outcome` is `ok | anomaly | failed`. `ok` means every check passed. `anomaly` means one or more checks flagged a deviation; the run-report file details each. `failed` means the routine itself could not complete (e.g. `~/.openclaw/openclaw.json` unreadable).
-- On a healthy firing every middle line reads `ok` / `all` / `0` / `N/N` / `up to date`; counts do the work on an anomaly firing. The operator drills into the run-report file for per-check detail.
+- On a healthy firing every middle line reads `ok` / `all` / `0` / `N/N` / `up to date` / `7/7 fresh`; counts do the work on an anomaly firing. The operator drills into the run-report file for per-check detail.
 - Every firing speaks. A healthy firing still produces a full channel post plus the run-report file - evidence that the observability layer itself is alive.
