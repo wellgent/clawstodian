@@ -56,10 +56,11 @@ Defaults live in openclaw's `cron.retry.*` config (`cron.retry.maxAttempts`, `cr
 
 Every clawstodian routine writes its run-report file to `memory/runs/<routine>/<ts>.md` **before** attempting channel delivery. The channel post is a convenience; the file is the authoritative record. That means **`--best-effort-deliver` is safe** - a delivery outage never loses the report.
 
-The default install does NOT enable it, so delivery outages are visible in the operator's failure feed. Operators with flaky channel plugins (self-hosted Matrix, Slack rate-limits, etc.) can opt in per-routine after install:
+The default install does NOT enable it, so delivery outages are visible in the operator's failure feed. Operators with flaky channel plugins (self-hosted Matrix, Slack rate-limits, etc.) can opt in per-routine after install (see "CLI: id vs name" below for the name -> id pattern):
 
 ```bash
-openclaw cron edit <routine-name> --best-effort-deliver
+ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="<name>") | .id')
+openclaw cron edit "$ID" --best-effort-deliver
 ```
 
 ## Alignment with the heartbeat
@@ -70,16 +71,30 @@ See `docs/heartbeat-config.md` > "Aligning active hours with scheduled crons" fo
 
 If the operator changes cron times (e.g. runs `health-check` at midnight), they must re-check the `activeHours.start` alignment.
 
+## CLI: id vs name
+
+`openclaw cron list` prints both the human name (e.g. `sessions-capture`) and the opaque job id (a UUID). **Every mutating subcommand - `enable`, `disable`, `rm` (`remove` / `delete`), `run`, `edit` - takes the id, not the name.** Only `cron list` and `cron add` accept a name.
+
+Resolve name -> id via the stable JSON contract:
+
+```bash
+ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="sessions-capture") | .id')
+openclaw cron disable "$ID"
+```
+
+This gotcha shows up in: the heartbeat's burst-toggle path, each burst routine's self-disable step, install migration from older drafts, and uninstall. The snippet above is the canonical form; every place in this package that needs to toggle or edit a cron by name uses it.
+
 ## Editing config after install
 
 After install, cron jobs are owned by `~/.openclaw/cron/jobs.json`, not by any file in the workspace. **Changes to `INSTALL.md` or `templates/crons.md` do NOT propagate automatically.**
 
-To change an installed job's flag:
+To change an installed job's flag (resolve name -> id per "CLI: id vs name" above):
 
 ```bash
-openclaw cron edit <routine-name> --timeout-seconds 3600
-openclaw cron edit <routine-name> --best-effort-deliver
-openclaw cron edit <routine-name> --no-deliver
+ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="<name>") | .id')
+openclaw cron edit "$ID" --timeout-seconds 3600
+openclaw cron edit "$ID" --best-effort-deliver
+openclaw cron edit "$ID" --no-deliver
 ```
 
 Or remove + re-add from the commands in `INSTALL.md`. `health-check` verifies that the expected seven routines are registered, but does not verify individual flag values; the operator owns the correctness of per-routine settings after install.
@@ -109,7 +124,7 @@ openclaw cron list --all | grep <routine-name>
 openclaw cron runs --id <job-id> --limit 20
 ```
 
-Look for: disabled flag, retry backoff from repeated failures, permanent error, gateway downtime. Re-enable with `openclaw cron enable <routine-name>` once the cause is understood.
+Look for: disabled flag, retry backoff from repeated failures, permanent error, gateway downtime. Re-enable with `openclaw cron enable "$ID"` (resolved per "CLI: id vs name" above) once the cause is understood.
 
 ### A burst cron stays enabled too long
 

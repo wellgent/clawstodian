@@ -109,13 +109,14 @@ Applied to each interactive gap selected in Phase 2.
 
 ## Self-disable on empty queue
 
-After Phase 2 returns, re-count un-admitted and stale-cursor sessions. If both are zero, disable the cron:
+After Phase 2 returns, re-count un-admitted and stale-cursor sessions. If both are zero, disable the cron. `openclaw cron disable` takes the job id, not the name - resolve name -> id first:
 
 ```bash
-openclaw cron disable sessions-capture
+ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="sessions-capture") | .id')
+openclaw cron disable "$ID"
 ```
 
-**Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron remove`.** Remove deletes the cron permanently.
+**Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron rm`.** Rm deletes the cron permanently.
 
 ## Run report
 

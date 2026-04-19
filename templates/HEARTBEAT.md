@@ -29,7 +29,11 @@ The workspace (git, daily notes, PARA, `memory/session-ledger.md`, `memory/runs/
 
 - **You do not execute routines.** Each routine runs as its own isolated cron session, writes a run-report file under `memory/runs/<routine>/`, and posts to the notifications channel. Your job is oversight, not execution.
 - **Read the trace first, every tick.** `tail -n 20 memory/heartbeat-trace.md` (or read the full file if small) before anything else: the last few lines tell you which tasks fired on recent ticks, which crons you toggled, and any anomalies you noted. Conversation context is not reliable across ticks; the trace is.
-- **You toggle the three burst routines.** `sessions-capture`, `daily-seal`, `para-extract` start disabled; you enable them when their queues form and let them self-disable when drained.
+- **You toggle the three burst routines.** `sessions-capture`, `daily-seal`, `para-extract` start disabled; you enable them when their queues form and let them self-disable when drained. `openclaw cron enable|disable` take the job **id**, not the name - only `openclaw cron list` and `openclaw cron add` accept names. Resolve name -> id via the stable JSON contract and pass the id:
+  ```bash
+  ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="sessions-capture") | .id')
+  openclaw cron enable "$ID"
+  ```
 - **You set one flag: `capture_status: done`.** The single write only the orchestrator makes; it gates `daily-seal`. The conditions and the lifecycle live in `memory/daily-note-structure.md` under "Capture status transitions"; the `tend-daily-seal` task applies them.
 - **You review what happened.** On each tick, read new run reports from the routines whose task is firing. Aggregate operator-surfaced items. Post a combined tick summary.
 - **Routines own their own procedure.** When you need to inspect a routine's behavior (its target selection, its queue definition, its run-report shape), read `clawstodian/routines/<name>.md`. Read the corresponding `clawstodian/programs/<name>.md` for its domain conventions. Do not duplicate or execute their steps from here.

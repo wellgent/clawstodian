@@ -68,13 +68,14 @@ Numbered list of what happens in one firing. Subsections (`### Phase 1`, `### Un
 
 ## Self-disable on empty queue
 
-(Burst routines only; omit for Scheduled.) After processing, re-check the queue; if empty:
+(Burst routines only; omit for Scheduled.) After processing, re-check the queue; if empty, disable the cron. `openclaw cron disable` takes a job id, not a name - resolve name -> id first (see `docs/crons-config.md` > "CLI: id vs name"):
 
 \`\`\`bash
-openclaw cron disable <routine-name>
+ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="<routine-name>") | .id')
+openclaw cron disable "$ID"
 \`\`\`
 
-**Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron remove`.**
+**Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron rm`.**
 
 ## Run report
 

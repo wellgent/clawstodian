@@ -73,13 +73,14 @@ Add only the files you changed - never `git add -A` or `git add .`. Commit messa
 
 ## Self-disable on empty queue
 
-After processing, re-run target selection. If the queue is empty, disable the cron:
+After processing, re-run target selection. If the queue is empty, disable the cron. `openclaw cron disable` takes the job id, not the name - resolve name -> id first:
 
 ```bash
-openclaw cron disable daily-seal
+ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="daily-seal") | .id')
+openclaw cron disable "$ID"
 ```
 
-**Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron remove`.** Remove deletes the cron permanently.
+**Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron rm`.** Rm deletes the cron permanently.
 
 ## Run report
 

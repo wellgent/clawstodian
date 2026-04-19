@@ -103,7 +103,7 @@ Produce a short, explicit plan for the operator. Items in the order the install 
 
 **If Step 3 detected legacy v0.3 routines** (programs not renamed), prepend this advisory to the plan:
 
-> The workspace has v0.3 clawstodian routines installed (`daily-notes-tend`, `close-of-day`, etc.). v0.4 renames and consolidates these into seven routines with clear single responsibilities, and introduces `memory/session-ledger.md` as the authoritative capture-state file. After installing v0.4 crons, remove the v0.3 routines via `openclaw cron remove <name>`. This install does not touch them automatically.
+> The workspace has v0.3 clawstodian routines installed (`daily-notes-tend`, `close-of-day`, etc.). v0.4 renames and consolidates these into seven routines with clear single responsibilities, and introduces `memory/session-ledger.md` as the authoritative capture-state file. After installing v0.4 crons, remove the v0.3 routines via `openclaw cron rm <id>` (resolve the id from the name with `openclaw cron list --json | jq -r '.jobs[] | select(.name=="<name>") | .id'`). This install does not touch them automatically.
 
 **If Step 3 detected ops-* packages** (directories or legacy crons), prepend this advisory to the plan:
 
@@ -259,7 +259,13 @@ Re-run this install flow. Step 3's survey detects which template markers are old
 
 **Migrating between v0.4 drafts** (workspaces with `daily-note` and/or `backfill-sessions` crons from an earlier draft):
 
-- Remove the old crons: `openclaw cron remove daily-note && openclaw cron remove backfill-sessions`.
+- Remove the old crons (resolve each name to a job id first, since `openclaw cron rm` takes an id):
+  ```bash
+  for name in daily-note backfill-sessions; do
+    id=$(openclaw cron list --json | jq -r ".jobs[] | select(.name==\"$name\") | .id")
+    [ -n "$id" ] && openclaw cron rm "$id"
+  done
+  ```
 - Install the new `sessions-capture` cron (disabled, heartbeat-toggled).
 - Preserve `memory/session-ledger.md` as-is; its schema is unchanged.
 - The heartbeat will enable `sessions-capture` on its next tick if any gaps exist.

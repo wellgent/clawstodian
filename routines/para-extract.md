@@ -57,13 +57,14 @@ Add only the files you changed. Commit message: `para: extract YYYY-MM-DD - <sum
 
 ## Self-disable on empty queue
 
-After processing, re-check the queue. If empty, disable the cron:
+After processing, re-check the queue. If empty, disable the cron. `openclaw cron disable` takes the job id, not the name - resolve name -> id first:
 
 ```bash
-openclaw cron disable para-extract
+ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="para-extract") | .id')
+openclaw cron disable "$ID"
 ```
 
-**Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron remove`.** Remove deletes the cron permanently.
+**Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron rm`.** Rm deletes the cron permanently.
 
 ## Run report
 

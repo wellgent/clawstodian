@@ -15,12 +15,14 @@ Principle: **co-uninstall, don't automate**. Show the operator what each step re
 
 ## Step 1 - Disable and remove cron routines
 
-Disable first (stops future firings), then remove (deletes the job entry).
+Disable first (stops future firings), then remove (deletes the job entry). `openclaw cron disable|rm` take a job id, not a name, so resolve name -> id via `cron list --json` inside the loop:
 
 ```bash
 for name in sessions-capture workspace-clean git-clean para-align daily-seal para-extract health-check capture-sessions workspace-tidy git-hygiene seal-past-days daily-note backfill-sessions; do
-  openclaw cron disable "$name" 2>/dev/null
-  openclaw cron remove "$name" 2>/dev/null
+  id=$(openclaw cron list --json | jq -r ".jobs[] | select(.name==\"$name\") | .id")
+  [ -n "$id" ] || continue
+  openclaw cron disable "$id" 2>/dev/null
+  openclaw cron rm "$id" 2>/dev/null
 done
 ```
 
