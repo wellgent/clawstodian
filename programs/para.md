@@ -31,6 +31,7 @@ Read `memory/para-structure.md` before creating, moving, or validating entities.
 - **MEMORY.md dashboard**: active projects are individually listed; area and resource pointers are directory-level; infrastructure section points to `memory/*.md` reference docs.
 - **Creation thresholds** (per `memory/para-structure.md`): a project needs a goal, timeline, or deliverable; a person needs context in 2+ notes; a topic needs reusable knowledge; a company needs a relationship worth tracking.
 - **Extraction queue marker**: sealed daily notes with `para_status: pending` are queued for PARA extraction; processed notes flip to `para_status: done`.
+- **Archive candidacy is surfaced, never auto-moved.** Sustained inactivity in a project or resource (stale `last_updated`, no recent daily-note mentions, body-level indicators of completion or abandonment) makes it a candidate for archival. Detection is part of `routines/para-align.md`; the move itself is always an operator decision.
 
 ## Authority
 
@@ -60,7 +61,7 @@ Must NOT reorganize existing entities without operator direction. Must NOT creat
 
 - Do not rewrite entity content for style or brevity.
 - Do not move, rename, or delete entity files based on your own judgment; moves are operator decisions.
-- Do not auto-archive inactive projects (archive lifecycle is user-managed).
+- Do not auto-archive inactive projects or resources; surface archive candidates instead (detection runs in `para-align`; the move itself is an operator decision).
 - Do not modify `AGENTS.md`, `HEARTBEAT.md`, or anything in `.openclaw/`.
 - Do not disable or enable any cron.
 - Do not create stubs.
