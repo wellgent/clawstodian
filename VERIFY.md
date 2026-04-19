@@ -2,16 +2,17 @@
 
 Standalone verification for a clawstodian install. Run these checks after the install flow finishes, after a gateway restart, after a package upgrade, or any time you want to confirm the setup is healthy.
 
-Each check is a pass/fail line. Run them from the **workspace root** (the directory where `AGENTS.md` and `HEARTBEAT.md` live, and where `clawstodian/programs` and `clawstodian/routines` symlinks should resolve).
+Each check is a pass/fail line. Run them from the **workspace root** (the directory where `AGENTS.md` and `HEARTBEAT.md` live, and where `clawstodian/programs`, `clawstodian/routines`, and `clawstodian/scripts` symlinks should resolve).
 
 ## Scope
 
 Verify covers install correctness and current state:
 
 - Section markers landed in `AGENTS.md` and `HEARTBEAT.md`.
-- Both workspace symlinks (`clawstodian/programs`, `clawstodian/routines`) resolve.
+- All three workspace symlinks (`clawstodian/programs`, `clawstodian/routines`, `clawstodian/scripts`) resolve.
 - All four program specs reachable at `clawstodian/programs/<name>.md`.
 - All seven routine specs reachable at `clawstodian/routines/<name>.md`.
+- `clawstodian/scripts/scan-sessions.py` is executable.
 - All five reference templates installed under `memory/` and at workspace root.
 - All seven cron jobs registered (`openclaw cron list --all`).
 - Heartbeat config matches the recommended stance.
@@ -37,6 +38,7 @@ grep -qE 'clawstodian/heartbeat(-section)?' HEARTBEAT.md 2>/dev/null && echo "OK
 # Workspace symlinks resolve
 readlink -e clawstodian/programs >/dev/null 2>&1 && echo "OK  programs symlink" || echo "FAIL programs symlink"
 readlink -e clawstodian/routines >/dev/null 2>&1 && echo "OK  routines symlink" || echo "FAIL routines symlink"
+readlink -e clawstodian/scripts  >/dev/null 2>&1 && echo "OK  scripts symlink"  || echo "FAIL scripts symlink"
 
 # Program specs reachable (four domain authorities)
 for name in daily-notes para workspace repo; do
@@ -47,6 +49,9 @@ done
 for name in sessions-capture daily-seal para-extract para-align workspace-clean git-clean health-check; do
   [ -f "clawstodian/routines/${name}.md" ] && echo "OK  routine ${name}" || echo "FAIL routine ${name}"
 done
+
+# Helper scripts reachable and executable
+[ -x "clawstodian/scripts/scan-sessions.py" ] && echo "OK  scan-sessions.py executable" || echo "FAIL scan-sessions.py (missing or not executable)"
 
 # Reference templates installed
 for f in memory/para-structure.md memory/daily-note-structure.md MEMORY.md memory/crons.md memory/session-ledger.md; do

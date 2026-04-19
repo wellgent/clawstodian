@@ -92,6 +92,10 @@ clawstodian/
     daily-seal.md                    burst; invokes daily-notes/seal
     para-extract.md                  burst; invokes para/extract
 
+  scripts/
+    scan-sessions.py                 deterministic classifier + interactive-queue source
+                                     shared by the heartbeat orchestrator and sessions-capture
+
   templates/
     AGENTS.md                        installable to workspace root AGENTS.md (workspace charter + catalogs)
     HEARTBEAT.md                     installable to workspace root HEARTBEAT.md (pure-orchestrator heartbeat)

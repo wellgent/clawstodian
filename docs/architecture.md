@@ -65,7 +65,9 @@ Silence in any of the four is itself a signal. A dead heartbeat is not ambiguous
 
 No package-owned state files. Git, daily notes, PARA entities, `MEMORY.md`, session transcripts, `memory/session-ledger.md`, `memory/heartbeat-trace.md`, and per-routine run reports under `memory/runs/<routine>/` are the only state. Every routine and every heartbeat tick derives what it needs from those artifacts, acts, writes observations back, and forgets.
 
-The `daily-notes` program is the most state-dependent: it needs to know which sessions it has already captured, and how far into each transcript. That state lives in `memory/session-ledger.md` - one markdown section per session, cursor fields advanced in place via narrow `Edit` calls. Cursors advance only after the affected daily-note writes succeed; a partial failure leaves the cursor at the old position so the next tick retries from there.
+The `daily-notes` program is the most state-dependent: it needs to know which interactive sessions it has already captured, and how far into each transcript. That state lives in `memory/session-ledger.md` - one markdown section per interactive session, cursor fields advanced in place via narrow `Edit` calls. Cursors advance only after the affected daily-note writes succeed; a partial failure leaves the cursor at the old position so the next tick retries from there.
+
+The ledger contains interactive sessions only. Skipped classifications (cron-dispatched, hook-dispatched, sub-agent, dreaming-routine, delivery-only) are not stored - they are re-derived on every scan by `clawstodian/scripts/scan-sessions.py`, which is the single authoritative queue source shared between the heartbeat's burst-enable decision and the `sessions-capture` routine's target selection.
 
 This is why `isolatedSession: true` and `lightContext: true` are correct for routine runs. Cross-tick memory lives in files, not session history. The workspace bootstrap (`AGENTS.md`, `MEMORY.md`) caches across ticks within OpenClaw's prompt-cache window; program and routine specs are read fresh on every run, so spec updates take effect without re-registering crons.
 
@@ -91,7 +93,8 @@ collaborative maintainer     HEARTBEAT.md              (reads state, toggles bur
 maintainer cadence           heartbeat                 (2h, main session, active hours, full bootstrap)
 maintainer continuity        main session history      (conversation with the operator, host-wide compaction)
 scheduled invocations        routines/ + cron          (seven routines; each a cron job in its own isolated session)
-capture state                memory/session-ledger.md  (per-session classification + read cursor)
+capture state                memory/session-ledger.md  (per-interactive-session cursor; skipped classes not stored)
+classification + queue        clawstodian/scripts/scan-sessions.py  (re-derived from sessions_list + ledger)
 run reports                  memory/runs/<routine>/    (per-firing detail files; pruned by workspace-clean after 30d)
 audit trail                  notifications channel + session transcripts + git + heartbeat-trace.md
 workspace memory             memory/, projects/, areas/, resources/, archives/
@@ -123,7 +126,7 @@ Two execution classes for routines:
 
 Three heartbeat-toggled bursts (`sessions-capture`, `daily-seal`, `para-extract`) form a pipeline: `sessions-capture` populates daily notes from session transcripts that the agents did not write up in-session; `daily-seal` closes past-day notes with `para_status: pending`; `para-extract` propagates those sealed notes into PARA entities. Each stage signals readiness via workspace state (ledger entries, frontmatter flags), not in-memory queues. The heartbeat reads those signals once per tick and flips the corresponding crons on or off.
 
-Agents in live sessions remain the primary writers of daily notes per `AGENTS.md` memory-maintenance rules; `sessions-capture` is the backstop. The cron fires whenever new sessions appear or existing sessions have unread activity, but each firing does minimal work when the agent was disciplined: Phase 1 admits the session cheaply, Phase 2 reads the transcript and finds most content already in the daily note (the per-date merge rule absorbs matches rather than duplicating).
+Agents in live sessions remain the primary writers of daily notes per `AGENTS.md` memory-maintenance rules; `sessions-capture` is the backstop. Each firing invokes `clawstodian/scripts/scan-sessions.py`, pulls the interactive queue, and processes one session at a time end-to-end until the queue is empty or the firing budget is spent. On a disciplined workspace most transcript content is already in the daily note, and the per-date merge rule absorbs matches rather than duplicating.
 
 ## Observability and troubleshooting
 

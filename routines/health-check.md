@@ -14,7 +14,7 @@ Clawstodian's install-time contract and runtime state, across three surfaces:
 
 - **Gateway config** - `~/.openclaw/openclaw.json` (heartbeat stance + session visibility).
 - **Cron registrations** - `openclaw cron list --all` output.
-- **Workspace install artifacts** - `clawstodian/programs` and `clawstodian/routines` symlinks, template markers on installed reference docs.
+- **Workspace install artifacts** - `clawstodian/programs`, `clawstodian/routines`, and `clawstodian/scripts` symlinks; `clawstodian/scripts/scan-sessions.py` executable; template markers on installed reference docs.
 
 ## Steps
 
@@ -28,7 +28,7 @@ Clawstodian's install-time contract and runtime state, across three surfaces:
 
 5. **Check long-running bursts.** Read `openclaw cron list --all` for each burst's enabled flag and (if enabled) the last state-transition timestamp (or infer from the oldest report in the current enablement window). Flag any burst exceeding its expected drain window: `sessions-capture` > 12h, `daily-seal` > 24h, `para-extract` > 24h with a non-shrinking queue.
 
-6. **Verify workspace symlinks.** `readlink -e clawstodian/programs` and `readlink -e clawstodian/routines` resolve to the package directories. Record the resolved paths.
+6. **Verify workspace symlinks.** `readlink -e clawstodian/programs`, `readlink -e clawstodian/routines`, and `readlink -e clawstodian/scripts` each resolve to a package directory. Record the resolved paths. Additionally confirm `clawstodian/scripts/scan-sessions.py` is present and executable.
 
 7. **Check template markers.** Grep each installed reference doc for its expected `<!-- template: clawstodian/... -->` line: workspace `AGENTS.md`, workspace `HEARTBEAT.md`, `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`. Marker presence only; content drift is out of scope.
 

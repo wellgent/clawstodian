@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.0-draft - 2026-04-20
+
+sessions-capture restructure: interactive-only ledger + deterministic scan script. Rooted in a 2026-04-19 wellgent incident where the first cold-start `sessions-capture` firing ballooned to 793K tokens and failed with context overflow. Root cause was a three-way reconciliation loop (sessions_list vs ledger vs on-disk transcripts) driven by a routine spec that told the agent to classify hundreds of sessions using `sessions_history` tool calls with limit=200. A later firing on the same day succeeded in under a minute because by then the inconsistency had been cleaned up - the failure was cold-start-inconsistency-specific, not Codex-specific.
+
+The fix reshapes where classification happens. Skipped classifications (cron, hook, sub-agent, dreaming, delivery-only) are deterministic from the session key and a ~50-line transcript peek, so they now live in `clawstodian/scripts/scan-sessions.py` and are re-derived on every scan rather than memoized to the ledger. The ledger shrinks to hold interactive-session cursors only - the minority of sessions. The routine picks from the script's queue one session at a time end-to-end instead of the prior Phase 1 (admit all) + Phase 2 (process some interactive) split, which invited "inventory everything before doing anything" agent behavior.
+
+Added (2026-04-20):
+- `scripts/scan-sessions.py` (new) - deterministic classifier + queue source. Invokes `openclaw sessions --json`, parses `memory/session-ledger.md`, classifies every session by key prefix + optional first-200-lines transcript peek, emits structured JSON: `{counts, queue, missing_transcripts}`. `queue` is sorted newest-first with `status: new | stale`. Supports `--next` for single-target output and `--sessions-json <path>` for offline testing. Python (stdlib only), no package dependencies. Shared primitive: the heartbeat's `tend-sessions-capture` uses it to decide enable/disable; the burst routine uses it to pick the next target.
+- Workspace install now creates a third symlink: `clawstodian/scripts -> ~/clawstodian/scripts`. `INSTALL.md`, `VERIFY.md`, `UNINSTALL.md`, and `routines/health-check.md` all updated to include the scripts symlink in their per-artifact loops.
+
+Changed (2026-04-20):
+- `routines/sessions-capture.md` rewritten around the new shape. The two-phase split is gone: one loop that pulls the queue from the script once, processes one session at a time (up to five per firing, or ~140K token / ~500 KB content soft stop), re-scans before self-disable, writes one run report. Per-firing budgets are explicit. `sessions_list` is not called directly in the agent - the script is the authoritative source.
+- `templates/HEARTBEAT.md` `tend-sessions-capture` task prompt swapped from "detect the routine's queue per its Target section" to "run `clawstodian/scripts/scan-sessions.py` once and read `.queue` length". The orchestrator mental model is otherwise unchanged. Template marker bumped to `2026-04-20`.
+- `templates/daily-note-structure.md` "Session Ledger" section rewritten: interactive-only scope, `classification` and `reason` fields dropped from the shape, "what goes in the ledger" documents the new principle ("the ledger contains interactive sessions only"). "Capture status transitions" third condition updated: the `scan-sessions.py` queue count replaces the prior "no un-admitted sessions" check. Template marker bumped to `2026-04-20`.
+- `templates/session-ledger.md` marker and inner comment updated to reference the new shape.
+- `templates/AGENTS.md` routines catalog entry for `sessions-capture` now names the scan script as the queue source. Template marker bumped to `2026-04-20`.
+- `docs/architecture.md` ledger-state and daily-notes-pipeline paragraphs updated to match the interactive-only / script-queue model.
+- `INSTALL.md` "Updating an existing install" section gains a "Migrating ledger shape (pre-2026-04-20 installs)" sub-section with a mechanical one-off python pipe that drops `classification: skipped` blocks and strips the now-redundant `classification: interactive` line from remaining entries. Migration is optional - `scan-sessions.py` ignores the old `classification` field and re-derives everything from `sessions_list`.
+
+Removed (2026-04-20):
+- Admission as a distinct routine step. Creating a ledger entry is now always part of capturing actual content from an interactive session, never a standalone "mark this session so we do not re-examine it" write.
+- Cross-check of ledger entries against on-disk transcripts. Orphan ledger entries (session id gone from `sessions_list`) are ignored - they are history with pruned transcripts, not work items.
+- Phase 1 / Phase 2 split in `routines/sessions-capture.md`.
+
 ## 0.4.0-draft - 2026-04-18
 
 Program/routine split, cron-per-routine inversion, four-layer observability. v0.3 kept the heartbeat executing five routines in a pure-prose dispatcher; in live use a gateway restart produced a silent heartbeat failure with no detectable signal. v0.4 separates domain authorities (programs) from scheduled invocations (routines), pushes execution onto cron (the self-observing substrate), and shrinks the heartbeat to a tending orchestrator that never goes silent.

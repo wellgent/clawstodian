@@ -1,126 +1,132 @@
 # sessions-capture (routine)
 
-Backstop for the daily-notes program. Admits new sessions to `memory/session-ledger.md` and drains interactive capture gaps into the appropriate daily note(s) - catching what in-session agents did not finalize themselves.
+Backstop for the daily-notes program. Captures unread interactive-session content into the right daily note(s), one session at a time, until the queue is drained.
 
 ## Program
 
-`clawstodian/programs/daily-notes.md` - conventions, authority, approval gates, and escalation. The program defines the daily-note lifecycle and what lands in a note; this routine describes the cron's procedure for draining session content into those notes.
+`clawstodian/programs/daily-notes.md` - conventions, authority, approval gates, and escalation.
 
-See `memory/daily-note-structure.md` for the session-ledger format (field definitions, update rules) and the daily-note format.
+See `memory/daily-note-structure.md` for the daily-note format and the session-ledger format.
+
+## Shape
+
+The queue is determined by a pre-built script: `clawstodian/scripts/scan-sessions.py`. The script projects `openclaw sessions --json` against `memory/session-ledger.md`, classifies every visible session, and emits the pending work as JSON. This routine reads the queue, processes one session end-to-end, and loops until the queue is empty or the firing budget is spent.
+
+**The ledger contains interactive sessions only.** Skipped classifications (cron, hook, sub-agent, dreaming, empty / delivery-only) are not stored - they are re-derived on every scan. Admission is no longer a separate step: when the script reports a new interactive session, the first capture pass creates its ledger entry with the post-write cursor.
+
+**Orphan ledger entries are ignored** - if a ledger entry's session id is not in `sessions_list`, it's either history with a pruned transcript or stale state. Not this routine's problem; don't cross-check ledger against disk.
 
 ## Target
 
-All capture gaps in `sessions_list` vs. `memory/session-ledger.md`:
+The output of `clawstodian/scripts/scan-sessions.py`:
 
-- **un-admitted**: present in `sessions_list` but absent from the ledger.
-- **stale**: ledger entry exists, but `sessions_list` row's `updatedAt > ledger.last_activity`.
+- **`queue`** - interactive sessions that need attention, sorted by `updated_at` descending (newest first). Each entry has `status: new` (not in ledger yet) or `status: stale` (ledger cursor behind the transcript's current line count).
+- **`missing_transcripts`** - sessions whose `transcriptPath` does not resolve on disk. Surfaced, not processed, unless `sessions_history` can reach them via the live registry.
+- **`counts`** - diagnostic counts for the run report.
 
-Within each kind, prioritize by newest `updatedAt` so live sessions capture before historical drain.
-
-## Classification rules
-
-Every session observed by this routine is classified exactly once and the result is stored in the ledger:
-
-- `kind: cron` -> `skipped`, reason: "cron session". Cron-dispatched routines land here.
-- `kind: hook` -> `skipped`, reason: "hook session".
-- `kind: node` (sub-agent) where `parentSessionKey` points to a session already `interactive` -> `skipped`, reason: "sub-agent of <parent id>". The parent's transcript contains the sub-agent's user-visible output.
-- Session with zero user-authored messages -> `skipped`, reason: "delivery-only session".
-- Everything else (`main`, `group`, `other` with user messages) -> `interactive`.
-
-Classification is idempotent. Once `skipped`, a session is not re-examined except to confirm the reason on demand.
-
-## Turn-level filtering rules
-
-An `interactive` classification means the session carries human content overall, not that every turn does. When reading the JSONL, filter turn-by-turn:
-
-- **Cron-injected user turns** - literal prefix `[cron:<jobId> <jobName>]` at the start of `content`. Skip the turn and the assistant turn that follows.
-- **Heartbeat-injected user turns** (in main sessions) - no structural marker. Detect by content: if a user turn matches (exactly or with only trailing whitespace / timestamp differences) one of the `tasks[].prompt` strings in the workspace's `HEARTBEAT.md`, treat it as a heartbeat tick and skip it plus its assistant response. Read `HEARTBEAT.md` fresh each firing so the filter stays in sync with operator edits.
-- **Hook-injected user turns** (webhook / Gmail / HTTP) - no structural marker. If the workspace uses hooks, the payload shape is known to the operator; treat those turns as "what the integration said" rather than operator speech. Skip if hooks are not configured.
-- **Tool calls and tool results** - part of the model's work, not standalone content. Summarize inline (one short `-> read * grep * grep` style line) rather than pasting raw output. Omit lines with raw tool output exceeding a few hundred characters.
-
-The filter output is what lands in the daily note. Everything else stays in the JSONL but does not appear in the human timeline.
+The script is invoked once at firing start to build the queue, once before self-disable to re-check, and optionally with `--next` to pull a single target.
 
 ## Steps
 
-Two phases per firing.
+1. **Prereq read.** Read `memory/daily-note-structure.md` sections "Frontmatter", "Note Structure", "What to Capture", and "Session Ledger" into context. These are authoritative for what you write.
 
-### Phase 1 - admit un-admitted sessions
+2. **Scan.** Invoke the classification script from the workspace root:
 
-Classification is cheap (check `kind`, look for user messages). For every session in `sessions_list` with no ledger entry, classify per the classification rules and append an entry. No per-firing cap: if there are 40 un-admitted cron sessions, admit all 40. A single append of multiple H2 blocks at the end of the ledger is fine; narrow per-line edits are unnecessary for brand-new entries. Skipped admissions get `classification: skipped` and a short `reason`; interactive admissions get `classification: interactive` with `lines_captured: 0` and await Phase 2 for their first read.
+   ```bash
+   clawstodian/scripts/scan-sessions.py > /tmp/clawstodian-sessions-capture-scan.json
+   ```
 
-### Phase 2 - process interactive gaps, bounded
+   Read the JSON. If `queue` is empty, skip to step 6 (self-disable + quiet run report).
 
-Enumerate interactive gaps (both the `lines_captured: 0` admissions from Phase 1 AND pre-existing stale-cursor entries). Sort by `updatedAt` descending. Process one at a time per the unit-of-work procedure below. Continue to the next-newest gap until ANY of these hold:
+3. **Process one session.** Pick the first entry in `queue` (newest `updated_at`). Apply the unit-of-work procedure below. Advance the ledger cursor. Write any daily-note content.
 
-- No interactive gaps remain.
-- The firing is approaching its budget. The cron session runs with a ~200K-token context window and compaction kicks in around 160-180K; target a soft stop at **~140K tokens of consumed context** to leave headroom for the self-disable check and run report. In JSONL terms, that roughly corresponds to **~500 KB of filtered content** read across all sessions processed this firing (each filtered session is typically 20-100 KB).
-- Five interactive sessions have been processed this firing (hard cap to prevent runaway on pathological queues).
+4. **Budget check.** After each session, stop the loop if ANY of these hold:
+   - Script reports `queue` is now empty (re-invoke to re-check - see step 6).
+   - Five interactive sessions have been processed this firing (hard cap).
+   - Current firing context is approaching budget. The cron session runs with a 200K-token context window on most models; soft-stop at **~140K tokens consumed** to leave headroom for the final scan, ledger edits, and run report.
+   - You have read more than **~500 KB of filtered transcript content** across all sessions this firing.
 
-If Phase 2 runs out of budget with interactive gaps still remaining, the cron stays enabled and the next firing picks up from the newest remaining gap.
+   If budget is exhausted with work remaining, do NOT self-disable - the next firing picks up from the newest remaining entry.
 
-### Unit-of-work procedure (one session)
+5. **Otherwise loop.** Go back to step 3 and pull the next target. No re-scan between iterations - the `queue` list from step 2 is sufficient for this firing. (Re-running the script between iterations would burn context redundantly.)
 
-Applied to each interactive gap selected in Phase 2.
+6. **Re-scan and decide cron state.** Invoke the script one more time to verify the final state:
 
-**Where transcripts live.** Each `sessions_list` row carries a `transcriptPath` field: the absolute path to the session's JSONL file. That's the authoritative value - use it directly as `<transcriptPath>` in the commands below. For reference, OpenClaw stores transcripts at `$OPENCLAW_STATE_DIR/agents/<agentId>/sessions/<sessionId>.jsonl` (default `$OPENCLAW_STATE_DIR` is `~/.openclaw`), which means the whole session corpus for this agent lives under one directory.
+   ```bash
+   clawstodian/scripts/scan-sessions.py > /tmp/clawstodian-sessions-capture-final.json
+   ```
 
-1. **Read JSONL tail, filtered.** Raw `Read` of a session transcript can blow context: tool results and tool calls dominate transcript bytes (empirically ~88% in a large active session; user+assistant text is often under 3%). Pick the lightest reading layer that covers the unread span:
+   If `queue` is empty → self-disable (see below). Otherwise → leave the cron enabled; next firing picks up.
 
-   - **`sessions_history` tool** - cheapest for recent small spans. Safety-filtered (caps at 80 KB, strips tool content by default). Use when the unread span is a handful of recent messages and fidelity beyond the 80 KB cap is not needed.
-   - **Inline `jq` filter piped to `/tmp/`** - for larger unread spans. Reduces the JSONL tail to user + assistant text only, typically 100-200x smaller than the raw span:
-     ```bash
-     tail -n +$((lines_captured+1)) <transcriptPath> | \
-       jq -c 'select(.type=="message" and (.message.role=="user" or .message.role=="assistant")) | {ts: .timestamp, role: .message.role, content: (.message.content | if type == "string" then . else (map(select(.type=="text") | .text) | join("")) end | .[:2000])}' \
-       > /tmp/clawstodian-sessions-capture-<sid-prefix>.jsonl
-     ```
-     Then `Read` the filtered file. Each line is one turn with timestamp, role, and text truncated to 2000 chars. Delete the temp file after processing.
-   - **Ad-hoc script in `/tmp/`** - only when the logic does not fit one jq pipe (joining two sessions' timelines, pre-computing bucket sizes, deduping against existing note sections). Write `/tmp/clawstodian-sessions-capture-<sid-prefix>.py`, invoke with `python3 /tmp/clawstodian-sessions-capture-<sid-prefix>.py`, clean up.
+7. **Write the run report** (see "Run report" below), then disable the cron if empty:
 
-   Record the source transcript's line count at time of read (`wc -l < <transcriptPath>`); that becomes the new `lines_captured` after step 6.
+   ```bash
+   ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="sessions-capture") | .id')
+   openclaw cron disable "$ID"
+   ```
 
-2. **Filter turns** per the classification and turn-level filtering rules above. The output is only human-facing user and assistant content.
+   **Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron rm`.** Rm deletes the cron permanently.
 
-3. **Bucket by date.** For each surviving entry, convert its timestamp to the workspace-local date. Group into date buckets. A session's content may touch one date (common), two (midnight-crossing), or many (historical sessions).
+## Unit-of-work procedure (one session)
 
-4. **Apply per-date.** For each date bucket:
-   - If the date's note is `status: active` (or missing): open or create the note, append a section with a descriptive header and `(~HH:MM UTC)` timestamp, content distilled per the "What to Capture" rules in `memory/daily-note-structure.md`. Merge with existing sections on the same topic if an obvious match exists. This is where content the agent already wrote in-session gets absorbed rather than duplicated.
-   - If the date's note is `status: sealed`: do NOT mutate. Add the session id and date to a `bleed_over` accumulator for the run report.
+Applied to each queue entry:
 
-5. **Merge slug siblings.** If today's date is in this session's buckets, check `memory/YYYY-MM-DD-*.md` for today, merge into the canonical note, delete the sibling. Ambiguous merges surface instead.
+**1. Read the unread JSONL tail.** The entry's `transcript_path`, `lines_captured`, and `transcript_lines` fields tell you exactly what to read. Pick the lightest reading layer:
 
-6. **Advance the ledger cursor.** Update `lines_captured` to the line count captured in step 1, `last_activity` to the row's `updatedAt`, extend `dates_touched`. For a newly-admitted session, set `status`: `done` if the session's `updatedAt` is more than 7 days old, otherwise `active`.
+- **`sessions_history` tool** - cheapest for small, recent spans. Safety-filtered (caps at 80 KB, strips tool content by default). Use when the unread span is a few recent messages. Also the only option for sessions whose transcript file is missing from disk but whose registry row is still live (the `missing_transcripts` bucket).
 
-7. **Update daily-note frontmatter** on each touched note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if absent), `para_status` per the structure spec.
+- **Filtered JSONL tail via `jq`** - for larger unread spans. Reduces raw JSONL to user + assistant text only, typically 100-200x smaller than the raw bytes:
+
+  ```bash
+  tail -n +$((LINES_CAPTURED+1)) <transcript_path> | \
+    jq -c 'select(.type=="message" and (.message.role=="user" or .message.role=="assistant")) | {ts: .timestamp, role: .message.role, content: (.message.content | if type == "string" then . else (map(select(.type=="text") | .text) | join("")) end | .[:2000])}' \
+    > /tmp/clawstodian-sessions-capture-<sid-prefix>.jsonl
+  ```
+
+  Then `Read` the filtered file. Each line is one turn with timestamp, role, and text truncated to 2000 chars. Delete the temp file after processing.
+
+- **Ad-hoc script in `/tmp/`** - only when the logic does not fit one jq pipe (joining two sessions' timelines, pre-computing bucket sizes, deduping against existing note sections). Write `/tmp/clawstodian-sessions-capture-<sid-prefix>.py`, invoke with `python3 /tmp/clawstodian-sessions-capture-<sid-prefix>.py`, clean up.
+
+**2. Filter turns** per the rules below. The output is only human-facing user and assistant content:
+
+- **System-injected user turns** - text starting with `[cron:`, `[heartbeat:`, `[hook:`, `System (`, `System:`, or `Conversation info` is gateway-generated, not operator-typed. Skip the turn and the assistant turn that follows.
+- **Tool calls and tool results** - part of the model's work, not standalone content. Summarize inline (one short `-> read * grep * grep` style line) rather than pasting raw output. Omit lines with raw tool output exceeding a few hundred characters.
+
+**3. Bucket by date.** For each surviving turn, convert timestamp to workspace-local date. Group into date buckets. A session's content may touch one date (common), two (midnight-crossing), or many (historical sessions).
+
+**4. Apply per-date.** For each date bucket:
+
+- If the date's note is `status: active` (or the file is missing): open or create the note, append a section with a descriptive header and `(~HH:MM UTC)` timestamp, content distilled per "What to Capture" in `memory/daily-note-structure.md`. Merge with existing sections on the same topic if an obvious match exists.
+- If the date's note is `status: sealed`: do NOT mutate. Add the session id and date to the `bleed_over` accumulator for the run report.
+
+**5. Merge slug siblings.** If today's date is in this session's buckets, check `memory/YYYY-MM-DD-*.md` for today, merge into the canonical note, delete the sibling. Ambiguous merges surface instead.
+
+**6. Advance the ledger cursor.** Update the session's ledger entry per `memory/daily-note-structure.md` > "Session Ledger":
+
+- New session (`status: new` in the queue): append a new H2 block at the end of `memory/session-ledger.md` with `kind`, `first_seen` (= now in ISO UTC), `last_activity` (= the row's `updatedAt` converted to ISO), `lines_captured` (= the transcript line count captured in step 1), `dates_touched`, `status` (`done` if the session's `updatedAt` is more than 7 days old, otherwise `active`).
+- Existing session (`status: stale`): update `lines_captured`, `last_activity`, and `dates_touched` in place via narrow `Edit` calls. Do not reorder entries.
+
+**7. Update daily-note frontmatter** on each touched note per `memory/daily-note-structure.md`: `last_updated`, `topics`, `people`, `projects`, `sessions` (append the session id's 8-char prefix if absent). Do not touch `para_status` here; it's set by `daily-seal`.
 
 ## Exec safety
 
 - Run commands by exact path. No `eval`, `bash -c "..."`, or other indirection that hides the real command from the gateway's exec safety layer.
-- For multi-line script logic, write the script to `/tmp/clawstodian-sessions-capture-<context>.py` (or `.sh`) and invoke it by path. Do not inline code via heredoc to an interpreter (`python3 <<EOF ... EOF`); the safety layer blocks that as obfuscation.
+- **Always write multi-line script logic to `/tmp/clawstodian-sessions-capture-<context>.py` (or `.sh`) and invoke it by path. Do not use heredocs (`python3 <<EOF ... EOF`)** - some provider runtimes do not reliably block them, and the scripts become opaque to the operator reading the run transcript. A script on disk is also testable and reusable.
 - `jq` and `python3 -c '<short expression>'` one-liners are fine when they fit on one line and the intent is obvious.
+- Invoke `clawstodian/scripts/scan-sessions.py` by its workspace-relative path; do NOT absolutize or chain it through interpreter indirection.
 
 ## Worker discipline
 
-- Read JSONL with `Read` from `lines_captured + 1`, or from offset 0 for a newly-admitted interactive session. Do not re-read from 0 when the ledger has a cursor.
+- **Trust the script.** The queue it emits is authoritative. Do not re-enumerate `sessions_list` in the agent; do not run diagnostic scripts that cross-reference ledger vs disk. If the script gets something wrong, fix the script; do not duplicate its logic in the routine.
 - Write daily-note updates FIRST, then advance the ledger cursor for that session. If either step fails, leave the cursor at its old position so the next firing retries.
 - Never mutate a sealed daily note. Content for a sealed date goes into the `bleed_over` accumulator for the run report (per the program's approval-gate rule).
 - Cursor edits to `memory/session-ledger.md` are narrow `Edit` calls on the matching lines, not full rewrites.
 - PARA entity writes are not this routine's job. Durable insights that in-session agents did not file propagate to PARA later, when `para-extract` processes the sealed note.
 - Cursor idempotency: if a cursor advance fails (note write succeeded but ledger edit failed, or vice versa), the next firing retries from the old cursor. The per-date merge rule makes any re-ingestion a no-op in terms of final note state.
 
-## Self-disable on empty queue
-
-After Phase 2 returns, re-count un-admitted and stale-cursor sessions. If both are zero, disable the cron. `openclaw cron disable` takes the job id, not the name - resolve name -> id first:
-
-```bash
-ID=$(openclaw cron list --json | jq -r '.jobs[] | select(.name=="sessions-capture") | .id')
-openclaw cron disable "$ID"
-```
-
-**Cron safety: disable means `openclaw cron disable`, NEVER `openclaw cron rm`.** Rm deletes the cron permanently.
-
 ## Run report
 
-Two artifacts per meaningful firing: a full report on disk following the shared run-report shape, and a multi-line scannable summary posted to the notifications channel.
+Two artifacts per meaningful firing: a full report on disk, and a multi-line scannable summary posted to the notifications channel. Every firing produces both.
 
 ### File on disk
 
@@ -129,34 +135,38 @@ Write to `memory/runs/sessions-capture/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 ```markdown
 # sessions-capture run report
 
-- timestamp: 2026-04-18T12:30:00Z
-- context: 2026-04-18T12:30Z firing
+- timestamp: 2026-04-19T12:30:00Z
+- context: 2026-04-19T12:30Z firing
 - outcome: captured
 - cron_state: enabled → enabled
 
-## What happened
+## Scan at firing start
 
-### Phase 1 - admissions
+- total_rows: 383 · unique_sessions: 377
+- interactive: 14 · queue: 3 (new=1, stale=2)
+- missing_transcripts: 16
+- skipped: cron=36 · hook=0 · subagent=5 · dreaming=294 · empty=12
 
-- admitted: 3
-  - 96a0c068 → interactive (kind: main)
-  - 5f12bbdd → skipped (kind: cron, reason: cron session)
-  - 7c83eeaa → skipped (kind: cron, reason: cron session)
+## Captures
 
-### Phase 2 - captures
+- 96a0c068 (new): lines 0 → 189 · dates: [2026-04-19] · sections appended: 2 · slugs merged: 0 · bleed: 0
+- cb89ae9b (stale): lines 130 → 214 · dates: [2026-04-17] · bleed: 1 (sealed note)
+- 2da0badd (stale): lines 27 → 45 · dates: [2026-04-16] · bleed: 1 (sealed note)
 
-- processed: 1
-  - 96a0c068: lines 142 → 189 · dates: [2026-04-18] · sections appended: 2 · slugs merged: 0 · bleed: 0
+## Bleed-over
 
-### Bleed-over
+- cb89ae9b → 2026-04-17 (sealed note)
+- 2da0badd → 2026-04-16 (sealed note)
 
-- (none)
+## Missing transcripts (unprocessed)
+
+- 8c7c1630 / agent:main:main - transcript file absent on disk
+- 626e5413 / agent:main:discord:channel:1490238855314673664 - same
 
 ## Queue after firing
 
-- un-admitted: 0
-- stale: 0
-- cron state: enabled
+- interactive: 14 · queue: 0 · missing_transcripts: 2
+- cron state: enabled → disabled
 
 ## Commits
 
@@ -164,47 +174,43 @@ Write to `memory/runs/sessions-capture/<YYYY-MM-DD>T<HH-MM-SS>Z.md`.
 
 ## Surfaced for operator
 
-- (none)
+- 2 missing transcripts (see above) - live sessions whose JSONL file is gone; sessions_history fallback used where possible
 
 ## Channel summary
 
-sessions-capture · 2026-04-18T12:30Z · captured
-Admitted: 3 (skipped=2, interactive=1)
-Captured: 1 session · dates: 2026-04-18
-Bleed: 0 · slugs merged: 0
-Queue: un-admitted=0 · stale=0 · cron: enabled
-Report: memory/runs/sessions-capture/2026-04-18T12-30-00Z.md
+sessions-capture · 2026-04-19T12:30Z · captured
+Captured: 3 sessions · dates: 2026-04-16, 2026-04-17, 2026-04-19
+Bleed: 2 · slugs merged: 0
+Missing transcripts: 2 (8c7c1630, 626e5413)
+Queue: interactive=14 · pending=0 · cron: disabled
+Report: memory/runs/sessions-capture/2026-04-19T12-30-00Z.md
 ```
 
 ### Channel summary
 
-Multi-line. One insight per line.
+Multi-line, one insight per line:
 
-**Typical meaningful firing:**
+**Meaningful firing** (some captures or surfaced items):
 
 ```
-sessions-capture · <ISO timestamp UTC> · <outcome>
-Admitted: <N> (skipped=<s>, interactive=<i>)
-Captured: <M> sessions · dates: <list>
-Bleed: <Z> · slugs merged: <X>
-Queue: un-admitted=<u> · stale=<s2> · cron: <enabled|disabled>
+sessions-capture · <ISO UTC> · <outcome>
+Captured: <N> sessions · dates: <list>
+Bleed: <B> · slugs merged: <X>
+Missing transcripts: <M>[ (<ids>)]
+Queue: interactive=<I> · pending=<P> · cron: <enabled|disabled>
 Report: memory/runs/sessions-capture/<ts>.md
 ```
 
-`outcome` is one of: `captured` (interactive work done), `admitted-only` (only skipped admissions), `disabled` (queue drained, cron self-disabled this firing), `no-op` (no gaps found - cron was enabled but nothing was pending).
+`outcome` is one of: `captured` (processed interactive work), `disabled` (drained, cron self-disabled this firing), `no-op` (queue was empty - cron was enabled but nothing pending). Drop the `Missing transcripts` line when count is 0; drop the `Bleed` line when 0 and no captures happened this firing.
 
-**Quiet firing** (no gaps at all, nothing to do):
+**Quiet firing** (queue empty at start, nothing to do):
 
 ```
-sessions-capture · <ISO timestamp UTC> · no-op
-No gaps (un-admitted=0, stale=0) · cron: <enabled|disabled>
+sessions-capture · <ISO UTC> · no-op
+Queue: interactive=<I> · pending=0 · cron: <enabled|disabled>
 Report: memory/runs/sessions-capture/<ts>.md
 ```
-
-Omit the Bleed line on admitted-only firings (where there was no interactive work AND bleed is 0) to keep the post short.
 
 ### Every firing speaks
 
-Every firing produces both a run-report file and a channel post - no silent firings. A quiet tick (no gaps, nothing to do) still announces with `outcome: no-op` so the operator sees the cron is alive.
-
-Report the state transition clearly when the cron self-disables: the channel post has `cron: disabled` and the outcome reflects the transition (typically `disabled` if the last gap just drained, or `no-op` if the tick found nothing and disables preemptively).
+Every firing produces both a run-report file and a channel post - no silent firings. A quiet tick still announces so the operator sees the cron is alive. Report the state transition clearly when the cron self-disables: the post has `cron: disabled` and the outcome reflects the transition.

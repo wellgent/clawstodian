@@ -90,13 +90,14 @@ Produce a short, explicit plan for the operator. Items in the order the install 
 - **HEARTBEAT.md** (workspace root) - same cases as AGENTS.md, using `~/clawstodian/templates/HEARTBEAT.md`. For most workspaces HEARTBEAT.md is dedicated to the orchestrator and the full template works as-is; an existing non-clawstodian HEARTBEAT.md is unusual and should prompt an explicit warning.
 - **Reference templates** - for each of `memory/para-structure.md`, `memory/daily-note-structure.md`, `MEMORY.md`, `memory/crons.md`, `memory/session-ledger.md`: install from clawstodian template, skip (already exists with non-clawstodian content), or update (exists with an older clawstodian template marker). The session ledger is special-cased: if the file already exists with any H2 session entries, DO NOT overwrite it (those are real capture state). Only install if the file is absent or contains just the empty-skeleton marker.
 - **PARA folders** - create missing top-level `projects/`, `areas/`, `resources/`, `archives/` if not present? (ask; some workspaces prefer different names.)
-- **Workspace `clawstodian/` directory** - create it with two directory symlinks pointing at the package's `programs/` and `routines/` directories:
+- **Workspace `clawstodian/` directory** - create it with three directory symlinks pointing at the package's `programs/`, `routines/`, and `scripts/` directories:
   ```bash
   mkdir -p clawstodian
   ln -s ~/clawstodian/programs clawstodian/programs
   ln -s ~/clawstodian/routines clawstodian/routines
+  ln -s ~/clawstodian/scripts  clawstodian/scripts
   ```
-  One-time setup. Program specs become reachable at `clawstodian/programs/<name>.md` and routine specs at `clawstodian/routines/<name>.md` relative to workspace root. If a legacy single symlink from an earlier draft exists (either name), remove it before adding the pair.
+  One-time setup. Program specs become reachable at `clawstodian/programs/<name>.md`, routine specs at `clawstodian/routines/<name>.md`, and helper scripts at `clawstodian/scripts/<name>.py` relative to workspace root. If a legacy single symlink from an earlier draft exists (either name), remove it before adding the three.
 - **Cron routines** - install all seven routines (exact commands in the **Cron install commands** section below). Scheduled (wall-clock): `para-align` (Sun 06:00 UTC), `workspace-clean` (Sun 07:00 UTC), `git-clean` (01:00 and 11:00 UTC daily), `health-check` (03:00 UTC daily). Heartbeat-toggled bursts (start disabled): `sessions-capture`, `daily-seal`, `para-extract`. Ask the operator which logs channel to deliver announcements to (Discord/Slack/Telegram channel id). Offer `--no-deliver` as alternative for workspaces that prefer silent runs.
 - **Session visibility config** - set `tools.sessions.visibility: "all"` in `~/.openclaw/openclaw.json`. This is a **required prerequisite**, not optional: without it, the `sessions-capture` routine cannot see any session other than its own spawned children, so captured content is always zero. If the operator has an existing value (`"tree"`, `"agent"`, etc.), explain the trade-off before overwriting: `"all"` lets any isolated cron session in this agent see any session's transcripts. For single-operator workspaces this is the correct setting; shared-agent installs may want to scope differently and accept that clawstodian will not work out of the box.
 - **Heartbeat config** - the authoritative reference is `~/clawstodian/docs/heartbeat-config.md`. Recommended stance: `every: "2h"`, `target` set to a channel plugin (`discord`, `slack`, etc.) and `to` set to the channel-specific recipient (e.g. `"channel:<id>"`) pointing at the notifications channel, `activeHours` set. Leave `session`, `isolatedSession`, and `lightContext` at their defaults so heartbeat runs in the main session with full workspace bootstrap. Do NOT add `session.maintenance`, `agents.defaults.contextPruning`, or other host-wide policy fields - those are the operator's sessions-baseline choices. **Pick `activeHours.start` to sit at or after the latest overnight scheduled cron time** - with clawstodian's defaults (`git-clean` 01:00 UTC, `health-check` 03:00 UTC), `activeHours.start: "04:00"` or later guarantees the first daily heartbeat tick sees the overnight cron reports. See the "Aligning active hours with scheduled crons" section of `docs/heartbeat-config.md` for the rationale. Show the operator the snippet from `~/clawstodian/docs/heartbeat-config.md` and propose merging it into their OpenClaw config. Apply this last.
@@ -269,6 +270,47 @@ Re-run this install flow. Step 3's survey detects which template markers are old
 - Install the new `sessions-capture` cron (disabled, heartbeat-toggled).
 - Preserve `memory/session-ledger.md` as-is; its schema is unchanged.
 - The heartbeat will enable `sessions-capture` on its next tick if any gaps exist.
+
+**Migrating ledger shape (pre-2026-04-20 installs) - drop skipped entries:**
+
+In the previous ledger shape, every session observed by `sessions-capture` was written to `memory/session-ledger.md`, including ones with `classification: skipped` (cron, hook, sub-agent, dreaming, delivery-only). That caused unbounded ledger growth and pushed `sessions-capture` into expensive reconciliation loops on cold start (observed in the 2026-04-19 wellgent incident - one firing ballooned to 793K tokens trying to admit a large backlog).
+
+The new `sessions-capture` reads its queue from `clawstodian/scripts/scan-sessions.py`, which classifies skipped sessions deterministically and never stores them. The ledger now contains interactive sessions only.
+
+For an existing install, drop the skipped entries from `memory/session-ledger.md`. Each block to remove looks like:
+
+```markdown
+## <session-id>
+
+- classification: skipped
+- kind: <cron|hook|node|other>
+- first_seen: <ts>
+- reason: <one line>
+```
+
+Leave `classification: interactive` entries exactly as they are - their cursors are still authoritative. A safe mechanical approach:
+
+```bash
+python3 - <<'PY' >/tmp/session-ledger-new.md
+import re
+src = open("memory/session-ledger.md").read()
+# Split on H2 headings, keeping the heading with its block
+blocks = re.split(r'^(## [0-9a-f-]{36}\s*\n)', src, flags=re.M)
+out = [blocks[0]]  # preamble
+for heading, body in zip(blocks[1::2], blocks[2::2]):
+    if re.search(r'^- classification: skipped\s*$', body, flags=re.M):
+        continue
+    # strip the now-redundant "classification: interactive" line
+    body = re.sub(r'^- classification: interactive\s*\n', '', body, flags=re.M)
+    out.append(heading + body)
+print("".join(out), end="")
+PY
+mv /tmp/session-ledger-new.md memory/session-ledger.md
+```
+
+This is a one-off migration; verify by comparing the before/after entry counts (`grep -c '^## ' memory/session-ledger.md`) and confirm only interactive cursors remain. Commit the resulting ledger with a `memory: drop skipped ledger entries - migrate to interactive-only ledger` message.
+
+Agents running on workspaces that haven't migrated will still work - `scan-sessions.py` ignores the old `classification` field and re-derives everything from `sessions_list`. The migration is a size cleanup, not a functional requirement.
 
 If a workspace has customized its `AGENTS.md` clawstodian block, leave the customization alone and only bump the marker date to match the package. Surface the customization in the plan so the operator knows their diff is preserved.
 

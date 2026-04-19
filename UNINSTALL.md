@@ -38,7 +38,7 @@ Should return nothing.
 
 ## Step 2 - Remove the workspace `clawstodian/` directory
 
-The workspace `clawstodian/` holds two symlinks into the package (`programs`, `routines`). Removing the directory removes both symlinks but leaves the package clone at `~/clawstodian` untouched.
+The workspace `clawstodian/` holds three symlinks into the package (`programs`, `routines`, `scripts`). Removing the directory removes all three but leaves the package clone at `~/clawstodian` untouched.
 
 ```bash
 rm -rf clawstodian
@@ -133,6 +133,7 @@ openclaw cron list --all | grep -E " (sessions-capture|workspace-clean|git-clean
 # Workspace symlinks gone
 [ -e clawstodian/programs ] && echo "FAIL programs symlink still present" || echo "OK  programs symlink removed"
 [ -e clawstodian/routines ] && echo "FAIL routines symlink still present" || echo "OK  routines symlink removed"
+[ -e clawstodian/scripts  ] && echo "FAIL scripts symlink still present"  || echo "OK  scripts symlink removed"
 
 # Section markers gone (checks both current and legacy marker names)
 grep -qE 'clawstodian/agents(-section)?' AGENTS.md 2>/dev/null && echo "FAIL agents marker still present" || echo "OK  agents marker removed"

@@ -1,4 +1,4 @@
-<!-- template: clawstodian/agents 2026-04-19 -->
+<!-- template: clawstodian/agents 2026-04-20 -->
 ## Workspace Maintainer (clawstodian)
 
 This workspace runs four maintenance **programs** that define how the workspace operates, and seven **routines** that schedule work on cron as a catch-up safety net. Programs are the durable authorities; routines are scheduled invocations. The workspace itself is the ledger - git, daily notes, PARA entities, session transcripts, `memory/session-ledger.md`, `memory/heartbeat-trace.md`, and per-routine run reports under `memory/runs/<routine>/` are the only state.
@@ -43,7 +43,7 @@ Three layers give continuity across sessions:
 - Known file path -> `read` directly.
 - Complete listings -> `projects/INDEX.md`, `areas/INDEX.md`, `resources/INDEX.md`.
 - Convention deep-dives -> `memory/para-structure.md`, `memory/daily-note-structure.md`, `memory/crons.md`.
-- Capture state (internal; written by `sessions-capture`) -> `memory/session-ledger.md`. Format spec lives in `memory/daily-note-structure.md` under the "Session Ledger" section.
+- Capture state (internal; written by `sessions-capture`) -> `memory/session-ledger.md` (interactive-session cursors only; skipped classes derived on demand by `clawstodian/scripts/scan-sessions.py`). Format spec lives in `memory/daily-note-structure.md` under the "Session Ledger" section.
 - Per-routine run reports -> `memory/runs/<routine-name>/<timestamp>.md`. Each cron firing that does meaningful work writes a detail file here; the channel summary always ends with a pointer. Pruned after 30 days by `workspace-clean`.
 
 **Memory maintenance (applies to all agents in this workspace, not just clawstodian-driven runs):**
@@ -77,7 +77,7 @@ Every firing in both classes produces a run-report file under `memory/runs/<rout
 
 Current routines:
 
-- **sessions-capture** (burst, every 30m while enabled) - invokes daily-notes: capture one session's unread JSONL into the appropriate daily notes. Heartbeat enables when the ledger has un-admitted sessions or stale cursors. Agents in-session remain the primary writers; this cron is the backstop.
+- **sessions-capture** (burst, every 30m while enabled) - invokes daily-notes: capture one interactive session's unread JSONL into the appropriate daily notes. The queue source is `clawstodian/scripts/scan-sessions.py`, which projects `openclaw sessions --json` against `memory/session-ledger.md` and returns the interactive-session queue deterministically. Heartbeat enables when the script reports `queue > 0`. Agents in-session remain the primary writers; this cron is the backstop.
 - **daily-seal** (burst, every 30m while enabled) - invokes daily-notes: seal one past-day note per firing. Heartbeat enables when past-active notes with `capture_status: done` exist.
 - **para-extract** (burst, every 30m while enabled) - invokes para: extract PARA from one sealed note per firing. Heartbeat enables when sealed notes with `para_status: pending` exist.
 - **para-align** (scheduled, Sunday 06:00 UTC) - invokes para: align PARA structure across the full graph.
@@ -98,4 +98,4 @@ Any program action that crosses these lines escalates - surface (in reply or run
 - any change that crosses into a new project or workstream rather than maintenance
 - any security concern: exposed secret, unexpected network activity, tampered file, permission anomaly
 
-<!-- /template: clawstodian/agents 2026-04-19 -->
+<!-- /template: clawstodian/agents 2026-04-20 -->

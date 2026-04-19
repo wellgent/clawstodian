@@ -1,4 +1,4 @@
-<!-- template: clawstodian/daily-note-structure 2026-04-18 -->
+<!-- template: clawstodian/daily-note-structure 2026-04-20 -->
 # Daily Note Structure
 
 Single source of truth for the daily-notes pipeline: the daily note's format (frontmatter, structure, what to capture, what sealing does) and the session-ledger format that `sessions-capture` uses as its authoritative capture-state file. In-session agents read this file when appending to today's note; the `sessions-capture`, `daily-seal`, and `para-extract` routines (specs at `clawstodian/routines/`) read it too. Customize per workspace as needed.
@@ -67,7 +67,7 @@ sessions: [96a0c068, b513d1a5]
 - (unset) - capture is still in progress. Always the case for today's note. Also the case for past-days where the capture pipeline has not yet marked them complete.
 - `done` - the heartbeat has determined that no more content can land in this note. The three conditions it checks:
   1. Date < today (workspace-local).
-  2. No sessions in `sessions_list` with `updatedAt` within this date's window lack a ledger entry (nothing pending admission).
+  2. `clawstodian/scripts/scan-sessions.py` reports `queue == 0` (no interactive session has unread content pending).
   3. For every ledger entry whose `dates_touched` includes this date: `lines_captured` equals the current transcript line count (session is fully captured) AND `last_activity` is strictly past end of this date (session has demonstrably moved on).
 
 All three conditions together mean no turn with a date-X timestamp can still arrive from any session, so the note is safe to seal.
@@ -150,73 +150,73 @@ On seal:
 
 ## Session Ledger
 
-The `sessions-capture` routine uses `memory/session-ledger.md` as its authoritative capture-state file: per-session classification, read cursor, and dates touched. Only `sessions-capture` writes to it; the heartbeat reads it for gap detection but never writes.
+The `sessions-capture` routine uses `memory/session-ledger.md` as its authoritative capture-state file: for each interactive session, the read cursor and dates touched. Only `sessions-capture` writes to it; the heartbeat reads it indirectly via `clawstodian/scripts/scan-sessions.py`.
+
+### What goes in the ledger - interactive sessions only
+
+**The ledger contains interactive sessions only.** Sessions that classify as skipped (cron-dispatched, hook-dispatched, sub-agents whose parent transcript owns the content, dreaming-routine sessions, delivery-only sessions with no real user turns) are NOT stored. Their classification is deterministic and cheap, so `scan-sessions.py` re-derives it on every scan rather than memoizing.
+
+Benefits:
+- The ledger stays small (the minority of sessions are interactive).
+- No admission step - creating a ledger entry is always part of processing actual content, never a "just mark this so we don't re-examine it" write.
+- Classification rules can evolve without needing to rewrite old ledger entries.
 
 ### Semantics
 
-- **New un-admitted session** (present in `sessions_list`, absent from the ledger) - the routine creates an entry, classifies, reads JSONL from line 0, applies per-date.
-- **Known session with stale cursor** (ledger entry exists but `row.updatedAt > ledger.last_activity`) - the routine reads JSONL from `lines_captured + 1` to end, applies per-date, advances the cursor.
-- **Session classification says "skip"** (cron / hook / subagent whose parent is already captured / delivery-only) - an entry is created with `classification: skipped` so the session is not re-examined on later firings.
+- **New interactive session** (present in `sessions_list`, absent from the ledger) - `scan-sessions.py` returns it with `status: new`. `sessions-capture` reads the JSONL from line 0, applies per-date, creates a new H2 entry in the ledger.
+- **Stale interactive session** (ledger entry exists, but on-disk transcript line count exceeds `lines_captured`) - `scan-sessions.py` returns it with `status: stale`. `sessions-capture` reads from `lines_captured + 1` to end, applies per-date, advances the cursor.
+- **Orphan ledger entry** (entry exists but session id is no longer in `sessions_list`) - ignored. Transcripts get pruned over time; old cursors just sit in the ledger as a historical record and do not gate anything.
 
 The cursor advances only after the affected daily notes have been written successfully; a partial write leaves the cursor at its old position so the next firing retries.
 
 ### File shape
 
 ```markdown
-<!-- template: clawstodian/session-ledger 2026-04-18 -->
+<!-- template: clawstodian/session-ledger 2026-04-20 -->
 # Session ledger
 
 ## 96a0c068-a1b2-c3d4-e5f6-7890abcdef12
 
-- classification: interactive
-- kind: main
+- kind: direct
 - first_seen: 2026-04-15T10:00Z
 - last_activity: 2026-04-18T14:30Z
 - lines_captured: 142
 - dates_touched: 2026-04-15, 2026-04-16, 2026-04-17, 2026-04-18
 - status: active
-
-## b513d1a5-0000-0000-0000-000000000000
-
-- classification: skipped
-- kind: cron
-- first_seen: 2026-04-17T06:00Z
-- reason: cron session (heartbeat tick)
 ```
 
-One H2 section per session, in append order. Update cursor fields in place via narrow `Edit`. Never reorder existing sections.
+One H2 section per interactive session, in append order. Update cursor fields in place via narrow `Edit`. Never reorder existing sections.
 
 ### Fields
 
 - **(heading)** - the full session id as returned by `sessions_list`.
-- **classification** - `interactive` (content goes into daily notes) or `skipped` (content is filtered out).
-- **kind** - from `sessions_list`: `main` | `group` | `cron` | `hook` | `node` | `other`.
-- **first_seen** - ISO-8601 UTC timestamp when the ledger first saw this session.
-- **last_activity** - the session's `updatedAt` at the most recent firing that examined it. Mirrors the `sessions_list` row, not derived locally. Used to short-circuit sessions that have not moved since last firing.
-- **lines_captured** - the JSONL line count already processed. Next read starts at line `lines_captured + 1`. Only on `classification: interactive`.
-- **dates_touched** - comma-separated `YYYY-MM-DD` list of daily notes this session has contributed to. Only on `classification: interactive`.
-- **status** - `active` (session still receiving activity) | `dormant` (no activity for 7+ days but transcript still exists) | `done` (fully captured, session closed). Only on `classification: interactive`.
-- **reason** - one short line explaining a `skipped` classification. Only on `classification: skipped`.
+- **kind** - from the `sessions_list` row (`direct`, `group`, `main`, etc. - shape depends on the OpenClaw version).
+- **first_seen** - ISO-8601 UTC timestamp when this routine first wrote this entry.
+- **last_activity** - the session's `updatedAt` at the most recent firing that captured from it. Mirrors the `sessions_list` row at capture time.
+- **lines_captured** - the JSONL line count already processed. Next read starts at line `lines_captured + 1`.
+- **dates_touched** - comma-separated `YYYY-MM-DD` list of daily notes this session has contributed to.
+- **status** - `active` (session still receiving activity) | `dormant` (no activity for 7+ days but transcript still exists) | `done` (fully captured, session closed or more than 7 days old at admission time).
 
 ### Update rules
 
 - Cursor advances happen via `Edit` with a narrow `old_string` (the exact line) so unrelated fields are never rewritten.
 - New sessions are appended at the end as new H2 blocks. Do not insert them in the middle.
 - Existing sections are never reordered; the file's chronological shape is the append order.
-- If a session's transcript disappears (gateway pruning, operator deletion), leave the ledger entry in place and surface the anomaly in the next run report. Do not delete entries to match observed state.
+- Do not delete entries to match observed `sessions_list` state. If a transcript disappears, the orphan entry simply becomes inactive.
 
 ### What NOT to put in the ledger
 
+- Skipped classifications (cron, hook, sub-agent, dreaming, delivery-only). These are derived on demand by `scan-sessions.py`.
 - Full transcript content (lives on disk in the session JSONL files).
 - Summaries of what happened in each session (lives in the daily notes).
 - PARA extraction status (lives in the daily note's `para_status` frontmatter).
 - Heartbeat tick records (live in `memory/heartbeat-trace.md`).
 
-The ledger is strictly: "what have we processed from which session, and where did it land."
+The ledger is strictly: "what have we captured from which interactive session, and how far did we get."
 
 ### Size tradeoff
 
-At 1000 sessions the file approaches 7000 lines, still within a single `Read` call. If a workspace grows past 10000 sessions, split the ledger by year (`memory/session-ledger-YYYY.md`) rather than switching to a binary format.
+On a disciplined workspace, interactive sessions accumulate slowly (the vast majority of new sessions are cron / hook / sub-agent / dreaming, all skipped). Ledgers of 100-300 entries are typical even after months of use; the file stays under 2000 lines, well within a single `Read` call.
 
 ### Why a flat markdown file and not JSON
 
