@@ -1,7 +1,7 @@
 <!-- template: clawstodian/para-structure 2026-04-18 -->
 # PARA Conventions
 
-Single source of truth for how the knowledge graph is organized in this workspace. The `para-extract` and `para-align` routines (defined in `AGENTS.md` under clawstodian) read this file when creating, moving, or validating entities. Customize per workspace as needed; keep the structural rules intact.
+Single source of truth for how the knowledge graph is organized in this workspace. In-session agents read this file when creating, moving, or validating PARA entities; the `para-extract` and `para-align` routines (specs at `clawstodian/routines/`) read it too. Customize per workspace as needed; keep the structural rules intact.
 
 ## What is PARA?
 
@@ -25,7 +25,7 @@ Create an entity when:
 - A topic produces reusable knowledge (guide, reference, insight).
 - A company has a relationship worth tracking (client, prospect, partner).
 
-Do not create stubs. If you cannot write substantive content, do not create the file. If placement is ambiguous, ask the operator before creating.
+Do not create stubs. If you cannot write substantive content, do not create the file. If placement is ambiguous, surface rather than create (in-session: ask the operator in chat; via cron: include in the routine's run report).
 
 ## Navigation Layers
 
