@@ -62,7 +62,7 @@ If Phase 2 runs out of budget with interactive gaps still remaining, the cron st
 
 Applied to each interactive gap selected in Phase 2.
 
-**Transcript path.** Each `sessions_list` row carries a `transcriptPath` field (absolute path to the session's JSONL file under `~/.claude/projects/<workspace-slug>/<session-id>.jsonl`). Use that value directly as `<transcriptPath>` in the commands below. Do NOT run broad filesystem searches (`find ~`, `find /Users`, `locate`) - they hit protected directories on macOS, burn context on permission errors, and can be killed by the exec timeout. If a row's `transcriptPath` is missing, classify the session as `skipped` with reason "no transcript" and move on.
+**Where transcripts live.** Each `sessions_list` row carries a `transcriptPath` field: the absolute path to the session's JSONL file. That's the authoritative value - use it directly as `<transcriptPath>` in the commands below. For reference, OpenClaw stores transcripts at `$OPENCLAW_STATE_DIR/agents/<agentId>/sessions/<sessionId>.jsonl` (default `$OPENCLAW_STATE_DIR` is `~/.openclaw`), which means the whole session corpus for this agent lives under one directory.
 
 1. **Read JSONL tail, filtered.** Raw `Read` of a session transcript can blow context: tool results and tool calls dominate transcript bytes (empirically ~88% in a large active session; user+assistant text is often under 3%). Pick the lightest reading layer that covers the unread span:
 
