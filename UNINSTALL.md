@@ -15,26 +15,24 @@ Principle: **co-uninstall, don't automate**. Show the operator what each step re
 
 ## Step 1 - Disable and remove cron routines
 
-Disable first (stops future firings), then remove (deletes the job entry). `openclaw cron disable|rm` take a job id, not a name, so resolve name -> id via `cron list --json` inside the loop:
+Disable first (stops future firings), then remove (deletes the job entry). `openclaw cron disable|rm` take a job id, not a name. Discover every clawstodian-flavored cron by looking at the job's `message` field (all clawstodian routines dispatch via `Read clawstodian/routines/<name>.md and execute`), then loop:
 
 ```bash
-for name in sessions-capture workspace-clean git-clean para-align daily-seal para-extract health-check capture-sessions workspace-tidy git-hygiene seal-past-days daily-note backfill-sessions; do
-  id=$(openclaw cron list --json | jq -r ".jobs[] | select(.name==\"$name\") | .id")
-  [ -n "$id" ] || continue
-  openclaw cron disable "$id" 2>/dev/null
-  openclaw cron rm "$id" 2>/dev/null
-done
+openclaw cron list --json | \
+  jq -r '.jobs[] | select(.payload.message // "" | test("clawstodian/")) | .id' | \
+  while read -r id; do
+    openclaw cron disable "$id" 2>/dev/null
+    openclaw cron rm "$id" 2>/dev/null
+  done
 ```
-
-(The `capture-sessions`, `workspace-tidy`, `git-hygiene`, `seal-past-days`, `daily-note`, and `backfill-sessions` names are included only to clean up any lingering crons from earlier v0.4 drafts that predate the current naming.)
 
 Verify:
 
 ```bash
-openclaw cron list --all | grep -E " (sessions-capture|workspace-clean|git-clean|para-align|daily-seal|para-extract|health-check|capture-sessions|workspace-tidy|git-hygiene|seal-past-days|daily-note|backfill-sessions) "
+openclaw cron list --json | jq -r '.jobs[] | select(.payload.message // "" | test("clawstodian/")) | .name'
 ```
 
-Should return nothing.
+Should print nothing.
 
 ## Step 2 - Remove the workspace `clawstodian/` directory
 
@@ -56,7 +54,7 @@ Delete everything between the opening and closing template markers inclusive:
 <!-- /template: clawstodian/agents <date> -->
 ```
 
-(Legacy marker: `clawstodian/agents-section` from v0.3 / early v0.4.)
+Historical rename: any marker starting with `clawstodian/` (not just `clawstodian/agents`) counts - treat them the same way.
 
 If the operator removed the markers when they adopted the template, the clawstodian content is the section headed `## Workspace Maintainer (clawstodian)` plus the subsections below it down to and including `### Cross-program escalation rules`. Identify the span, confirm with the operator, then delete.
 
@@ -74,7 +72,7 @@ Same shape as Step 3. Delete everything between:
 <!-- /template: clawstodian/heartbeat <date> -->
 ```
 
-(Legacy marker: `clawstodian/heartbeat-section`.)
+Same historical-rename rule applies: any `clawstodian/` marker, not just `clawstodian/heartbeat`.
 
 If the operator removed the markers, the clawstodian content is essentially the whole HEARTBEAT.md for most workspaces - delete the file or strip its orchestrator content entirely.
 
@@ -127,17 +125,18 @@ These outlive clawstodian and stay in the workspace unless the operator explicit
 Run these to confirm the removal:
 
 ```bash
-# Cron jobs gone
-openclaw cron list --all | grep -E " (sessions-capture|workspace-clean|git-clean|para-align|daily-seal|para-extract|health-check|capture-sessions|workspace-tidy|git-hygiene|seal-past-days|daily-note|backfill-sessions) " && echo "FAIL cron entries remain" || echo "OK  cron entries removed"
+# Cron jobs gone (any cron whose message dispatches clawstodian/)
+leftover=$(openclaw cron list --json | jq -r '.jobs[] | select(.payload.message // "" | test("clawstodian/")) | .name')
+[ -z "$leftover" ] && echo "OK  cron entries removed" || echo "FAIL cron entries remain: $leftover"
 
 # Workspace symlinks gone
 [ -e clawstodian/programs ] && echo "FAIL programs symlink still present" || echo "OK  programs symlink removed"
 [ -e clawstodian/routines ] && echo "FAIL routines symlink still present" || echo "OK  routines symlink removed"
 [ -e clawstodian/scripts  ] && echo "FAIL scripts symlink still present"  || echo "OK  scripts symlink removed"
 
-# Section markers gone (checks both current and legacy marker names)
-grep -qE 'clawstodian/agents(-section)?' AGENTS.md 2>/dev/null && echo "FAIL agents marker still present" || echo "OK  agents marker removed"
-grep -qE 'clawstodian/heartbeat(-section)?' HEARTBEAT.md 2>/dev/null && echo "FAIL heartbeat marker still present" || echo "OK  heartbeat marker removed"
+# Section markers gone (any clawstodian/ marker form)
+grep -qE '<!-- template: clawstodian/' AGENTS.md 2>/dev/null && echo "FAIL agents marker still present" || echo "OK  agents marker removed"
+grep -qE '<!-- template: clawstodian/' HEARTBEAT.md 2>/dev/null && echo "FAIL heartbeat marker still present" || echo "OK  heartbeat marker removed"
 ```
 
 All lines should print `OK`.

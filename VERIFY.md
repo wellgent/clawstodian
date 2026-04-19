@@ -27,9 +27,9 @@ Verify does NOT check that routines are delivering work over time; ongoing machi
 Paste the whole block into a shell. Each line prints one pass/fail indicator.
 
 ```bash
-# Template markers in place (or legacy markers from v0.3 / early v0.4)
-grep -qE 'clawstodian/agents(-section)?' AGENTS.md 2>/dev/null && echo "OK  agents marker" || echo "FAIL agents marker"
-grep -qE 'clawstodian/heartbeat(-section)?' HEARTBEAT.md 2>/dev/null && echo "OK  heartbeat marker" || echo "FAIL heartbeat marker"
+# Template markers present (any clawstodian/ marker form; the install-currency check in health-check compares dates)
+grep -qE '<!-- template: clawstodian/' AGENTS.md 2>/dev/null && echo "OK  agents marker" || echo "FAIL agents marker"
+grep -qE '<!-- template: clawstodian/' HEARTBEAT.md 2>/dev/null && echo "OK  heartbeat marker" || echo "FAIL heartbeat marker"
 
 # Reference templates present at workspace root
 [ -f AGENTS.md ] && echo "OK  AGENTS.md present" || echo "FAIL AGENTS.md missing"

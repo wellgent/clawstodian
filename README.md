@@ -173,7 +173,7 @@ If your workspace's `AGENTS.md` is pushing the per-file cap (`agents.defaults.bo
 
 ## Status
 
-Draft. See `VERSION` and `CHANGELOG.md`. v0.4 introduces the program/routine split, the cron-per-routine execution model, and four-layer observability; v0.4 drafts land alongside workspace evolution before stabilizing.
+See `CHANGELOG.md` for the current version and the release history. Releases land alongside workspace evolution; the install flow in `INSTALL.md` is idempotent and picks up whatever changed since your last run.
 
 ## License
 

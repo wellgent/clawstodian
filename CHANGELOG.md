@@ -48,6 +48,29 @@ All detection-only. No `git pull`, no template rewrite, no INSTALL re-run, no au
 
 Rationale captured in `docs/architecture.md` design principle #8 ("Queue derivation over queue storage"): the same pattern that makes the sessions-capture queue a function rather than a file applies here - install-currency and session-state are derived from workspace artifacts + remote refs on demand, not cached or tracked in a VERSION file.
 
+### Documentation doctrine: INSTALL.md is timeless; CHANGELOG carries narrative
+
+A cleanup sweep reshaped `INSTALL.md`, `UNINSTALL.md`, `VERIFY.md`, and `README.md` around a principle this release makes explicit: **operator-facing docs are idempotent and version-agnostic; release-specific narrative lives in the CHANGELOG entry for that release.**
+
+Removed from `INSTALL.md`:
+- Three "Migrating..." sections under "Updating an existing install" (v0.3→v0.4, v0.4-draft inter-rename, pre-0.4.1 ledger shape). Replaced with a single generic paragraph pointing at the CHANGELOG for release-specific concerns.
+- Enumeration of 15 historical routine names in Step 3's "existing cron jobs" bullet. Replaced with a generic "clawstodian-adjacent but not in the expected seven" category.
+- Two "If Step 3 detected..." advisory blocks (v0.3 routines, ops-* packages). Replaced with a single generic "surface unknown items for operator decision" instruction.
+- "Legacy markers" parentheticals in Step 3's AGENTS.md / HEARTBEAT.md bullets. Replaced with a generic "any `clawstodian/` marker not matching the current name is a historical rename; surface it" rule.
+- The "existing ops-* packages" survey bullet.
+
+Removed from `UNINSTALL.md`:
+- Hardcoded list of 13 historical cron names in the disable-and-remove loop and verification grep. Replaced with a `jq` filter on `.payload.message` matching `clawstodian/` - catches every clawstodian-dispatched cron regardless of how it was named.
+- "Legacy marker" parentheticals under the AGENTS.md and HEARTBEAT.md removal steps.
+
+Removed from `VERIFY.md`:
+- "Template markers in place (or legacy markers from v0.3 / early v0.4)" shell comment; marker check now matches any `clawstodian/` marker form.
+
+Removed from `README.md`:
+- The `## Status` section's v0.4-specific paragraph, replaced with a version-agnostic pointer at the CHANGELOG.
+
+Release scripts like `scripts/migrate-session-ledger.py` stay in place - they are idempotent tools an operator can run whenever they want. The CHANGELOG entry for the release that introduces them points at them; `INSTALL.md` does not. Future releases follow the same pattern: if a release ships a one-off migration, the release note says so and points at the script; `INSTALL.md` stays unchanged.
+
 ## 0.4.0 - 2026-04-18
 
 Program/routine split, cron-per-routine inversion, four-layer observability. v0.3 kept the heartbeat executing five routines in a pure-prose dispatcher; in live use a gateway restart produced a silent heartbeat failure with no detectable signal. v0.4 separates domain authorities (programs) from scheduled invocations (routines), pushes execution onto cron (the self-observing substrate), and shrinks the heartbeat to a tending orchestrator that never goes silent.
