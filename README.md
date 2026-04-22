@@ -117,7 +117,6 @@ clawstodian/
 
   AGENTS.md                          this repo's own agent instructions
   CLAUDE.md                          symlink to AGENTS.md
-  VERSION
   CHANGELOG.md
 ```
 

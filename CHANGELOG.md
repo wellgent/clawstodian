@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.3 - 2026-04-22
+
+Two cleanups: trim the workspace charter to in-session essentials, and remove the dead `VERSION` file.
+
+`templates/AGENTS.md` shrunk from 101 to 43 lines. The full routines catalog, heartbeat orchestration mechanics, operating-model philosophy, audit-trail pointer, execute-verify-report meta-rule, and the per-routine-announce / heartbeat-never-silent posture bullets were all machinery info aimed at the heartbeat session and cron sessions, not the in-session agent who reads `AGENTS.md` on every operator chat. Cron sessions load their own routine spec when fired; the heartbeat loads `HEARTBEAT.md`. What the in-session agent actually needs - log work in the daily note + commit + push, update existing PARA before creating new, co-create when ambiguous, read the program spec before acting in a domain, and the escalation list - now lives in three sections: How to behave, Where things live (with the four programs as a one-line catalog inside it), Escalation. Template marker bumped to `2026-04-22`.
+
+`VERSION` deleted along with its mention in `README.md`'s repo-tree diagram. The file said `0.4.0-draft` while the package was on 0.4.2 - exactly the staleness the 0.4.1 changelog entry warned about when it codified the principle "install-currency [is] derived from workspace artifacts + remote refs on demand, not cached or tracked in a VERSION file." Nothing read it: `INSTALL.md` never referenced it; `health-check` reads `CHANGELOG.md`'s top `## X.Y.Z - YYYY-MM-DD` line as the version source. Deleting closes the gap between the principle and the repo state.
+
+Changed:
+- `templates/AGENTS.md` rewritten as three sections (how to behave / where things live / escalation). Routines catalog, heartbeat description, operating-model section, execute-verify-report section, and memory-and-navigation tri-layer paragraph removed. Programs catalog kept inline in "Where things live" as one-line entries. Template marker bumped to `2026-04-22`.
+- `README.md` repo-tree diagram drops the `VERSION` line.
+
+Removed:
+- `VERSION` file. Source of truth for the current version is `CHANGELOG.md`'s top entry header, already consumed by `health-check` (0.4.1).
+
 ## 0.4.2 - 2026-04-19
 
 Drop the dead `status` field on ledger entries. The session-ledger format spec declared a three-value field (`active | dormant | done`) but nothing ever read it; `sessions-capture` only ever wrote `active` or `done` at entry-creation time (based on an arbitrary 7-day threshold) and never transitioned the value. `dormant` existed only in the field's type definition. Liveness - the only question the field might have answered - is authoritative in `sessions_list` (row presence + `updatedAt`), so storing a stale snapshot of it in the ledger was exactly the caching anti-pattern `docs/architecture.md` principle #8 warns against.
